@@ -1,0 +1,29 @@
+{
+  "name": "@sizls/pluck-studio",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Pluck Studio – public web surface at studio.pluck.run hosting the Pluck Bureau hacking & security programs (DRAGNET, NUCLEI, etc.).",
+  "scripts": {
+    "dev": "next dev --port 3030",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sizls/pluck-bureau-bounty": "^0.2.0",
+    "@sizls/pluck-bureau-core": "^1.0.0",
+    "@sizls/pluck-bureau-custody": "^0.2.0",
+    "next": "^15.3.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
+  }
+}
