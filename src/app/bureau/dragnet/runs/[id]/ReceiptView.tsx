@@ -60,11 +60,16 @@ const StatLineStyle = {
   marginTop: 4,
 };
 
-const StubLabelStyle = {
-  fontStyle: "italic" as const,
-  fontSize: 11,
-  color: "var(--bureau-fg-dim)",
-  marginLeft: 8,
+const NextActionStyle = {
+  display: "inline-block",
+  marginRight: 16,
+  padding: "8px 16px",
+  fontFamily: "var(--bureau-mono)",
+  fontSize: 13,
+  background: "var(--bureau-fg-dim)",
+  color: "var(--bureau-bg)",
+  textDecoration: "none",
+  borderRadius: 4,
 };
 
 interface ReceiptViewProps {
@@ -98,15 +103,30 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   }, [system]);
 
   const isPhrase = isPhraseId(id);
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
   const onCopy = useCallback(() => {
-    if (typeof navigator === "undefined" || !navigator.clipboard) {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+
+    if (typeof navigator === "undefined" || !navigator.clipboard || !url) {
+      // No clipboard API (insecure context, old browser, sandboxed iframe).
+      // Surface a "failed" state so the user can manually select the URL bar.
+      setCopyState("failed");
+      window.setTimeout(() => setCopyState("idle"), 2500);
       return;
     }
-    void navigator.clipboard.writeText(window.location.href).then(() => {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard.writeText(url).then(
+      () => {
+        setCopyState("copied");
+        window.setTimeout(() => setCopyState("idle"), 2000);
+      },
+      () => {
+        // iOS Safari / permission-denied — fall back to a visible cue.
+        setCopyState("failed");
+        window.setTimeout(() => setCopyState("idle"), 2500);
+      },
+    );
   }, []);
 
   return (
@@ -145,7 +165,11 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             }}
             data-testid="copy-url"
           >
-            {copied ? "Copied!" : "Copy receipt URL"}
+            {copyState === "copied"
+              ? "Copied!"
+              : copyState === "failed"
+                ? "Copy failed — select URL bar"
+                : "Copy receipt URL"}
           </button>
           {isPhrase ? (
             <span
@@ -180,24 +204,15 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
         <h2 style={SectionHeadingStyle}>Cycle outcome</h2>
         <p style={StatLineStyle} data-testid="probe-count">
           Probes run: {probeCount ?? "—"}
-          {probeCount === null ? (
-            <span style={StubLabelStyle}>(awaiting runner)</span>
-          ) : null}
         </p>
         <p style={StatLineStyle} data-testid="classifications">
           Contradict / Mirror / Shadow / Snare:{" "}
           {classifications
             ? `${classifications.contradict} / ${classifications.mirror} / ${classifications.shadow} / ${classifications.snare}`
             : "— / — / — / —"}
-          {classifications === null ? (
-            <span style={StubLabelStyle}>(awaiting runner)</span>
-          ) : null}
         </p>
         <p style={StatLineStyle} data-testid="dot-color">
           TimelineDot: {dotColor ?? "—"}
-          {dotColor === null ? (
-            <span style={StubLabelStyle}>(awaiting runner)</span>
-          ) : null}
         </p>
         {hasClassifications && classifications ? (
           <p style={StatLineStyle}>
@@ -271,6 +286,39 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
           </p>
         </section>
       ) : null}
+
+      <section>
+        <h2 style={SectionHeadingStyle}>Next</h2>
+        <p>
+          <a
+            href="/bureau/dragnet/run"
+            style={NextActionStyle}
+            data-testid="next-run"
+          >
+            Run another cycle
+          </a>
+          <a
+            href="/bureau/dragnet"
+            style={NextActionStyle}
+            data-testid="next-program"
+          >
+            Back to DRAGNET
+          </a>
+          <a
+            href={`https://x.com/intent/tweet?text=${encodeURIComponent(
+              `${id} — DRAGNET cycle receipt`,
+            )}&url=${encodeURIComponent(
+              typeof window !== "undefined" ? window.location.href : "",
+            )}`}
+            style={NextActionStyle}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="next-share-x"
+          >
+            Share on X
+          </a>
+        </p>
+      </section>
 
       <section>
         <h2 style={SectionHeadingStyle}>Signing</h2>

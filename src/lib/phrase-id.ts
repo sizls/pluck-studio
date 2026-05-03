@@ -297,6 +297,34 @@ export function isPhraseId(s: string): boolean {
   return PHRASE_PATTERN.test(s) || SCOPED_PHRASE_PATTERN.test(s);
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True when `s` is a canonical RFC 4122 UUID. */
+export function isUuid(s: string): boolean {
+  return UUID_PATTERN.test(s);
+}
+
+/**
+ * Extract the vendor slug from a vendor-scoped phrase ID
+ * (`vendor-adj-noun-NNNN`). Returns null for bare phrase IDs (R1
+ * format), UUIDs, or anything malformed. Lifted out of the OG image
+ * route so the receipt view, share-card metadata, and any future
+ * consumer share one source of truth.
+ */
+export function vendorFromPhrase(id: string): string | null {
+  if (!SCOPED_PHRASE_PATTERN.test(id)) {
+    return null;
+  }
+  const parts = id.split("-");
+  if (parts.length !== 4) {
+    return null;
+  }
+  const slug = parts[0];
+
+  return slug && slug.length > 0 ? slug : null;
+}
+
 function randomBytes(n: number): Uint8Array {
   const out = new Uint8Array(n);
   // Edge runtime, browser, and Node 20+ all expose

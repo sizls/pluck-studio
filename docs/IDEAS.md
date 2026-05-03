@@ -64,6 +64,33 @@ Captured by the AE Review Loop. Game changers that pass the "FUCK YES, build tha
    - Buildable in: hours (URL bar handler) / 1 day (CLI).
    - Status: deferred to R3 — cheap polish.
 
+## R3 Deferred Items (tracked, not built this round)
+
+These came out of R3's domain review but require breaking changes / external work / legal-design — captured here so they don't get forgotten.
+
+1. **Phrase-ID legibility v2 — verb-of-action format** (`swift-falcon-3742-vs-openai`)
+   - Current `openai-swift-falcon-3742` reads as possessive ("openai's swift falcon"). Reordering to `<adj>-<noun>-<NNNN>-vs-<vendor>` reads as "DRAGNET probed openai".
+   - Breaking change to all existing receipt URLs — handle via /old-format → /new-format redirect for back-compat.
+   - Defer until v0.5 or until we have data on user confusion.
+
+2. **Probe-pack provenance preview** (signer fingerprint, probe count, summary)
+   - Bureau practitioners flag this as TOFU red flag — running an unvetted pack against production is the cardinal sin.
+   - Blocked on NUCLEI registry. When NUCLEI ships, the form's probe-pack ID input becomes a picker that fetches manifest metadata before submit.
+   - Defer to NUCLEI integration milestone.
+
+3. **Tiered authorization-acknowledgement** (pre-existing-ToS / public-claims / fair-use-research)
+   - Single checkbox conflates legal basis. A tiered ack improves defensibility under regulator scrutiny.
+   - Blocked on legal-design pass — needs counsel review of the three-tier model.
+   - Defer until pre-public-alpha.
+
+4. **Classification taxonomy doc page** (`/docs/dragnet/classifications`)
+   - Receipt's inline taxonomy paragraph should lift to a standalone reference page so receipts can link, not repeat.
+   - Build alongside the public docs site (pluck-docs sibling repo).
+
+5. **Vendor-prefix vetted allowlist for OG card**
+   - Currently any phrase prefix renders in the OG card. A vetted allowlist would strengthen the brand-safety story for shared receipts. Trade-off: gates new vendors behind a manual review step.
+   - Defer until first abuse signal.
+
 ## R0 (plan-doc) — already captured in `mighty-gliding-swan.md`
 
 These are part of the plan, not surfaced this round:

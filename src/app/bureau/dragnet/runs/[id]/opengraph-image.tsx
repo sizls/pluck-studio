@@ -17,7 +17,8 @@ import { ImageResponse } from "next/og";
 
 import {
   isPhraseId,
-  vendorSlugFromUrl,
+  isUuid,
+  vendorFromPhrase,
 } from "../../../../../lib/phrase-id";
 
 export const runtime = "edge";
@@ -34,25 +35,71 @@ const FG_DIM = "#888273";
 const BG = "#1a1a1a";
 const ACCENT = "#a3201d";
 
-function vendorFromPhrase(id: string): string | null {
-  // For scoped phrase IDs (`vendor-adj-noun-NNNN`), the first segment is
-  // the vendor slug. Bare phrase IDs (R1) had no vendor, so we punt.
-  const parts = id.split("-");
-  if (parts.length === 4 && /^[a-z0-9]+$/.test(parts[0] ?? "")) {
-    return parts[0] ?? null;
+const MAX_ID_LENGTH = 64;
+
+// Render a placeholder PNG when the route is hit with a malformed or
+// outsized ID. Refusing to render protects the edge runtime from
+// pathological inputs (`/runs/<10000-char-string>`) and ensures every
+// outbound card is well-shaped for social-platform previews.
+function renderPlaceholder(): Response {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          background: BG,
+          color: FG_DIM,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily:
+            "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace",
+          fontSize: 36,
+          letterSpacing: "0.08em",
+        }}
+      >
+        Pluck Bureau · DRAGNET
+      </div>
+    ),
+    { ...size },
+  );
+}
+
+// Font size scales with phrase length so the headline never clips or
+// hard-breaks at fontSize 84. Empirical pixel-fits from the 1040px
+// content area (1200 − 80×2 padding):
+//   ≤ 24 chars  → 84 (R1 default; e.g. "swift-falcon-3742")
+//   ≤ 30 chars  → 72 (typical scoped; e.g. "openai-swift-falcon-3742")
+//   ≤ 40 chars  → 60 (long vendor or "anthropic-running-stork-9999")
+//   ≤ 60 chars  → 44 (UUID or unusual long forms)
+function headlineFontSize(id: string): number {
+  if (id.length <= 24) {
+    return 84;
   }
-  return null;
+  if (id.length <= 30) {
+    return 72;
+  }
+  if (id.length <= 40) {
+    return 60;
+  }
+  return 44;
 }
 
 export default async function Image({ params }: OgProps): Promise<Response> {
   const { id } = await params;
-  const isPhrase = isPhraseId(id);
-  const vendor = isPhrase ? vendorFromPhrase(id) : null;
 
-  // The vendor slug is also derivable from the URL via vendorSlugFromUrl,
-  // but on a receipt page we already have the phrase ID. Both should
-  // resolve to the same answer for round-trip integrity.
-  void vendorSlugFromUrl;
+  if (id.length === 0 || id.length > MAX_ID_LENGTH) {
+    return renderPlaceholder();
+  }
+  // Defence-in-depth: the route param is untrusted. Reject anything
+  // that isn't a recognised receipt-ID shape so a hostile crafted URL
+  // can't drive arbitrary text through next/og's React renderer.
+  if (!isPhraseId(id) && !isUuid(id)) {
+    return renderPlaceholder();
+  }
+  const vendor = vendorFromPhrase(id);
+  const fontSize = headlineFontSize(id);
 
   return new ImageResponse(
     (
@@ -105,10 +152,10 @@ export default async function Image({ params }: OgProps): Promise<Response> {
           ) : null}
           <div
             style={{
-              fontSize: 84,
+              fontSize,
               fontWeight: 700,
               lineHeight: 1.05,
-              wordBreak: "break-all",
+              wordBreak: "break-word",
               color: FG,
             }}
           >

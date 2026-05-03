@@ -4,8 +4,10 @@ import {
   generatePhraseId,
   generateScopedPhraseId,
   isPhraseId,
+  isUuid,
   phraseFromBytes,
   PHRASE_ID_VOCAB_SIZE,
+  vendorFromPhrase,
   vendorSlugFromUrl,
 } from "../phrase-id.js";
 
@@ -130,6 +132,41 @@ describe("vendorSlugFromUrl", () => {
 
   it("lowercases", () => {
     expect(vendorSlugFromUrl("https://API.OPENAI.com")).toBe("openai");
+  });
+});
+
+describe("isUuid", () => {
+  it("accepts canonical RFC 4122 UUIDs", () => {
+    expect(isUuid("0c2d8a4e-3f4a-4cf8-9c9c-c8b1c4f0c2d8")).toBe(true);
+    expect(isUuid("00000000-0000-0000-0000-000000000000")).toBe(true);
+  });
+
+  it("rejects phrase IDs and other shapes", () => {
+    expect(isUuid("swift-falcon-3742")).toBe(false);
+    expect(isUuid("openai-swift-falcon-3742")).toBe(false);
+    expect(isUuid("not-a-uuid")).toBe(false);
+    expect(isUuid("")).toBe(false);
+  });
+});
+
+describe("vendorFromPhrase", () => {
+  it("extracts the vendor slug from scoped phrase IDs", () => {
+    expect(vendorFromPhrase("openai-swift-falcon-3742")).toBe("openai");
+    expect(vendorFromPhrase("anthropic-amber-otter-1234")).toBe("anthropic");
+  });
+
+  it("returns null for bare phrase IDs (R1 format)", () => {
+    expect(vendorFromPhrase("swift-falcon-3742")).toBeNull();
+  });
+
+  it("returns null for UUIDs", () => {
+    expect(vendorFromPhrase("0c2d8a4e-3f4a-4cf8-9c9c-c8b1c4f0c2d8")).toBeNull();
+  });
+
+  it("returns null for malformed input", () => {
+    expect(vendorFromPhrase("")).toBeNull();
+    expect(vendorFromPhrase("not-a-phrase")).toBeNull();
+    expect(vendorFromPhrase("openai-swift-falcon-37")).toBeNull();
   });
 });
 
