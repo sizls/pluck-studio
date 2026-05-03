@@ -42,6 +42,24 @@ export default function DragnetIndexPage(): ReactNode {
           public red dot. Operate it on your own vendors, watch others
           operate it on theirs.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/dragnet/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Run a probe →
+          </a>
+        </p>
       </section>
 
       <section>
