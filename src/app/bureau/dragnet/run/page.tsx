@@ -36,16 +36,16 @@ export default function DragnetRunPage(): ReactNode {
   return (
     <>
       <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Run a DRAGNET probe</h1>
+        <h1 className="bureau-hero-title">Run a DRAGNET probe-pack</h1>
         <p className="bureau-hero-tagline">
-          Hand a vendor URL + probe-pack to the runner. Every probe →
+          Hand a target endpoint + probe-pack to the runner. Every probe →
           cassette → in-toto attestation → Rekor entry. You get a
           permanent, publicly-verifiable receipt URL on completion.
         </p>
       </section>
 
       <section>
-        <h2 style={SectionHeadingStyle}>Probe parameters</h2>
+        <h2 style={SectionHeadingStyle}>Cycle parameters</h2>
         <DragnetRunForm />
       </section>
 

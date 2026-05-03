@@ -7,16 +7,23 @@
 // State lives in `dragnetRunReceiptModule`. React reads via useFact +
 // useDerived. Today the facts initialise from `params.id` and stay at
 // "cycle pending" because pluck-api /v1/runs is not yet wired. When it
-// lands, a `@directive-run/query` client subscribes to the Supabase
-// Realtime `runs:id=eq.{uuid}` channel and re-writes facts in place —
-// this render code does not change.
+// lands, a `@directive-run/query` client (re-added when wired) will
+// subscribe to the Supabase Realtime `runs:id=eq.{uuid}` channel and
+// re-write facts in place — this render code does not change.
 // ---------------------------------------------------------------------------
 
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
-import { useEffect, useMemo, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { dragnetRunReceiptModule } from "../../../../../lib/dragnet/run-receipt-module";
+import { isPhraseId } from "../../../../../lib/phrase-id";
 
 const SectionHeadingStyle = {
   fontFamily: "var(--bureau-mono)",
@@ -53,6 +60,13 @@ const StatLineStyle = {
   marginTop: 4,
 };
 
+const StubLabelStyle = {
+  fontStyle: "italic" as const,
+  fontSize: 11,
+  color: "var(--bureau-fg-dim)",
+  marginLeft: 8,
+};
+
 interface ReceiptViewProps {
   id: string;
 }
@@ -83,14 +97,17 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
     };
   }, [system]);
 
-  // When pluck-api /v1/runs lands, replace this useEffect with a
-  // @directive-run/query subscription that watches the run row in
-  // Supabase Realtime. Today the receipt stays "cycle pending" until
-  // that integration lands — see plan: "How it all connects (end-to-end
-  // data flow)" steps 5+6.
-  useEffect(() => {
-    // Stub: nothing to subscribe to yet.
-  }, [id]);
+  const isPhrase = isPhraseId(id);
+  const [copied, setCopied] = useState(false);
+  const onCopy = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+    void navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    });
+  }, []);
 
   return (
     <>
@@ -105,9 +122,44 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             {status ?? "cycle pending"}
           </span>
         </p>
+
+        <p style={SectionHeadingStyle}>
+          {isPhrase ? "Phrase ID — your permanent receipt URL" : "Run ID"}
+        </p>
         <p style={RunIdStyle} data-testid="run-id">
           {id}
         </p>
+        <p style={{ marginTop: 8, fontSize: 12 }}>
+          <button
+            type="button"
+            onClick={onCopy}
+            style={{
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 12,
+              padding: "4px 10px",
+              background: "var(--bureau-fg-dim)",
+              color: "var(--bureau-bg)",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+            data-testid="copy-url"
+          >
+            {copied ? "Copied!" : "Copy receipt URL"}
+          </button>
+          {isPhrase ? (
+            <span
+              style={{
+                marginLeft: 12,
+                color: "var(--bureau-fg-dim)",
+                fontStyle: "italic",
+              }}
+            >
+              Bookmark it — same phrase, same URL, forever.
+            </span>
+          ) : null}
+        </p>
+
         {isPending ? (
           <p
             style={{
@@ -128,28 +180,56 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
         <h2 style={SectionHeadingStyle}>Cycle outcome</h2>
         <p style={StatLineStyle} data-testid="probe-count">
           Probes run: {probeCount ?? "—"}
+          {probeCount === null ? (
+            <span style={StubLabelStyle}>(awaiting runner)</span>
+          ) : null}
         </p>
         <p style={StatLineStyle} data-testid="classifications">
           Contradict / Mirror / Shadow / Snare:{" "}
           {classifications
             ? `${classifications.contradict} / ${classifications.mirror} / ${classifications.shadow} / ${classifications.snare}`
             : "— / — / — / —"}
+          {classifications === null ? (
+            <span style={StubLabelStyle}>(awaiting runner)</span>
+          ) : null}
         </p>
         <p style={StatLineStyle} data-testid="dot-color">
           TimelineDot: {dotColor ?? "—"}
+          {dotColor === null ? (
+            <span style={StubLabelStyle}>(awaiting runner)</span>
+          ) : null}
         </p>
         {hasClassifications && classifications ? (
           <p style={StatLineStyle}>
-            Total classified: {classifications.contradict + classifications.mirror + classifications.shadow + classifications.snare}
+            Total classified:{" "}
+            {classifications.contradict +
+              classifications.mirror +
+              classifications.shadow +
+              classifications.snare}
           </p>
         ) : null}
+        <p style={{ ...StatLineStyle, marginTop: 12, fontSize: 11 }}>
+          <em>
+            DRAGNET classifies each probe response into one of four
+            buckets; the cycle's TimelineDot color is the worst class
+            seen this cycle:{" "}
+            <code>contradict / mirror → red</code>,{" "}
+            <code>shadow → amber</code>,{" "}
+            <code>snare → green</code>. The "pack matchers" referenced
+            in the program description are the predicates that perform
+            the classification — they live inside the probe-pack YAML,
+            not the receipt.
+          </em>
+        </p>
       </section>
 
       <section>
         <h2 style={SectionHeadingStyle}>Verification</h2>
         {isAnchored && receiptUrl && rekorUuid ? (
           <>
-            <p data-testid="rekor-uuid">Rekor UUID: <code>{rekorUuid}</code></p>
+            <p data-testid="rekor-uuid">
+              Rekor UUID: <code>{rekorUuid}</code>
+            </p>
             <p>
               Verify offline:{" "}
               <code>
@@ -196,8 +276,11 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
         <h2 style={SectionHeadingStyle}>Signing</h2>
         <p style={{ fontSize: 13 }}>
           Hosted-mode receipts are signed with the Pluck-fleet hosted key
-          (<a href="/.well-known/pluck-keys.json"><code>/.well-known/pluck-keys.json</code></a>).
-          Bring-your-own-key signing lands with the operator-key flow.
+          (
+          <a href="/.well-known/pluck-keys.json">
+            <code>/.well-known/pluck-keys.json</code>
+          </a>
+          ). Bring-your-own-key signing lands with the operator-key flow.
         </p>
       </section>
     </>

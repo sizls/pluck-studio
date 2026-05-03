@@ -155,7 +155,9 @@ describe("POST /api/bureau/dragnet/run — auth", () => {
     expect(body.runId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
-    expect(body.phraseId).toMatch(/^[a-z]+-[a-z]+-\d{4}$/);
+    // Vendor-scoped: e.g. `openai-swift-falcon-3742` for an api.openai.com target.
+    expect(body.phraseId).toMatch(/^[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.phraseId).toMatch(/^openai-/);
     expect(body.status).toBe("cycle pending");
   });
 

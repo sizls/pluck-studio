@@ -189,6 +189,7 @@ const ANIMALS = [
 ] as const;
 
 const PHRASE_PATTERN = /^[a-z]+-[a-z]+-\d{4}$/;
+const SCOPED_PHRASE_PATTERN = /^[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/;
 
 /**
  * Generate a memorable phrase ID from a CSPRNG-backed source.
@@ -230,36 +231,88 @@ export function generatePhraseId(): string {
 }
 
 /**
- * True when `s` matches the phrase-id shape. UUIDs and other strings
- * never match. Used by the receipt route to distinguish phrase-id
- * lookups from raw UUID lookups.
+ * Generate a vendor-scoped phrase ID: `<vendor>-<adjective>-<animal>-<NNNN>`.
+ * The vendor prefix is derived from the URL's hostname (registered domain
+ * label), so a probe against `https://api.openai.com/v1/...` yields
+ * `openai-swift-falcon-3742`. Self-discloses the target inside the URL
+ * — a Bureau practitioner can read the receipt URL alone and know who
+ * was probed without opening the page.
+ *
+ * Falls back to `unknown-...` when the URL is unparseable or the host
+ * doesn't have a sensible label (e.g. raw IP). A vendor prefix is
+ * lowercased and stripped to `[a-z0-9]+`; longer than 16 chars truncates.
+ */
+export function generateScopedPhraseId(targetUrl: string): string {
+  const phrase = generatePhraseId();
+  const vendor = vendorSlugFromUrl(targetUrl);
+
+  return `${vendor}-${phrase}`;
+}
+
+/**
+ * Extract a short vendor slug from a target URL hostname. Best-effort:
+ * keeps the last meaningful label before the public-suffix tail. Caller
+ * gets `"unknown"` for unparseable input.
+ */
+export function vendorSlugFromUrl(targetUrl: string): string {
+  let host: string;
+  try {
+    host = new URL(targetUrl).hostname.toLowerCase();
+  } catch {
+    return "unknown";
+  }
+  if (host.length === 0) {
+    return "unknown";
+  }
+  // Strip leading "www." / "api." / "app." / "console." / "dashboard."
+  // — these are infrastructure labels, not the brand name.
+  const stripped = host.replace(
+    /^(www|api|app|console|dashboard|ai|chat|platform|developer|developers)\./,
+    "",
+  );
+  const labels = stripped.split(".");
+  // For a domain like `openai.com`, labels = ["openai", "com"]; we want
+  // `labels[0]`. For `models.openai.com` after strip = `openai.com`.
+  // For raw IPv4 (`10.0.0.1` after strip), we get a numeric first label
+  // that's not a useful vendor name — fall back to "unknown".
+  const first = labels[0] ?? "";
+
+  if (first.length === 0 || /^\d+$/.test(first)) {
+    return "unknown";
+  }
+  const slug = first.replace(/[^a-z0-9]/g, "");
+
+  if (slug.length === 0) {
+    return "unknown";
+  }
+  return slug.slice(0, 16);
+}
+
+/**
+ * True when `s` matches the phrase-id shape (bare or vendor-scoped).
+ * UUIDs and other strings never match. Used by the receipt route to
+ * distinguish phrase-id lookups from raw UUID lookups.
  */
 export function isPhraseId(s: string): boolean {
-  return PHRASE_PATTERN.test(s);
+  return PHRASE_PATTERN.test(s) || SCOPED_PHRASE_PATTERN.test(s);
 }
 
 function randomBytes(n: number): Uint8Array {
   const out = new Uint8Array(n);
-  // Browser / edge runtime
+  // Edge runtime, browser, and Node 20+ all expose
+  // `globalThis.crypto.getRandomValues`. We deliberately avoid
+  // `require("node:crypto")` so the module stays edge-safe (the OG
+  // image route at /bureau/dragnet/runs/[id]/opengraph-image.tsx runs
+  // under `runtime = "edge"` and webpack rejects node:crypto there).
   if (typeof globalThis.crypto?.getRandomValues === "function") {
     globalThis.crypto.getRandomValues(out);
     return out;
   }
-  // Node — defer require so this module stays edge-safe; the sync require
-  // is the canonical Next.js Route Handler pattern for opt-in node APIs.
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const nodeCrypto = require("node:crypto") as {
-      randomBytes(n: number): Uint8Array;
-    };
-    return nodeCrypto.randomBytes(n);
-  } catch {
-    // Non-cryptographic fallback. Phrase IDs are labels, not secrets.
-    for (let i = 0; i < n; i++) {
-      out[i] = Math.floor(Math.random() * 256);
-    }
-    return out;
+  // Non-cryptographic fallback. Phrase IDs are labels, not secrets.
+  for (let i = 0; i < n; i++) {
+    out[i] = Math.floor(Math.random() * 256);
   }
+  return out;
 }
 
 export const PHRASE_ID_VOCAB_SIZE = ADJECTIVES.length * ANIMALS.length * 10_000;

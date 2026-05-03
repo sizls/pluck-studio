@@ -24,6 +24,7 @@ import { useDerived, useFact } from "@directive-run/react";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type FormEvent,
@@ -174,6 +175,17 @@ export function DragnetRunForm(): ReactNode {
   );
 
   const [clientGuardError, setClientGuardError] = useState<string | null>(null);
+
+  // Tear down the per-mount Directive system on unmount. Without this,
+  // React 18 Strict Mode + offscreen rendering can cause `useMemo` to
+  // throw away cached values, leaving orphaned engines that never call
+  // `destroy()`. ReceiptView already does this; symmetric here.
+  useEffect(
+    () => () => {
+      system.destroy();
+    },
+    [system],
+  );
 
   async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();

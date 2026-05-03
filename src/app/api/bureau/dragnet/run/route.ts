@@ -43,7 +43,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
-import { generatePhraseId } from "../../../../../lib/phrase-id";
+import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import { checkRateLimit } from "../../../../../lib/rate-limit";
 
 interface RunRequestBody {
@@ -270,7 +270,10 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
   const runId = randomUUID();
-  const phraseId = generatePhraseId();
+  // Vendor-scoped: e.g. `openai-swift-falcon-3742`. The receipt URL
+  // self-discloses the target — a Bureau practitioner reading the URL
+  // alone knows who was probed. UUID stays for cross-system joins.
+  const phraseId = generateScopedPhraseId(targetUrl);
 
   return NextResponse.json(
     {

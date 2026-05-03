@@ -57,7 +57,7 @@ export default function DragnetIndexPage(): ReactNode {
               borderRadius: 4,
             }}
           >
-            Run a probe →
+            Run a probe-pack →
           </a>
         </p>
       </section>

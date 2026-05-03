@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   generatePhraseId,
+  generateScopedPhraseId,
   isPhraseId,
   phraseFromBytes,
   PHRASE_ID_VOCAB_SIZE,
+  vendorSlugFromUrl,
 } from "../phrase-id.js";
 
 describe("phraseFromBytes", () => {
@@ -78,5 +80,72 @@ describe("isPhraseId", () => {
 describe("PHRASE_ID_VOCAB_SIZE", () => {
   it("is 80 × 80 × 10_000 = 64_000_000 (the docs promise)", () => {
     expect(PHRASE_ID_VOCAB_SIZE).toBe(64_000_000);
+  });
+});
+
+describe("vendorSlugFromUrl", () => {
+  it("returns the registered domain label for common vendor URLs", () => {
+    expect(vendorSlugFromUrl("https://api.openai.com/v1/chat")).toBe("openai");
+    expect(vendorSlugFromUrl("https://api.anthropic.com/v1/messages")).toBe(
+      "anthropic",
+    );
+    // `generativelanguage` is the first label and isn't an infra prefix
+    // (it's the product surface). Truncated to 16 chars per the slug cap.
+    expect(vendorSlugFromUrl("https://generativelanguage.googleapis.com")).toBe(
+      "generativelangua",
+    );
+  });
+
+  it("strips infra subdomain prefixes (www, api, app, console, etc.)", () => {
+    expect(vendorSlugFromUrl("https://www.openai.com")).toBe("openai");
+    expect(vendorSlugFromUrl("https://app.linear.app")).toBe("linear");
+    expect(vendorSlugFromUrl("https://console.anthropic.com")).toBe(
+      "anthropic",
+    );
+    expect(vendorSlugFromUrl("https://chat.openai.com/")).toBe("openai");
+    expect(vendorSlugFromUrl("https://platform.openai.com/playground")).toBe(
+      "openai",
+    );
+  });
+
+  it("returns 'unknown' for IP addresses, garbage, or empty input", () => {
+    expect(vendorSlugFromUrl("http://10.0.0.1")).toBe("unknown");
+    expect(vendorSlugFromUrl("https://127.0.0.1:8080")).toBe("unknown");
+    expect(vendorSlugFromUrl("not-a-url")).toBe("unknown");
+    expect(vendorSlugFromUrl("")).toBe("unknown");
+  });
+
+  it("handles hyphen-bearing labels by stripping non-[a-z0-9]", () => {
+    expect(vendorSlugFromUrl("https://my-vendor.com")).toBe("myvendor");
+    expect(vendorSlugFromUrl("https://x_y_z.example.com")).toBe("xyz");
+  });
+
+  it("truncates long labels at 16 chars", () => {
+    expect(
+      vendorSlugFromUrl(
+        "https://supercalifragilisticexpialidocious.example.com",
+      ),
+    ).toHaveLength(16);
+  });
+
+  it("lowercases", () => {
+    expect(vendorSlugFromUrl("https://API.OPENAI.com")).toBe("openai");
+  });
+});
+
+describe("generateScopedPhraseId", () => {
+  it("prefixes with the vendor slug from the target URL", () => {
+    const id = generateScopedPhraseId("https://api.openai.com/v1/chat");
+    expect(id).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
+  });
+
+  it("falls back to 'unknown' prefix for unparseable targets", () => {
+    const id = generateScopedPhraseId("not-a-url");
+    expect(id).toMatch(/^unknown-[a-z]+-[a-z]+-\d{4}$/);
+  });
+
+  it("isPhraseId accepts both bare and scoped forms", () => {
+    expect(isPhraseId("swift-falcon-3742")).toBe(true);
+    expect(isPhraseId("openai-swift-falcon-3742")).toBe(true);
   });
 });
