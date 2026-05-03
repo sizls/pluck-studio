@@ -61,6 +61,10 @@ const nextConfig: NextConfig = {
       // Data formats
       avsc: false,
       protobufjs: false,
+      // Email (transitively pulled in by pluck-core's notification
+      // surface; Studio never sends mail directly).
+      nodemailer: false,
+      "node-fetch": false,
     };
 
     // The CUSTODY verifier reaches into `node:crypto` / `node:fs`.

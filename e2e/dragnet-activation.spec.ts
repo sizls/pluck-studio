@@ -74,13 +74,15 @@ test.describe("DRAGNET activation flow", () => {
     await page.getByTestId("run-submit").click();
 
     // Redirected to /bureau/dragnet/runs/{phrase-id}.
-    await page.waitForURL(/\/bureau\/dragnet\/runs\/[a-z]+-[a-z]+-\d{4}$/);
+    // Vendor-scoped phrase IDs: e.g. /runs/openai-swift-falcon-3742
+    // (R2 introduced the vendor prefix; bare adj-noun-NNNN was R1.)
+    await page.waitForURL(/\/bureau\/dragnet\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("run-status")).toContainText(/pending/);
     await expect(page.getByTestId("probe-count")).toContainText("Probes run:");
 
     const runId = await page.getByTestId("run-id").innerText();
-    expect(runId).toMatch(/^[a-z]+-[a-z]+-\d{4}$/);
+    expect(runId).toMatch(/^[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
   });
 
   test("submit blocked until target + probe-pack + auth-ack are all present", async ({
