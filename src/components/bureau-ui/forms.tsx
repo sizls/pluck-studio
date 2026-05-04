@@ -96,6 +96,53 @@ export function BureauInput({
   );
 }
 
+const TextareaStyle: CSSProperties = {
+  width: "100%",
+  padding: "8px 12px",
+  fontFamily: "var(--bureau-mono)",
+  fontSize: 14,
+  background: "var(--bureau-bg)",
+  color: "var(--bureau-fg)",
+  border: "1px solid var(--bureau-fg-dim)",
+  borderRadius: 4,
+  marginTop: 4,
+  resize: "vertical",
+  minHeight: 80,
+};
+
+interface BureauTextareaProps {
+  name: string;
+  required?: boolean;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+  testId?: string;
+}
+
+export function BureauTextarea({
+  name,
+  required,
+  placeholder,
+  value,
+  onChange,
+  rows = 3,
+  testId,
+}: BureauTextareaProps): ReactNode {
+  return (
+    <textarea
+      name={name}
+      required={required}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      rows={rows}
+      style={TextareaStyle}
+      data-testid={testId}
+    />
+  );
+}
+
 interface BureauLabelProps {
   text: string;
   children: ReactNode;

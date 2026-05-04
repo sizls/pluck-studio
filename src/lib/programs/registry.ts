@@ -83,6 +83,18 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     runPath: "/bureau/custody/run",
     landingPath: "/bureau/custody",
   },
+  {
+    slug: "whistle",
+    name: "WHISTLE",
+    actionVerb: "Submit a tip",
+    summary:
+      "Anonymous AI whistleblower submission. Layered redaction + ephemeral signing key + routing to a newsroom partner (ProPublica / Bellingcat / 404 Media / EFF Press).",
+    outputShape:
+      "binary verdict (accepted / 5 named failure modes) + per-layer redaction summary + per-partner delivery status",
+    predicateUri: "https://pluck.run/WhistleSubmission/v1",
+    runPath: "/bureau/whistle/run",
+    landingPath: "/bureau/whistle",
+  },
 ];
 
 /**
@@ -120,13 +132,6 @@ export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [
     reason:
       "Continuous insider-leak detection — long-running monitor, not a one-shot run.",
     landingPath: "/bureau/mole",
-  },
-  {
-    slug: "whistle",
-    name: "WHISTLE",
-    reason:
-      "Anonymous tip-submission — capture pattern (multi-select routing partners + pasted bundle + manual redaction) needs distinct form scaffolding.",
-    landingPath: "/bureau/whistle",
   },
   {
     slug: "bounty",

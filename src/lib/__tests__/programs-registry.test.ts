@@ -16,10 +16,16 @@ import {
 } from "../programs/registry.js";
 
 describe("ACTIVE_PROGRAMS", () => {
-  it("includes the four programs activated through v2", () => {
+  it("includes the active programs (DRAGNET, OATH, FINGERPRINT, CUSTODY, WHISTLE)", () => {
     const slugs = ACTIVE_PROGRAMS.map((p) => p.slug);
     expect(slugs).toEqual(
-      expect.arrayContaining(["dragnet", "oath", "fingerprint", "custody"]),
+      expect.arrayContaining([
+        "dragnet",
+        "oath",
+        "fingerprint",
+        "custody",
+        "whistle",
+      ]),
     );
   });
 

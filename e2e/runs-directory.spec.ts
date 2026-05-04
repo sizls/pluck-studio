@@ -10,12 +10,17 @@
 
 import { expect, test } from "@playwright/test";
 
-const ACTIVE_SLUGS = ["dragnet", "oath", "fingerprint", "custody"] as const;
+const ACTIVE_SLUGS = [
+  "dragnet",
+  "oath",
+  "fingerprint",
+  "custody",
+  "whistle",
+] as const;
 const COMING_SOON_SLUGS = [
   "tripwire",
   "nuclei",
   "mole",
-  "whistle",
   "bounty",
   "sbom-ai",
   "rotate",
@@ -29,7 +34,7 @@ test.describe("/runs activations directory", () => {
       await expect(page.getByTestId(`run-cta-${slug}`)).toBeVisible();
       await expect(page.getByTestId(`landing-cta-${slug}`)).toBeVisible();
     }
-    await expect(page.getByTestId("active-count")).toContainText(/4 of 11/);
+    await expect(page.getByTestId("active-count")).toContainText(/5 of 11/);
   });
 
   test("DRAGNET CTA navigates to the run route", async ({ page }) => {
@@ -54,6 +59,12 @@ test.describe("/runs activations directory", () => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-custody").click();
     await page.waitForURL(/\/bureau\/custody\/run$/);
+  });
+
+  test("WHISTLE CTA navigates to the run route", async ({ page }) => {
+    await page.goto("/runs");
+    await page.getByTestId("run-cta-whistle").click();
+    await page.waitForURL(/\/bureau\/whistle\/run$/);
   });
 
   test("coming-soon programs are listed with reasons", async ({ page }) => {

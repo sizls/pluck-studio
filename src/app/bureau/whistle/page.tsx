@@ -41,6 +41,24 @@ export default function WhistleIndexPage(): ReactNode {
           stylometric refusal), routing to ProPublica / Bellingcat /
           404Media / EFF Press. SecureDrop for the AI era.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/whistle/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Submit a tip →
+          </a>
+        </p>
       </section>
 
       <section style={CalloutStyle}>
