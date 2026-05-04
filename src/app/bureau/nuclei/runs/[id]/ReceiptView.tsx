@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { CalendarStrip } from "../../../../../components/bureau-ui/CalendarStrip";
 import {
   NUCLEI_PACK_ENTRY_PREDICATE_URI,
   nucleiRunReceiptModule,
@@ -267,6 +268,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
         <p style={StatLineStyle} data-testid="interval-row">
           Recommended interval: {recommendedInterval ?? "—"}
         </p>
+        <CalendarStrip cron={recommendedInterval} count={7} />
         {vendorScope && vendorScope.length > 0 ? (
           <p style={StatLineStyle} data-testid="vendor-scope-row">
             Vendor scope ({vendorScope.length}):{" "}

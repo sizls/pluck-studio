@@ -82,7 +82,11 @@ export const nucleiRunReceiptModule = createModule("nuclei-run-receipt", {
     facts.sbomRekorUuid = null;
     facts.vendorScope = null;
     facts.license = null;
-    facts.recommendedInterval = null;
+    // Stub default until pluck-api /v1/nuclei/publish lands. The receipt
+    // is in publish-pending state — the calendar strip needs *something*
+    // to render so visitors see the feature. `@daily` is the conservative
+    // pick; the real interval arrives with the published entry.
+    facts.recommendedInterval = "@daily";
     facts.trustTier = null;
     facts.packEntryUrl = null;
     facts.signerFingerprint = null;

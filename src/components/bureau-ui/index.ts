@@ -31,3 +31,6 @@ export {
   renderReputationBadgeSvg,
 } from "./ReputationBadge.js";
 export type { ReputationBadgeProps } from "./ReputationBadge.js";
+
+export { CalendarStrip } from "./CalendarStrip.js";
+export type { CalendarStripProps } from "./CalendarStrip.js";

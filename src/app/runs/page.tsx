@@ -208,6 +208,15 @@ export default function RunsPage(): ReactNode {
       )}
 
       <section>
+        <h2 style={SectionHeadingStyle}>NUCLEI monitors</h2>
+        <p style={{ marginTop: 8 }} data-testid="monitors-cross-link">
+          Watch upcoming fires across the registry —{" "}
+          <a href="/monitors">/monitors</a> renders every published pack's
+          next 24 hours of fires on a single timeline.
+        </p>
+      </section>
+
+      <section>
         <h2 style={SectionHeadingStyle}>What every receipt gets you</h2>
         <ul style={{ lineHeight: 1.7 }}>
           <li>
