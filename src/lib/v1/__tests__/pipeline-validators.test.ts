@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import {
   PIPELINE_VALIDATORS,
   validateDragnetPayload,
+  validateNucleiPayload,
 } from "../pipeline-validators.js";
 import { BUREAU_PIPELINES } from "../run-spec.js";
 
@@ -166,12 +167,129 @@ describe("PIPELINE_VALIDATORS registry", () => {
     expect(PIPELINE_VALIDATORS["bureau:oath"]({ anything: 1 })).toEqual({
       ok: true,
     });
-    expect(PIPELINE_VALIDATORS["bureau:nuclei"]({})).toEqual({ ok: true });
+    // NUCLEI is no longer a stub — it does real grammar checking. See the
+    // dedicated NUCLEI describe block below.
+    expect(PIPELINE_VALIDATORS["bureau:mole"]({})).toEqual({ ok: true });
   });
 
   it("stub validators reject arrays + primitives", () => {
     expect(PIPELINE_VALIDATORS["bureau:oath"]([]).ok).toBe(false);
     expect(PIPELINE_VALIDATORS["bureau:oath"]("hi").ok).toBe(false);
     expect(PIPELINE_VALIDATORS["bureau:oath"](null).ok).toBe(false);
+  });
+
+  it("NUCLEI entry IS the exported validateNucleiPayload (single source of truth)", () => {
+    expect(PIPELINE_VALIDATORS["bureau:nuclei"]).toBe(validateNucleiPayload);
+  });
+});
+
+const validNuclei = {
+  author: "alice",
+  packName: "canon-honesty@0.1",
+  sbomRekorUuid: "a".repeat(64),
+  vendorScope: "openai/gpt-4o,anthropic/claude-3-5-sonnet",
+  license: "MIT",
+  recommendedInterval: "0 */4 * * *",
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateNucleiPayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateNucleiPayload(validNuclei)).toEqual({ ok: true });
+  });
+
+  it("rejects non-objects", () => {
+    expect(validateNucleiPayload(null).ok).toBe(false);
+    expect(validateNucleiPayload("hi").ok).toBe(false);
+    expect(validateNucleiPayload([]).ok).toBe(false);
+  });
+
+  it("rejects missing author", () => {
+    const r = validateNucleiPayload({ ...validNuclei, author: "" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects oversized author (>32 chars)", () => {
+    const r = validateNucleiPayload({ ...validNuclei, author: "a".repeat(33) });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects unversioned packName", () => {
+    const r = validateNucleiPayload({ ...validNuclei, packName: "canon-honesty" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects malformed sbomRekorUuid", () => {
+    const r = validateNucleiPayload({ ...validNuclei, sbomRekorUuid: "not-hex" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects empty vendorScope", () => {
+    const r = validateNucleiPayload({ ...validNuclei, vendorScope: "" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects vendorScope with invalid entries", () => {
+    const r = validateNucleiPayload({
+      ...validNuclei,
+      vendorScope: "openai/gpt-4o,foo",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/foo/);
+    }
+  });
+
+  it("rejects non-allowed license", () => {
+    const r = validateNucleiPayload({ ...validNuclei, license: "WTFPL" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects empty recommendedInterval", () => {
+    const r = validateNucleiPayload({ ...validNuclei, recommendedInterval: "" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects oversized recommendedInterval (>64 chars)", () => {
+    const r = validateNucleiPayload({
+      ...validNuclei,
+      recommendedInterval: "x".repeat(65),
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects malformed cron grammar", () => {
+    const r = validateNucleiPayload({
+      ...validNuclei,
+      recommendedInterval: "not cron",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/cron/i);
+    }
+  });
+
+  it("rejects out-of-range cron ('0 25 * * *')", () => {
+    const r = validateNucleiPayload({
+      ...validNuclei,
+      recommendedInterval: "0 25 * * *",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects when authorizationAcknowledged is missing", () => {
+    const r = validateNucleiPayload({
+      ...validNuclei,
+      authorizationAcknowledged: undefined,
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects when authorizationAcknowledged=false", () => {
+    const r = validateNucleiPayload({
+      ...validNuclei,
+      authorizationAcknowledged: false,
+    });
+    expect(r.ok).toBe(false);
   });
 });

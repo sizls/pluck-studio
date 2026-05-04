@@ -149,6 +149,31 @@ describe("run-store — getRun + TTL", () => {
       // 24h + 1s after creation → evicted.
       expect(getRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000)).toBeNull();
     });
+
+    it("sweeps orphan idempotency rows when their owning runs expire (M2 fix)", () => {
+      // Pre-M2: evictExpired only deleted from `runs`, leaving orphan
+      // idempotency rows that pointed to a missing runId. Over enough
+      // TTL cycles those rows accumulated. After M2: each evictExpired
+      // pass drops orphan idempotency rows in the same sweep.
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      // Five runs, each with a distinct idempotency key.
+      for (let i = 0; i < 5; i++) {
+        createRun({ ...validBureauSpec, idempotencyKey: `k-${i}` }, t0);
+      }
+      expect(__runCount()).toBe(5);
+      expect(__idempotencyCount()).toBe(5);
+
+      // Trigger eviction by creating a fresh run past TTL — createRun
+      // calls evictExpired() at the top of its body. The 5 prior runs
+      // (and their idempotency rows) should be swept.
+      createRun(
+        { ...validBureauSpec, idempotencyKey: "fresh" },
+        t0 + __INTERNAL_TTL_MS + 1000,
+      );
+      // Only the fresh row remains.
+      expect(__runCount()).toBe(1);
+      expect(__idempotencyCount()).toBe(1);
+    });
   });
 });
 

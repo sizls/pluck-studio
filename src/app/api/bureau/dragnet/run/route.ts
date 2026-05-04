@@ -20,11 +20,13 @@
 //   4. Pack-ID allowlist — `canon-honesty` or `<author>/<pack>@<version>`.
 //   5. Per-IP rate limit.
 //   6. ToS / probe-authorization assertion.
-//   7. On success: { runId, phraseId, cadence, status: "cycle pending" }.
-//      `runId` here remains the legacy UUID (existing tests assert UUID
-//      shape); `phraseId` is the phrase ID that doubles as the canonical
-//      /v1/runs runId. The receipt URL on the frontend redirects to the
-//      phrase, not the UUID.
+//   7. On success: { runId, phraseId, cadence, status: "cycle pending",
+//      deprecated: true, replacement: "/api/v1/runs" } + RFC 8594
+//      Deprecation/Sunset/Link headers.
+//      M5 fix: `runId` is now the SAME phrase-id as `phraseId` — single
+//      primitive, identical on idempotent retries. The legacy randomUUID
+//      shape (and its useless freshness on every retry) was a footgun
+//      for any tooling that stored runId as the receipt key.
 //
 // Idempotency contract: legacy DRAGNET callers double-clicking within ~60s
 // dedupe to the SAME phraseId as a /v1/runs caller posting the same body
@@ -35,7 +37,6 @@
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 
 import {
   isAuthed,
@@ -44,6 +45,25 @@ import {
 } from "../../../../../lib/security/request-guards";
 import { validateDragnetPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
+
+/**
+ * Deprecation/Sunset HTTP signaling for the legacy alias. Per RFC 8594:
+ *   - `Deprecation: true` — literal token (NOT a date) signaling that
+ *     this resource is deprecated. Clients can detect it programmatically.
+ *   - `Sunset` — IMF-fixdate when the resource will stop responding. We
+ *     pick a date 6+ months out so the next migration window is plain.
+ *   - `Link rel="successor-version"` — points clients at the canonical
+ *     /v1/runs surface so tooling can auto-migrate.
+ *
+ * M5 fix: previously this was advertised in the JSON body only, which
+ * intermediaries and SDK retry layers don't see. RFC 8594 makes it a
+ * machine-readable HTTP-level concern.
+ */
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecation: "true",
+  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
+  Link: '</api/v1/runs>; rel="successor-version"',
+};
 
 interface RunRequestBody {
   targetUrl?: string;
@@ -124,7 +144,6 @@ export async function POST(req: Request): Promise<Response> {
   const probePackId = (body.probePackId ?? "").trim();
   const cadence = body.cadence ?? "once";
 
-  const legacyRunId = randomUUID();
   // Delegate persistence to the unified /v1/runs store so the receipt
   // page can read this run back via GET /api/v1/runs/[id]. The store
   // assigns the canonical phrase-id-shaped runId (vendor-scoped, e.g.
@@ -146,14 +165,23 @@ export async function POST(req: Request): Promise<Response> {
     idempotencyKey: synthesizeIdempotencyKey(targetUrl, probePackId, cadence),
   });
 
+  // M5 fix: previously `runId` was a per-request randomUUID() that diverged
+  // from `phraseId`. Two callers couldn't dedupe on `runId` because it was
+  // fresh on every retry; the canonical primitive has always been the
+  // phrase-id. Unify them — `runId === phraseId` — so the legacy
+  // experience matches /v1/runs callers and tooling stops carrying around
+  // a meaningless UUID. Body also flags `deprecated: true` and points at
+  // the replacement.
   return NextResponse.json(
     {
-      runId: legacyRunId,
+      runId: record.runId,
       phraseId: record.runId,
       cadence,
       status: "cycle pending",
+      deprecated: true,
+      replacement: "/api/v1/runs",
       note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:dragnet",
     },
-    { status: 200 },
+    { status: 200, headers: DEPRECATION_HEADERS },
   );
 }

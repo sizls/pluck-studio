@@ -1,11 +1,9 @@
 "use client";
 
-import { createSystem } from "@directive-run/core";
-import { useDerived, useFact } from "@directive-run/react";
+import { useDerived, useDirectiveRef, useFact } from "@directive-run/react";
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -69,12 +67,14 @@ interface ReceiptViewProps {
 }
 
 export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
-  const system = useMemo(() => {
-    const sys = createSystem({ module: nucleiRunReceiptModule });
-    sys.start();
-    sys.facts.id = id;
-    return sys;
-  }, [id]);
+  // M3 fix: useDirectiveRef is the Strict-Mode-safe lifecycle hook from
+  // @directive-run/react. The previous useMemo + manual destroy pattern
+  // was unsafe — useMemo is NOT a guaranteed cache.
+  const system = useDirectiveRef({ module: nucleiRunReceiptModule });
+
+  useEffect(() => {
+    system.facts.id = id;
+  }, [system, id]);
 
   const status = useFact(system, "status");
   const verdict = useFact(system, "verdict");
@@ -97,10 +97,6 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   const isFailure = useDerived(system, "isFailure");
   const verdictColor = useDerived(system, "verdictColor");
   const packDossierUrl = useDerived(system, "packDossierUrl");
-
-  useEffect(() => {
-    return () => system.destroy();
-  }, [system]);
 
   const isPhrase = isPhraseId(id);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(

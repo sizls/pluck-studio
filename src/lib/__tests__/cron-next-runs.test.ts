@@ -112,6 +112,19 @@ describe("nextNRuns", () => {
     }
   });
 
+  it('returns 5 fires for "@yearly × 5" anchored just before a leap year (M4 fix)', () => {
+    // Pre-M4: MAX_HORIZON_MS was 5 × 365 days = 1825 days. For an
+    // anchor late in 2027 (just before 2028 leap year), the 5th
+    // @yearly fire (2032-01-01) lands past 1825 days — counted from
+    // 2027-12-31 it's ~1827 days because the window straddles 2028
+    // AND 2032. Post-M4: horizon is 5 × 366 days, comfortably covers it.
+    const lateInYearBeforeLeap = Date.UTC(2027, 11, 31, 0, 0, 0);
+    const out = nextNRuns("@yearly", 5, lateInYearBeforeLeap);
+    expect(out).toHaveLength(5);
+    expect(out[0]!.getUTCFullYear()).toBe(2028);
+    expect(out[4]!.getUTCFullYear()).toBe(2032);
+  });
+
   it('returns Feb-29 dates for "0 0 29 2 *" (leap-year only)', () => {
     // Anchor: 2026-05-04. Next leap years: 2028, 2032, 2036, 2040, 2044
     // → all five inside the 5-year horizon (max ~2031). So we get only

@@ -43,6 +43,61 @@ export default function BureauIndexPage(): ReactNode {
           ))}
         </div>
       </section>
+
+      <section data-testid="bureau-studio-surfaces">
+        <h2
+          style={{
+            fontFamily: "var(--bureau-mono)",
+            fontSize: 14,
+            color: "var(--bureau-fg-dim)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginTop: 48,
+          }}
+        >
+          Studio surfaces
+        </h2>
+        <p style={{ marginTop: 8, color: "var(--bureau-fg-dim)", fontSize: 13 }}>
+          Cross-cutting views over the Bureau program library.
+        </p>
+        <ul
+          style={{
+            marginTop: 12,
+            padding: 0,
+            listStyle: "none",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+            fontFamily: "var(--bureau-mono)",
+            fontSize: 13,
+          }}
+        >
+          <li>
+            <a href="/runs">/runs →</a>{" "}
+            <span style={{ color: "var(--bureau-fg-dim)" }}>
+              activations directory
+            </span>
+          </li>
+          <li>
+            <a href="/vendor">/vendor →</a>{" "}
+            <span style={{ color: "var(--bureau-fg-dim)" }}>
+              vendor honesty index
+            </span>
+          </li>
+          <li>
+            <a href="/monitors">/monitors →</a>{" "}
+            <span style={{ color: "var(--bureau-fg-dim)" }}>
+              24h pack-fire timeline
+            </span>
+          </li>
+          <li>
+            <a href="/what-we-dont-know">/what-we-dont-know →</a>{" "}
+            <span style={{ color: "var(--bureau-fg-dim)" }}>
+              negative-knowledge disclosure
+            </span>
+          </li>
+        </ul>
+      </section>
     </>
   );
 }

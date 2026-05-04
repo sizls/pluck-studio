@@ -17,12 +17,23 @@
 //
 // Migration status:
 //   - bureau:dragnet — REAL validator (extracted from the legacy route).
+//   - bureau:nuclei  — REAL validator (M1 fix; cron grammar + license
+//     allowlist + author/pack/rekor + vendor-scope parsing). Both /v1/runs
+//     and the legacy /api/bureau/nuclei/run route share THIS function.
 //   - bureau:oath / fingerprint / custody / whistle / bounty / sbom-ai /
-//     rotate / tripwire / nuclei / mole — STUB validators (accept any object).
+//     rotate / tripwire / mole — STUB validators (accept any object).
 //     These tighten as each program's RunForm migrates to /v1/runs. The
 //     registry exists so the plumbing is in place.
 // ---------------------------------------------------------------------------
 
+import {
+  isAllowedLicense,
+  isValidAuthor,
+  isValidPackName,
+  isValidRekorUuid,
+  parseVendorScope,
+  validateCron,
+} from "../nuclei/run-form-module";
 import { isPrivateOrLocalHost } from "../security/request-guards";
 
 import { type BureauPipeline, BUREAU_PIPELINES } from "./run-spec";
@@ -157,9 +168,122 @@ const validateSbomAiPayload: PipelineValidator = passthroughObjectValidator;
 const validateRotatePayload: PipelineValidator = passthroughObjectValidator;
 // TODO(bureau:tripwire): tighten when TRIPWIRE RunForm migrates to /v1/runs.
 const validateTripwirePayload: PipelineValidator = passthroughObjectValidator;
-// TODO(bureau:nuclei): tighten when NUCLEI RunForm migrates (cron grammar +
-// license allowlist).
-const validateNucleiPayload: PipelineValidator = passthroughObjectValidator;
+
+// ---------------------------------------------------------------------------
+// NUCLEI — single source of truth for publish payload rules.
+//
+// Mirrors the legacy /api/bureau/nuclei/run route's body validation so /v1/runs
+// callers can't slip past program-specific rules (cron grammar, license
+// allowlist, etc.) by hitting the unified surface directly. M1 fix.
+// ---------------------------------------------------------------------------
+
+const NUCLEI_MAX_INTERVAL_LENGTH = 64;
+
+export interface NucleiPayload {
+  author: string;
+  packName: string;
+  sbomRekorUuid: string;
+  vendorScope: string;
+  license: string;
+  recommendedInterval: string;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:nuclei` publish payload. Identical to the rules the
+ * legacy `/api/bureau/nuclei/run` route enforces — both call sites share
+ * THIS function so the contract cannot drift.
+ */
+export function validateNucleiPayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  const author =
+    typeof body.author === "string" ? body.author.trim().toLowerCase() : "";
+  const packName =
+    typeof body.packName === "string" ? body.packName.trim() : "";
+  const sbomRekorUuid =
+    typeof body.sbomRekorUuid === "string"
+      ? body.sbomRekorUuid.trim().toLowerCase()
+      : "";
+  const vendorScope =
+    typeof body.vendorScope === "string" ? body.vendorScope.trim() : "";
+  const license =
+    typeof body.license === "string" ? body.license.trim() : "";
+  const recommendedInterval =
+    typeof body.recommendedInterval === "string"
+      ? body.recommendedInterval.trim()
+      : "";
+
+  if (!isValidAuthor(author)) {
+    return {
+      ok: false,
+      error: "Author must be a short lowercase slug (e.g. 'alice')",
+    };
+  }
+  if (!isValidPackName(packName)) {
+    return {
+      ok: false,
+      error:
+        "Pack name must be in the form '<slug>@<version>' (e.g. 'canon-honesty@0.1')",
+    };
+  }
+  if (!isValidRekorUuid(sbomRekorUuid)) {
+    return {
+      ok: false,
+      error:
+        "SBOM-AI Rekor UUID is required (64–80 hex characters). Without an SBOM-AI cross-reference, the entry would land at trustTier='ingested' and consumers would refuse it.",
+    };
+  }
+  const { pairs, invalid } = parseVendorScope(vendorScope);
+  if (pairs.length === 0) {
+    return {
+      ok: false,
+      error:
+        "Vendor scope must include at least one valid 'vendor/model' pair",
+    };
+  }
+  if (invalid.length > 0) {
+    return {
+      ok: false,
+      error: `Vendor scope contains malformed entries: ${invalid.join(", ")}`,
+    };
+  }
+  if (!isAllowedLicense(license)) {
+    return {
+      ok: false,
+      error: "License must be one of the allowed SPDX identifiers",
+    };
+  }
+  if (
+    recommendedInterval.length === 0 ||
+    recommendedInterval.length > NUCLEI_MAX_INTERVAL_LENGTH
+  ) {
+    return {
+      ok: false,
+      error: `Recommended interval is required, ≤ ${NUCLEI_MAX_INTERVAL_LENGTH} characters.`,
+    };
+  }
+  if (!validateCron(recommendedInterval)) {
+    return {
+      ok: false,
+      error:
+        "Recommended interval must be a valid 5-field cron expression (e.g. '0 */4 * * *').",
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to publish this pack and the SBOM-AI cross-reference is genuine.",
+    };
+  }
+
+  return { ok: true };
+}
+
 // TODO(bureau:mole): tighten when MOLE RunForm migrates to /v1/runs.
 const validateMolePayload: PipelineValidator = passthroughObjectValidator;
 

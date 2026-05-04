@@ -155,10 +155,11 @@ describe("POST /api/bureau/dragnet/run — auth", () => {
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as SuccessBody;
-    expect(body.runId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
-    // Vendor-scoped: e.g. `openai-swift-falcon-3742` for an api.openai.com target.
+    // M5 fix: runId === phraseId — both are the canonical phrase-id-shaped
+    // primitive (e.g. `openai-swift-falcon-3742`). Pre-M5, runId was a
+    // per-request randomUUID() that nobody could dedupe against.
+    expect(body.runId).toMatch(/^[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.runId).toBe(body.phraseId);
     expect(body.phraseId).toMatch(/^[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
     expect(body.phraseId).toMatch(/^openai-/);
     expect(body.status).toBe("cycle pending");
@@ -396,8 +397,12 @@ describe("POST /api/bureau/dragnet/run — body validation", () => {
 });
 
 describe("POST /api/bureau/dragnet/run — output shape", () => {
-  it("returns a fresh legacy runId on each call (UUID is per-request)", async () => {
-    const r1 = (await (
+  it("runId equals phraseId on every response (M5 unification)", async () => {
+    // Pre-M5: runId was a per-request randomUUID() that diverged from
+    // phraseId. Tooling that stored runId as the receipt key kept losing
+    // track of the actual run on dedupe. Post-M5: runId IS phraseId —
+    // single primitive, same on retries that hit the idempotency cache.
+    const r = (await (
       await POST(
         buildRequest({
           headers: SAME_SITE_AUTHED_HEADERS,
@@ -405,16 +410,45 @@ describe("POST /api/bureau/dragnet/run — output shape", () => {
         }),
       )
     ).json()) as SuccessBody;
-    const r2 = (await (
-      await POST(
-        buildRequest({
-          headers: SAME_SITE_AUTHED_HEADERS,
-          body: validBody(),
-        }),
-      )
-    ).json()) as SuccessBody;
-    // Legacy runId is a fresh UUID per request — that contract is preserved.
-    expect(r1.runId).not.toEqual(r2.runId);
+    expect(r.runId).toBe(r.phraseId);
+    expect(r.runId).toMatch(/^[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
+  });
+});
+
+describe("POST /api/bureau/dragnet/run — RFC 8594 deprecation signaling (M5 fix)", () => {
+  it("emits Deprecation, Sunset, and Link successor-version headers", async () => {
+    const res = await POST(
+      buildRequest({
+        headers: SAME_SITE_AUTHED_HEADERS,
+        body: validBody(),
+      }),
+    );
+    expect(res.status).toBe(200);
+    // Deprecation must be the literal token "true" per RFC 8594.
+    expect(res.headers.get("Deprecation")).toBe("true");
+    // Sunset is an IMF-fixdate; we just sanity-check it's present and parses.
+    const sunset = res.headers.get("Sunset");
+    expect(sunset).not.toBeNull();
+    expect(Number.isFinite(Date.parse(sunset ?? ""))).toBe(true);
+    // Link rel="successor-version" points clients at /v1/runs.
+    expect(res.headers.get("Link")).toMatch(
+      /<\/api\/v1\/runs>;\s*rel="successor-version"/,
+    );
+  });
+
+  it("includes deprecated: true + replacement in the response body", async () => {
+    const res = await POST(
+      buildRequest({
+        headers: SAME_SITE_AUTHED_HEADERS,
+        body: validBody(),
+      }),
+    );
+    const body = (await res.json()) as SuccessBody & {
+      deprecated?: boolean;
+      replacement?: string;
+    };
+    expect(body.deprecated).toBe(true);
+    expect(body.replacement).toBe("/api/v1/runs");
   });
 });
 

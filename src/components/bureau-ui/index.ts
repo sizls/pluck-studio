@@ -3,7 +3,11 @@
 // ---------------------------------------------------------------------------
 
 export { BureauChrome } from "./chrome.js";
-export type { BureauChromeProps } from "./chrome.js";
+export type {
+  BureauChromeActive,
+  BureauChromeProps,
+  CrossCuttingSurface,
+} from "./chrome.js";
 
 export { TimelineDotMark } from "./TimelineDot.js";
 export type { TimelineDotMarkProps } from "./TimelineDot.js";

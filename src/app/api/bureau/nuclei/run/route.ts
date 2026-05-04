@@ -11,12 +11,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
 import {
-  isAllowedLicense,
-  isValidAuthor,
-  isValidPackName,
-  isValidRekorUuid,
   parseVendorScope,
-  validateCron,
 } from "../../../../../lib/nuclei/run-form-module";
 import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import {
@@ -24,6 +19,7 @@ import {
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { validateNucleiPayload } from "../../../../../lib/v1/pipeline-validators";
 
 interface NucleiRequestBody {
   author?: string;
@@ -34,8 +30,6 @@ interface NucleiRequestBody {
   recommendedInterval?: string;
   authorizationAcknowledged?: boolean;
 }
-
-const MAX_INTERVAL_LENGTH = 64;
 
 // SECURITY: author handle squat — until pluck-api binds NUCLEI authors
 // to authenticated user IDs, anyone can submit any author=<handle>.
@@ -73,84 +67,24 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const author = body.author?.trim().toLowerCase() ?? "";
-  const packName = body.packName?.trim() ?? "";
-  const sbomRekorUuid = body.sbomRekorUuid?.trim().toLowerCase() ?? "";
-  const vendorScope = body.vendorScope?.trim() ?? "";
-  const license = body.license?.trim() ?? "";
-  const recommendedInterval = body.recommendedInterval?.trim() ?? "";
 
-  if (!isValidAuthor(author)) {
-    return NextResponse.json(
-      { error: "Author must be a short lowercase slug (e.g. 'alice')" },
-      { status: 400 },
-    );
+  // Single source of truth — the same validator /v1/runs uses. Keeps the
+  // two surfaces from drifting (M1 fix).
+  const result = validateNucleiPayload(body);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
-  if (!isValidPackName(packName)) {
-    return NextResponse.json(
-      {
-        error:
-          "Pack name must be in the form '<slug>@<version>' (e.g. 'canon-honesty@0.1')",
-      },
-      { status: 400 },
-    );
-  }
-  if (!isValidRekorUuid(sbomRekorUuid)) {
-    return NextResponse.json(
-      {
-        error:
-          "SBOM-AI Rekor UUID is required (64–80 hex characters). Without an SBOM-AI cross-reference, the entry would land at trustTier='ingested' and consumers would refuse it.",
-      },
-      { status: 400 },
-    );
-  }
-  const { pairs, invalid } = parseVendorScope(vendorScope);
-  if (pairs.length === 0) {
-    return NextResponse.json(
-      { error: "Vendor scope must include at least one valid 'vendor/model' pair" },
-      { status: 400 },
-    );
-  }
-  if (invalid.length > 0) {
-    return NextResponse.json(
-      {
-        error: `Vendor scope contains malformed entries: ${invalid.join(", ")}`,
-      },
-      { status: 400 },
-    );
-  }
-  if (!isAllowedLicense(license)) {
-    return NextResponse.json(
-      { error: `License must be one of the allowed SPDX identifiers` },
-      { status: 400 },
-    );
-  }
-  if (recommendedInterval.length === 0 || recommendedInterval.length > MAX_INTERVAL_LENGTH) {
-    return NextResponse.json(
-      {
-        error: `Recommended interval is required, ≤ ${MAX_INTERVAL_LENGTH} characters.`,
-      },
-      { status: 400 },
-    );
-  }
-  if (!validateCron(recommendedInterval)) {
-    return NextResponse.json(
-      {
-        error:
-          "Recommended interval must be a valid 5-field cron expression (e.g. '0 */4 * * *').",
-      },
-      { status: 400 },
-    );
-  }
-  if (body.authorizationAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge that you are authorized to publish this pack and the SBOM-AI cross-reference is genuine.",
-      },
-      { status: 400 },
-    );
-  }
+
+  // After validation passes, these are guaranteed strings — re-derive them
+  // here for the response shape and phrase-id derivation. Trim/normalize
+  // mirrors the validator's own normalization.
+  const author = (body.author ?? "").trim().toLowerCase();
+  const packName = (body.packName ?? "").trim();
+  const sbomRekorUuid = (body.sbomRekorUuid ?? "").trim().toLowerCase();
+  const vendorScope = (body.vendorScope ?? "").trim();
+  const license = (body.license ?? "").trim();
+  const recommendedInterval = (body.recommendedInterval ?? "").trim();
+  const { pairs } = parseVendorScope(vendorScope);
   const runId = randomUUID();
   // Phrase prefix is the author — registry entries belong to authors;
   // the URL self-discloses provenance.

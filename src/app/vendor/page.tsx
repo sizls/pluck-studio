@@ -104,6 +104,17 @@ export default function VendorIndexPage(): ReactNode {
       <section className="bureau-hero">
         <h1 className="bureau-hero-title">Vendor Honesty Index</h1>
         <p className="bureau-hero-tagline">{VENDOR_PAGE_DESCRIPTION}</p>
+        <p
+          style={{
+            marginTop: 12,
+            fontFamily: "var(--bureau-mono)",
+            fontSize: 13,
+            color: "var(--bureau-fg-dim)",
+          }}
+          data-testid="vendor-runs-cross-link"
+        >
+          By-program view: <a href="/runs">/runs →</a>
+        </p>
       </section>
 
       <PreviewBanner />
@@ -175,6 +186,13 @@ export default function VendorIndexPage(): ReactNode {
             invariants), so they don't feed vendor profiles.
           </li>
         </ul>
+        <p
+          style={{ marginTop: 24 }}
+          data-testid="vendor-refuse-cross-link"
+        >
+          Read what we <em>refuse</em> to know about a vendor's operation —{" "}
+          <a href="/what-we-dont-know">/what-we-dont-know</a>.
+        </p>
       </section>
     </>
   );

@@ -4,12 +4,10 @@
 // FINGERPRINT ReceiptView — Directive-backed live scan UI
 // ---------------------------------------------------------------------------
 
-import { createSystem } from "@directive-run/core";
-import { useDerived, useFact } from "@directive-run/react";
+import { useDerived, useDirectiveRef, useFact } from "@directive-run/react";
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -75,12 +73,14 @@ interface ReceiptViewProps {
 }
 
 export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
-  const system = useMemo(() => {
-    const sys = createSystem({ module: fingerprintRunReceiptModule });
-    sys.start();
-    sys.facts.id = id;
-    return sys;
-  }, [id]);
+  // M3 fix: useDirectiveRef is the Strict-Mode-safe lifecycle hook from
+  // @directive-run/react. The previous useMemo + manual destroy pattern
+  // was unsafe — useMemo is NOT a guaranteed cache.
+  const system = useDirectiveRef({ module: fingerprintRunReceiptModule });
+
+  useEffect(() => {
+    system.facts.id = id;
+  }, [system, id]);
 
   const status = useFact(system, "status");
   const vendor = useFact(system, "vendor");
@@ -105,12 +105,6 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   const hasDelta = useDerived(system, "hasDelta");
   const classificationColor = useDerived(system, "classificationColor");
   const targetDossierUrl = useDerived(system, "targetDossierUrl");
-
-  useEffect(() => {
-    return () => {
-      system.destroy();
-    };
-  }, [system]);
 
   const isPhrase = isPhraseId(id);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(

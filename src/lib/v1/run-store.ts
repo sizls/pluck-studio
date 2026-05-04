@@ -133,6 +133,17 @@ function evictExpired(now: number): void {
       runs.delete(id);
     }
   }
+  // Sweep orphan idempotency rows whose owning run no longer exists. Without
+  // this, a run that gets evicted (TTL or by the FIFO cap path that calls
+  // evictExpired indirectly) leaves behind its idempotency row forever —
+  // every subsequent retry would dereference a missing runId, fall through
+  // and create a fresh run, but the orphan row would still occupy space.
+  // M2 fix.
+  for (const [hash, runId] of idempotency) {
+    if (!runs.has(runId)) {
+      idempotency.delete(hash);
+    }
+  }
 }
 
 function enforceCap(): void {

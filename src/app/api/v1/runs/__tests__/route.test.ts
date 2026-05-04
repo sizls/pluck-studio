@@ -339,6 +339,62 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
     const body = (await res.json()) as { error: string };
     expect(body.error).toMatch(/unexpected top-level key: surprise/);
   });
+
+  it("rejects NUCLEI payload with malformed cron (no longer a stub)", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:nuclei",
+        payload: {
+          author: "alice",
+          packName: "canon-honesty@0.1",
+          sbomRekorUuid: "a".repeat(64),
+          vendorScope: "openai/gpt-4o",
+          license: "MIT",
+          recommendedInterval: "not cron",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/cron/i);
+  });
+
+  it("rejects NUCLEI payload with out-of-range cron ('0 25 * * *')", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:nuclei",
+        payload: {
+          author: "alice",
+          packName: "canon-honesty@0.1",
+          sbomRekorUuid: "a".repeat(64),
+          vendorScope: "openai/gpt-4o",
+          license: "MIT",
+          recommendedInterval: "0 25 * * *",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects NUCLEI payload with a non-allowed license", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:nuclei",
+        payload: {
+          author: "alice",
+          packName: "canon-honesty@0.1",
+          sbomRekorUuid: "a".repeat(64),
+          vendorScope: "openai/gpt-4o",
+          license: "WTFPL",
+          recommendedInterval: "0 */4 * * *",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("POST /api/v1/runs — bureau pipelines without targetUrl", () => {

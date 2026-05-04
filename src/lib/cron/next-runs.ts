@@ -17,9 +17,15 @@
 
 import { CRON_FIELD_BOUNDS, CRON_MACRO_PATTERN, validateCron } from "./validate";
 
-// 5-year horizon covers @yearly × 5 with margin. The hard ceiling is the
-// iteration count, not the time window — see MAX_ITERATIONS below.
-const MAX_HORIZON_MS = 5 * 365 * 24 * 60 * 60 * 1000;
+// 5-year horizon covers @yearly × 5 with margin. We use the *maximum*
+// possible 5-year span (366-day years) so leap-day spillover doesn't push
+// the 5th @yearly fire past the horizon. A real 5 years can span 1827
+// days when straddling two leap years; 1825 days (5 × 365) was an
+// undercount that dropped the final fire for some anchor dates. M4 fix.
+//
+// The hard ceiling is the iteration count, not the time window — see
+// MAX_ITERATIONS below.
+const MAX_HORIZON_MS = 5 * 366 * 24 * 60 * 60 * 1000;
 
 // Hard ceiling on walker iterations. With smart-skip, @yearly costs ~5
 // iterations per fire, and `* * * * *` costs 1 iteration per fire. 5M

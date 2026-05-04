@@ -12,12 +12,10 @@
 // re-write facts in place — this render code does not change.
 // ---------------------------------------------------------------------------
 
-import { createSystem } from "@directive-run/core";
-import { useDerived, useFact } from "@directive-run/react";
+import { useDerived, useDirectiveRef, useFact } from "@directive-run/react";
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -80,12 +78,21 @@ interface ReceiptViewProps {
 }
 
 export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
-  const system = useMemo(() => {
-    const sys = createSystem({ module: dragnetRunReceiptModule });
-    sys.start();
-    sys.facts.id = id;
-    return sys;
-  }, [id]);
+  // M3 fix: useDirectiveRef is the Strict-Mode-safe lifecycle hook from
+  // @directive-run/react. It stores the system in a ref, recreates it
+  // after Strict Mode's simulated cleanup, and destroys-once on real
+  // unmount. The previous useMemo + manual destroy pattern was unsafe
+  // because useMemo is NOT a guaranteed cache — Strict Mode could leave
+  // a destroyed system cached for the next render.
+  const system = useDirectiveRef({ module: dragnetRunReceiptModule });
+
+  // Sync the id fact whenever the route param changes. The system itself
+  // is stable across id changes; we just write to the reactive fact and
+  // let derivations recompute. (Pre-M3 the system was destroyed and
+  // recreated when id changed, which is wasteful — same render output.)
+  useEffect(() => {
+    system.facts.id = id;
+  }, [system, id]);
 
   // /v1/runs migration probe — once a runId is in the unified store,
   // we tag the receipt as "via /v1/runs" so it's obvious which path the
@@ -138,12 +145,6 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   const isPending = useDerived(system, "isPending");
   const isAnchored = useDerived(system, "isAnchored");
   const hasClassifications = useDerived(system, "hasClassifications");
-
-  useEffect(() => {
-    return () => {
-      system.destroy();
-    };
-  }, [system]);
 
   const isPhrase = isPhraseId(id);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
