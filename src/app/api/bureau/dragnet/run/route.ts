@@ -6,45 +6,30 @@
 //   1. Auth check by Supabase JWT cookie presence (real verification lands
 //      with pluck-api /v1/runs).
 //   2. CSRF defence — same-origin enforced via Sec-Fetch-Site / Origin /
-//      Referer. Any cross-site POST is 403 regardless of cookies.
-//   3. URL scheme allowlist — only http: / https: target URLs accepted to
-//      block javascript: / file: / data: stored-XSS feeders ahead of the
-//      C2 SSRF egress filter that lands with the real runner. Localhost
-//      and RFC1918 / link-local hostnames also rejected client-side as a
-//      cosmetic guard (real DNS-resolution-time filter is C2's job).
+//      Referer (shared via lib/security/request-guards).
+//   3. URL scheme allowlist + private-IP block (shared via request-guards).
 //   4. Pack-ID allowlist — only the bundled `canon-honesty` and the
-//      qualified NUCLEI form `<author>/<pack>@<version>` accepted. Bare
-//      typos like `canon-honestly` 400 instead of silently anchoring a
-//      run nobody will ever look at.
-//   5. Per-IP rate limit — 10 POSTs / minute, in-memory token bucket.
-//      Sized for the stub; replaced by edge / Kite-substrate limiter when
-//      the real /v1/runs endpoint lands.
-//   6. ToS / probe-authorization assertion — the operator must check the
-//      box that they are authorized to probe the target (H9 fix). Logged
-//      in-memory today; lands in Kite event log when the real runner
-//      ships.
-//   7. On missing auth: 401 + { signInUrl } so the form can surface a
-//      sign-in prompt rather than redirect-eating the user's input.
-//   8. On success: returns { runId, phraseId } — the phrase is the
-//      user-facing identifier (see lib/phrase-id.ts), the UUID is kept
-//      for cross-system joins. Real RunSpec creation, signing, and Rekor
-//      anchoring all land when pluck-api ships /v1/runs.
+//      qualified NUCLEI form `<author>/<pack>@<version>` accepted.
+//   5. Per-IP rate limit (shared via request-guards).
+//   6. ToS / probe-authorization assertion (DRAGNET-specific copy).
+//   7. On success: returns { runId, phraseId } — the phrase is the
+//      user-facing identifier (vendor-scoped per R2), the UUID is kept
+//      for cross-system joins.
 //
-// SECURITY (deferred to follow-on commits, tracked in plan AE findings):
-//   C2 SSRF on destination URI — targetUrl is currently echoed only; no
-//      egress yet. The DNS-resolution-time IPv4/IPv6 link-local + RFC1918
-//      deny + bogon filter + no-redirect HTTP client lands with the
-//      real runner.
-//   C5 Idempotency — POST is currently non-idempotent. Real handler hashes
-//      (user_id, source, pipeline, options, destination, client_nonce)
-//      before insert into runs.
+// Shared guards live in `lib/security/request-guards.ts`. OATH
+// (sibling route) reuses them — domain-specific validation per route.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
 import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
-import { checkRateLimit } from "../../../../../lib/rate-limit";
+import {
+  isAuthed,
+  isPrivateOrLocalHost,
+  isSameSiteRequest,
+  rateLimitOk,
+} from "../../../../../lib/security/request-guards";
 
 interface RunRequestBody {
   targetUrl?: string;
@@ -53,116 +38,9 @@ interface RunRequestBody {
   authorizationAcknowledged?: boolean;
 }
 
-const SUPABASE_AUTH_COOKIE_PATTERN = /^sb-[^-]+-auth-token(\.\d+)?$/;
-const ALLOWED_ORIGIN_HOSTNAMES = new Set([
-  "studio.pluck.run",
-  "localhost",
-  "127.0.0.1",
-]);
 const ALLOWED_TARGET_SCHEMES = new Set(["http:", "https:"]);
 const BUNDLED_PACK_IDS = new Set(["canon-honesty"]);
 const QUALIFIED_PACK_ID = /^[a-z0-9_-]+\/[a-z0-9_-]+@[a-zA-Z0-9._+-]+$/;
-const LOCAL_HOSTNAMES = new Set([
-  "localhost",
-  "0.0.0.0",
-  "::1",
-  "::",
-  "127.0.0.1",
-]);
-const RATE_LIMIT_MAX = 10;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-
-function isPrivateOrLocalHost(hostname: string): boolean {
-  if (LOCAL_HOSTNAMES.has(hostname)) {
-    return true;
-  }
-  // IPv4 RFC1918 + link-local + loopback
-  const ipv4 = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-  if (ipv4) {
-    const a = Number(ipv4[1]);
-    const b = Number(ipv4[2]);
-    if (a === 10 || a === 127 || a === 0) {
-      return true;
-    }
-    if (a === 172 && b >= 16 && b <= 31) {
-      return true;
-    }
-    if (a === 192 && b === 168) {
-      return true;
-    }
-    if (a === 169 && b === 254) {
-      return true;
-    }
-  }
-  // IPv6 fc00::/7 (ULA), fe80::/10 (link-local)
-  const lower = hostname.toLowerCase();
-  if (lower.startsWith("[fc") || lower.startsWith("[fd")) {
-    return true;
-  }
-  if (lower.startsWith("[fe80:")) {
-    return true;
-  }
-  return false;
-}
-
-function isSameSiteRequest(req: Request): boolean {
-  const fetchSite = req.headers.get("sec-fetch-site");
-
-  if (fetchSite !== null) {
-    return fetchSite === "same-origin" || fetchSite === "same-site";
-  }
-  const candidate = req.headers.get("origin") ?? req.headers.get("referer");
-
-  if (candidate === null) {
-    return false;
-  }
-  try {
-    const u = new URL(candidate);
-
-    return ALLOWED_ORIGIN_HOSTNAMES.has(u.hostname);
-  } catch {
-    return false;
-  }
-}
-
-function hasSupabaseSession(req: Request): boolean {
-  const cookieHeader = req.headers.get("cookie");
-
-  if (!cookieHeader) {
-    return false;
-  }
-  const cookies = cookieHeader.split(";").map((c) => c.trim().split("=")[0]);
-
-  return cookies.some(
-    (name) => name !== undefined && SUPABASE_AUTH_COOKIE_PATTERN.test(name),
-  );
-}
-
-function bearerAllowedInThisEnv(): boolean {
-  return process.env.NODE_ENV !== "production";
-}
-
-function hasBearerToken(req: Request): boolean {
-  const authz = req.headers.get("authorization");
-
-  return authz !== null && authz.toLowerCase().startsWith("bearer ");
-}
-
-function clientKey(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for");
-  const xri = req.headers.get("x-real-ip");
-  const ip = xff?.split(",")[0]?.trim() ?? xri ?? "unknown";
-  const cookieMark = hasSupabaseSession(req) ? "session" : "anon";
-
-  return `${ip}::${cookieMark}`;
-}
-
-function rateLimitOk(req: Request): boolean {
-  return checkRateLimit(clientKey(req), {
-    max: RATE_LIMIT_MAX,
-    windowMs: RATE_LIMIT_WINDOW_MS,
-  });
-}
 
 function isAllowedPackId(id: string): boolean {
   return BUNDLED_PACK_IDS.has(id) || QUALIFIED_PACK_ID.test(id);
@@ -181,10 +59,7 @@ export async function POST(req: Request): Promise<Response> {
       { status: 429 },
     );
   }
-  const sessionAuthed = hasSupabaseSession(req);
-  const bearerAuthed = bearerAllowedInThisEnv() && hasBearerToken(req);
-
-  if (!sessionAuthed && !bearerAuthed) {
+  if (!isAuthed(req)) {
     return NextResponse.json(
       {
         error: "authentication required",
@@ -270,9 +145,7 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
   const runId = randomUUID();
-  // Vendor-scoped: e.g. `openai-swift-falcon-3742`. The receipt URL
-  // self-discloses the target — a Bureau practitioner reading the URL
-  // alone knows who was probed. UUID stays for cross-system joins.
+  // Vendor-scoped: e.g. `openai-swift-falcon-3742`.
   const phraseId = generateScopedPhraseId(targetUrl);
 
   return NextResponse.json(

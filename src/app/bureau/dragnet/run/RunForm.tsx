@@ -8,15 +8,10 @@
 // reads via `useFact` / `useDerived`. Submit, redirect, and auth-fail
 // routing are imperative effects fired off the same module's facts.
 //
-// Domain shape (per Bureau-Directive Loyalty Rule extension to Studio):
-//   - Renames `vendorUrl` → `targetUrl` (DRAGNET probes target endpoints,
-//     not vendor homepages).
-//   - "Run a probe-pack", not "Run a probe" (a pack contains N probes).
-//   - Cadence radio: "Run once" (active) / "Continuous monitoring"
-//     (disabled, marked Coming soon — server rejects with same copy).
-//   - ToS / probe-authorization checkbox required before submit.
-//   - Localhost / private IPs blocked client-side as a cosmetic guard;
-//     real DNS-resolution-time SSRF filter lands with the runner (C2).
+// Renders via shared `bureau-ui/forms` primitives — every Bureau program
+// activation form composes these primitives with a per-program Directive
+// module + per-program field set. OATH is the second program to wire
+// using this pattern (proves generalizability per the v1 plan).
 // ---------------------------------------------------------------------------
 
 import { createSystem } from "@directive-run/core";
@@ -32,6 +27,16 @@ import {
 } from "react";
 
 import {
+  BureauButton,
+  BureauCheckbox,
+  BureauError,
+  BureauHelpText,
+  BureauInput,
+  BureauLabel,
+  BureauRadioGroup,
+  BureauSignInPrompt,
+} from "../../../../components/bureau-ui/forms";
+import {
   dragnetRunFormModule,
   type Cadence,
 } from "../../../../lib/dragnet/run-form-module";
@@ -43,45 +48,28 @@ interface RunResponse {
   error?: string;
 }
 
-const InputStyle = {
-  width: "100%",
-  padding: "8px 12px",
-  fontFamily: "var(--bureau-mono)",
-  fontSize: 14,
-  background: "var(--bureau-bg)",
-  color: "var(--bureau-fg)",
-  border: "1px solid var(--bureau-fg-dim)",
-  borderRadius: 4,
-  marginTop: 4,
-};
-
-const LabelStyle = {
-  display: "block",
-  marginTop: 16,
-  fontFamily: "var(--bureau-mono)",
-  fontSize: 13,
-  color: "var(--bureau-fg-dim)",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.06em",
-};
-
-const HelpTextStyle = {
-  fontSize: 12,
-  color: "var(--bureau-fg-dim)",
-  marginTop: 4,
-};
-
-const ButtonStyle = {
-  marginTop: 24,
-  padding: "10px 20px",
-  fontFamily: "var(--bureau-mono)",
-  fontSize: 14,
-  background: "var(--bureau-fg)",
-  color: "var(--bureau-bg)",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-};
+const CADENCE_OPTIONS: ReadonlyArray<{
+  value: Cadence;
+  label: ReactNode;
+  disabled?: boolean;
+  testId?: string;
+}> = [
+  {
+    value: "once",
+    label: "Run once (one-shot probe-pack execution)",
+    testId: "cadence-once",
+  },
+  {
+    value: "continuous",
+    label: (
+      <>
+        Continuous monitoring <em>(coming soon)</em>
+      </>
+    ),
+    disabled: true,
+    testId: "cadence-continuous",
+  },
+];
 
 function isClientSideBadTarget(raw: string): string | null {
   const trimmed = raw.trim();
@@ -176,10 +164,6 @@ export function DragnetRunForm(): ReactNode {
 
   const [clientGuardError, setClientGuardError] = useState<string | null>(null);
 
-  // Tear down the per-mount Directive system on unmount. Without this,
-  // React 18 Strict Mode + offscreen rendering can cause `useMemo` to
-  // throw away cached values, leaving orphaned engines that never call
-  // `destroy()`. ReceiptView already does this; symmetric here.
   useEffect(
     () => () => {
       system.destroy();
@@ -233,7 +217,6 @@ export function DragnetRunForm(): ReactNode {
       };
       system.facts.submitStatus = "succeeded";
 
-      // Phrase ID is the canonical user-facing receipt URL.
       router.push(`/bureau/dragnet/runs/${body.phraseId}`);
     } catch (err) {
       system.facts.errorMessage =
@@ -242,139 +225,85 @@ export function DragnetRunForm(): ReactNode {
     }
   }
 
+  const errorToShow = clientGuardError ?? (hasError ? errorMessage : null);
+
   return (
     <form onSubmit={onSubmit} data-testid="dragnet-run-form">
-      <label style={LabelStyle}>
-        Target endpoint
-        <input
+      <BureauLabel text="Target endpoint">
+        <BureauInput
           type="url"
           name="targetUrl"
           required
           autoFocus
           placeholder="https://api.openai.com/v1/chat/completions"
-          value={targetUrl}
-          onChange={(e) => setTargetUrl(e.target.value)}
-          style={InputStyle}
-          data-testid="target-url"
+          value={targetUrl ?? ""}
+          onChange={setTargetUrl}
+          testId="target-url"
         />
-      </label>
-      <p style={HelpTextStyle}>
+      </BureauLabel>
+      <BureauHelpText>
         The model API endpoint, claims/policy URL, or product surface to
         probe. Must be public (no localhost or private IPs). You assert
         below that you are authorized to probe this target.
-      </p>
+      </BureauHelpText>
 
-      <label style={LabelStyle}>
-        Probe-pack ID
-        <input
+      <BureauLabel text="Probe-pack ID">
+        <BureauInput
           type="text"
           name="probePackId"
           required
-          value={probePackId}
-          onChange={(e) => setProbePackId(e.target.value)}
-          style={InputStyle}
-          data-testid="probe-pack-id"
+          value={probePackId ?? ""}
+          onChange={setProbePackId}
+          testId="probe-pack-id"
         />
-      </label>
-      <p style={HelpTextStyle}>
-        The signed bundle of probes to replay. Leave as <code>canon-honesty</code>
-        {" "}for the default pack, or use a NUCLEI-qualified ID like
-        {" "}<code>author/pack@version</code>.
-      </p>
+      </BureauLabel>
+      <BureauHelpText>
+        The signed bundle of probes to replay. Leave as <code>canon-honesty</code>{" "}
+        for the default pack, or use a NUCLEI-qualified ID like{" "}
+        <code>author/pack@version</code>.
+      </BureauHelpText>
 
-      <fieldset
-        style={{ marginTop: 16, border: "none", padding: 0 }}
-        data-testid="cadence"
-      >
-        <legend style={LabelStyle}>Cadence</legend>
-        <label style={{ display: "block", marginTop: 8 }}>
-          <input
-            type="radio"
-            name="cadence"
-            value="once"
-            checked={cadence === "once"}
-            onChange={() => setCadence("once")}
-            data-testid="cadence-once"
-          />{" "}
-          Run once (one-shot probe-pack execution)
-        </label>
-        <label
-          style={{
-            display: "block",
-            marginTop: 8,
-            color: "var(--bureau-fg-dim)",
-          }}
-        >
-          <input
-            type="radio"
-            name="cadence"
-            value="continuous"
-            checked={cadence === "continuous"}
-            disabled
-            data-testid="cadence-continuous"
-          />{" "}
-          Continuous monitoring <em>(coming soon)</em>
-        </label>
-      </fieldset>
+      <BureauRadioGroup
+        name="cadence"
+        legend="Cadence"
+        options={CADENCE_OPTIONS}
+        value={cadence ?? "once"}
+        onChange={setCadence}
+        testId="cadence"
+      />
 
-      <label
-        style={{ display: "block", marginTop: 24 }}
-        data-testid="auth-ack-label"
+      <BureauCheckbox
+        checked={authAck ?? false}
+        onChange={setAuthAck}
+        testId="auth-ack"
       >
-        <input
-          type="checkbox"
-          checked={authAck}
-          onChange={(e) => setAuthAck(e.target.checked)}
-          data-testid="auth-ack"
-        />{" "}
         I am authorized to probe this target. (Required — DRAGNET will
         log this assertion to the public transparency log on each run.)
-      </label>
+      </BureauCheckbox>
 
       <p
         style={{ marginTop: 16, fontSize: 12, color: "var(--bureau-fg-dim)" }}
       >
         Hosted-mode runs are signed by the Pluck-fleet hosted key
-        (<a href="/.well-known/pluck-keys.json"><code>/.well-known/pluck-keys.json</code></a>).
-        Bring-your-own-key signing lands with the operator-key flow.
+        (
+        <a href="/.well-known/pluck-keys.json">
+          <code>/.well-known/pluck-keys.json</code>
+        </a>
+        ). Bring-your-own-key signing lands with the operator-key flow.
       </p>
 
-      <button
-        type="submit"
-        disabled={!canSubmit}
-        style={{ ...ButtonStyle, opacity: canSubmit ? 1 : 0.6 }}
-        data-testid="run-submit"
-      >
+      <BureauButton type="submit" disabled={!canSubmit} testId="run-submit">
         {isSubmitting ? "Running…" : "Run probe-pack"}
-      </button>
+      </BureauButton>
 
       {needsSignIn && signInUrl ? (
-        <p
-          style={{ marginTop: 16, color: "var(--bureau-fg-dim)" }}
-          data-testid="sign-in-prompt"
-        >
-          You need to be signed in to run a probe-pack.{" "}
-          <a href={signInUrl}>Sign in</a> and try again.
-        </p>
+        <BureauSignInPrompt signInUrl={signInUrl} testId="sign-in-prompt" />
       ) : null}
 
-      {(hasError && errorMessage !== null) || clientGuardError ? (
-        <p
-          style={{ marginTop: 16, color: "#ff4444" }}
-          data-testid="run-error"
-          role="alert"
-          aria-live="polite"
-        >
-          {clientGuardError ?? errorMessage}
-        </p>
+      {errorToShow ? (
+        <BureauError message={errorToShow} testId="run-error" />
       ) : null}
 
-      {/*
-        Pluck-Studio Round 1 ref: submitStatus is observable for tests via
-        useFact above. The render uses `isSubmitting` (derivation) but
-        downstream consumers (e.g. the receipt redirect race) read the
-        fact directly.
-      */}
       <span data-testid="submit-status" hidden>
         {submitStatus}
       </span>

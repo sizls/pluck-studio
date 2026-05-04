@@ -45,6 +45,24 @@ export default function OathIndexPage(): ReactNode {
           evaluation time. Vendors with no oath get a visible{" "}
           <strong>did not commit</strong> badge.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/oath/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Run an OATH check →
+          </a>
+        </p>
       </section>
 
       <section style={CalloutStyle}>
