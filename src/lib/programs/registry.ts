@@ -274,3 +274,164 @@ export const PHRASE_ID_PREFIX_CONVENTIONS: Readonly<
       "Operator-chosen canary identifier — the canary BODY never enters any public surface; only the operator's local ID does.",
   },
 };
+
+// ---------------------------------------------------------------------------
+// Program privacy posture — what Studio refuses to know
+// ---------------------------------------------------------------------------
+//
+// The negative-knowledge table. Each program declares (a) what Studio
+// explicitly does NOT see / store / log about an operator's operation,
+// and (b) the necessary trust-tradeoff — what it does know. This is the
+// inversion of standard surveillance-tool framing: the page at
+// /what-we-dont-know renders this verbatim and the phrase-ID schema
+// is the proof. If Studio knew it, it'd be in the URL.
+//
+// Adding a new program means adding an entry here AND in ACTIVE_PROGRAMS;
+// the registry test suite locks the invariant. Be specific — vague
+// claims undermine the page's purpose.
+// ---------------------------------------------------------------------------
+
+export interface ProgramPrivacyPosture {
+  /** Things Studio explicitly refuses to know / store. Privacy-load-bearing. */
+  readonly knowsNot: ReadonlyArray<string>;
+  /** Things Studio knowingly stores (the necessary trust-tradeoff). */
+  readonly knows: ReadonlyArray<string>;
+}
+
+export const PROGRAM_PRIVACY_POSTURE: Readonly<
+  Record<string, ProgramPrivacyPosture>
+> = {
+  dragnet: {
+    knowsNot: [
+      "operator-internal context beyond the probe-pack ID",
+      "any data flowing through the probe besides the public claims being checked",
+      "operator's ToS arrangement with the vendor — only the activation-time acknowledgement",
+    ],
+    knows: [
+      "probe-pack ID + version (vendor disclosure is the point)",
+      "vendor target hostname (anchored in the phrase-ID)",
+      "per-cycle classification counts (contradict / mirror / shadow / snare)",
+    ],
+  },
+  oath: {
+    knowsNot: [
+      "any vendor-internal data beyond the public /.well-known/pluck-oath.json document",
+      "operator identity beyond the Pluck account binding",
+      "any prior verification history not anchored to Rekor",
+    ],
+    knows: [
+      "vendor hostname (the URL fetched)",
+      "served Origin vs body's vendor field cross-check",
+      "verdict + per-claim list",
+    ],
+  },
+  fingerprint: {
+    knowsNot: [
+      "operator-internal context beyond probe-pack ID",
+      "the vendor's model weights or any private metadata",
+      "the calibration-set responses beyond their hashes once cassetted",
+    ],
+    knows: [
+      "vendor whose model was probed (anchored in the phrase-ID)",
+      "5-probe calibration-set responses (cassette local:<sha256>)",
+      "drift classification + drift score",
+    ],
+  },
+  custody: {
+    knowsNot: [
+      "the bundle's source operator identity when source attribution is unavailable",
+      "any private chain-of-custody metadata beyond what the bundle itself signs",
+      "WebAuthn private credentials — only the public attestation summary",
+    ],
+    knows: [
+      "CustodyBundle URL fetched server-side",
+      "verdict + per-check breakdown",
+      "WebAuthn attestation summary (public)",
+    ],
+  },
+  whistle: {
+    knowsNot: [
+      "the source identity — phrase-ID encodes the routing partner only",
+      "the submission body once redaction layers run",
+      "any IP / cookie / fingerprint of the submitter",
+    ],
+    knows: [
+      "routing partner (ProPublica / Bellingcat / 404 Media / EFF Press)",
+      "sha256 of pre-redaction submission",
+      "ephemeral signing key fingerprint",
+    ],
+  },
+  bounty: {
+    knowsNot: [
+      "the operator's HackerOne / Bugcrowd auth token — token-LOCAL posture, never sent to Studio",
+      "private vulnerability details — only the EvidencePacket structure",
+      "the operator's bounty payout banking details",
+    ],
+    knows: [
+      "target platform (HackerOne / Bugcrowd)",
+      "submission status",
+      "filed-by handle",
+    ],
+  },
+  "sbom-ai": {
+    knowsNot: [
+      "the artifact's private source code or internal build steps",
+      "author identity beyond the published handle on the attestation",
+      "any private supply-chain metadata not embedded in the in-toto attestation",
+    ],
+    knows: [
+      "artifact kind (probe-pack / model-card / mcp-server)",
+      "canonical sha256 digest of the artifact",
+      "per-kind predicate URI",
+    ],
+  },
+  rotate: {
+    knowsNot: [
+      "the full key fingerprint — only rotation reason in URL",
+      "key material at any time — operator holds private keys",
+      "the original cassettes' bodies — only their hashes are re-witnessed",
+    ],
+    knows: [
+      "rotation reason (compromised / routine / lost)",
+      "old key public hash",
+      "new key public hash",
+      "count of re-witnessed cassettes",
+    ],
+  },
+  tripwire: {
+    knowsNot: [
+      "intercepted bodies by default — local cassette unless notarize is on",
+      "the operator's identity — only their machine ID slug",
+      "any machine the operator didn't enroll",
+    ],
+    knows: [
+      "machine ID slug",
+      "policy ID + version",
+      "ingestion endpoint",
+    ],
+  },
+  nuclei: {
+    knowsNot: [
+      "the author's real-world identity beyond the published handle",
+      "the underlying probe-pack contents (those live on the SBOM-AI side)",
+      "any private trust-graph between authors and consumers",
+    ],
+    knows: [
+      "registry author handle (anchored in the phrase-ID)",
+      "SBOM-AI Rekor uuid cross-reference (TOFU enforcement)",
+      "trustTier (verified vs ingested) + canonical pack-entry URL",
+    ],
+  },
+  mole: {
+    knowsNot: [
+      "the canary body — only sha256 + length",
+      "the operator's local fingerprint vocabulary beyond the published phrases",
+      "any probe results — sealing comes BEFORE probing, by design",
+    ],
+    knows: [
+      "sha256 of the canary body (anchored)",
+      "operator-chosen fingerprint phrases",
+      "canary URL the operator declared",
+    ],
+  },
+};

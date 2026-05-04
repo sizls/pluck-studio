@@ -241,7 +241,14 @@ export default function RunsPage(): ReactNode {
           Receipts are public by default — phrase IDs disclose the
           probed target via the URL slug. Read{" "}
           <a href="/privacy">/privacy</a> before submitting your first
-          activation.
+          activation, and{" "}
+          <a
+            href="/what-we-dont-know"
+            title="Per-program negative-knowledge disclosure"
+          >
+            /what-we-dont-know
+          </a>{" "}
+          for the per-program list of what Studio refuses to know.
         </p>
       </section>
     </>

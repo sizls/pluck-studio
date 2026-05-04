@@ -61,6 +61,23 @@ export default function PrivacyPage(): ReactNode {
       </section>
 
       <section>
+        <h2 style={SectionHeadingStyle}>What we refuse to know</h2>
+        <p>
+          The inversion. For the per-program list of what Studio
+          explicitly does not see / store / log about your operation,
+          read{" "}
+          <a
+            href="/what-we-dont-know"
+            title="Per-program negative-knowledge disclosure"
+          >
+            /what-we-dont-know
+          </a>
+          . The phrase-ID schema is the proof — if Studio knew it, it
+          would be in the URL.
+        </p>
+      </section>
+
+      <section>
         <h2 style={SectionHeadingStyle}>What's private</h2>
         <ul style={{ lineHeight: 1.7 }}>
           <li>
