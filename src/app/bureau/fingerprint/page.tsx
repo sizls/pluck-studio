@@ -45,6 +45,24 @@ export default function FingerprintIndexPage(): ReactNode {
           <code>minor</code>, <code>major</code>, or — when the
           fingerprint hash diverges entirely — <code>swap</code>.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/fingerprint/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Scan a model →
+          </a>
+        </p>
       </section>
 
       <section style={CalloutStyle}>
