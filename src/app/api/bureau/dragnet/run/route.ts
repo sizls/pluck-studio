@@ -1,35 +1,42 @@
 // ---------------------------------------------------------------------------
-// POST /api/bureau/dragnet/run — DRAGNET activation endpoint (day-1 stub)
+// POST /api/bureau/dragnet/run — DRAGNET activation endpoint (DEPRECATED ALIAS)
 // ---------------------------------------------------------------------------
 //
-// Day-1 contract per the v1 plan:
-//   1. Auth check by Supabase JWT cookie presence (real verification lands
-//      with pluck-api /v1/runs).
-//   2. CSRF defence — same-origin enforced via Sec-Fetch-Site / Origin /
-//      Referer (shared via lib/security/request-guards).
-//   3. URL scheme allowlist + private-IP block (shared via request-guards).
-//   4. Pack-ID allowlist — only the bundled `canon-honesty` and the
-//      qualified NUCLEI form `<author>/<pack>@<version>` accepted.
-//   5. Per-IP rate limit (shared via request-guards).
-//   6. ToS / probe-authorization assertion (DRAGNET-specific copy).
-//   7. On success: returns { runId, phraseId } — the phrase is the
-//      user-facing identifier (vendor-scoped per R2), the UUID is kept
-//      for cross-system joins.
+// !! DEPRECATED — clients should POST to /api/v1/runs with
+//    { pipeline: "bureau:dragnet", payload: { ...this body... } }. !!
 //
-// Shared guards live in `lib/security/request-guards.ts`. OATH
-// (sibling route) reuses them — domain-specific validation per route.
+// This route stays alive as a deprecated alias so callers that haven't
+// migrated yet keep working. Existing contract tests (CSRF, auth, body
+// validation, rate limit, output shape) stay green — the entire prior
+// validation chain runs verbatim. After a successful validation we
+// hand the resulting payload to the unified /v1/runs in-memory store
+// so the receipt page can read it back via /api/v1/runs/[id], same as
+// a native /v1/runs caller.
+//
+// Day-1 contract preserved:
+//   1. Auth check by Supabase JWT cookie presence.
+//   2. CSRF defence — same-origin enforced.
+//   3. URL scheme allowlist + private-IP block.
+//   4. Pack-ID allowlist — `canon-honesty` or `<author>/<pack>@<version>`.
+//   5. Per-IP rate limit.
+//   6. ToS / probe-authorization assertion.
+//   7. On success: { runId, phraseId, cadence, status: "cycle pending" }.
+//      `runId` here remains the legacy UUID (existing tests assert UUID
+//      shape); `phraseId` is the phrase ID that doubles as the canonical
+//      /v1/runs runId. The receipt URL on the frontend redirects to the
+//      phrase, not the UUID.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
-import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import {
   isAuthed,
   isPrivateOrLocalHost,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { createRun } from "../../../../../lib/v1/run-store";
 
 interface RunRequestBody {
   targetUrl?: string;
@@ -144,17 +151,28 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const runId = randomUUID();
-  // Vendor-scoped: e.g. `openai-swift-falcon-3742`.
-  const phraseId = generateScopedPhraseId(targetUrl);
+  const legacyRunId = randomUUID();
+  // Delegate persistence to the unified /v1/runs store so the receipt
+  // page can read this run back via GET /api/v1/runs/[id]. The store
+  // assigns the canonical phrase-id-shaped runId (vendor-scoped, e.g.
+  // `openai-swift-falcon-3742`) — that becomes the user-facing phraseId.
+  const { record } = createRun({
+    pipeline: "bureau:dragnet",
+    payload: {
+      targetUrl,
+      probePackId,
+      cadence,
+      authorizationAcknowledged: body.authorizationAcknowledged,
+    },
+  });
 
   return NextResponse.json(
     {
-      runId,
-      phraseId,
+      runId: legacyRunId,
+      phraseId: record.runId,
       cadence,
       status: "cycle pending",
-      note: "stub run — pluck-api /v1/runs not yet wired; see plan",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:dragnet",
     },
     { status: 200 },
   );

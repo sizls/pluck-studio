@@ -43,7 +43,10 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/dragnet/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
 }
@@ -70,6 +73,18 @@ const CADENCE_OPTIONS: ReadonlyArray<{
     testId: "cadence-continuous",
   },
 ];
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. We bucket
+ * by minute so a double-click within ~60s collapses to the same runId,
+ * but a deliberate "run again" 2 minutes later is a fresh run. Cheap
+ * client-side; the server hashes (pipeline+payload+key) before storing.
+ */
+function idempotencyKeyFor(targetUrl: string, probePackId: string): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `dragnet:${probePackId}:${targetUrl}:${minuteBucket}`;
+}
 
 function isClientSideBadTarget(raw: string): string | null {
   const trimmed = raw.trim();
@@ -185,14 +200,25 @@ export function DragnetRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/dragnet/run", {
+      // DRAGNET is the wedge migration to the unified /v1/runs surface
+      // (Phase 3 of the AE review). The legacy /api/bureau/dragnet/run
+      // route stays alive as a deprecated alias for callers that haven't
+      // migrated; new client code POSTs here.
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          targetUrl,
-          probePackId,
-          cadence,
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:dragnet",
+          payload: {
+            targetUrl,
+            probePackId,
+            cadence,
+            authorizationAcknowledged: authAck,
+          },
+          // Optional client-side idempotency key — guarantees duplicate
+          // submits (double-click, network retry) collapse to the same
+          // runId. Server falls through gracefully when omitted.
+          idempotencyKey: idempotencyKeyFor(targetUrl ?? "", probePackId ?? ""),
         }),
       });
 
@@ -204,7 +230,7 @@ export function DragnetRunForm(): ReactNode {
         return;
       }
 
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Run failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -213,11 +239,11 @@ export function DragnetRunForm(): ReactNode {
 
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
 
-      router.push(`/bureau/dragnet/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/dragnet/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";
