@@ -3,16 +3,29 @@
 // ---------------------------------------------------------------------------
 //
 // Accepts 5-field cron OR a Vixie `@`-macro. Strategy: validate, expand
-// macro to canonical, parse each field into Set<number>, walk forward
-// minute-by-minute from `from + 60s` (UTC). Bail at 7 days for dead
-// patterns (e.g. `0 0 31 2 *`); 5-year horizon for live ones.
-// Pure: no Date mutation, deterministic given `from`.
+// macro to canonical, parse each field into Set<number>, then walk
+// forward with a *cascading skip*. When the month, day, or hour of the
+// candidate doesn't match, we jump to the start of the next valid
+// month / day / hour rather than ticking minute-by-minute. Only when
+// month + day + hour all match do we walk minute-by-minute (at most
+// 60 iterations per fire). This keeps `@yearly` and other rare
+// patterns near-instant and bounds adversarial input by an iteration
+// ceiling rather than by elapsed wall-clock time.
+//
+// UTC, deterministic given `from`. No Date mutation.
 // ---------------------------------------------------------------------------
 
 import { CRON_FIELD_BOUNDS, CRON_MACRO_PATTERN, validateCron } from "./validate";
 
-const FIRST_MATCH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+// 5-year horizon covers @yearly × 5 with margin. The hard ceiling is the
+// iteration count, not the time window — see MAX_ITERATIONS below.
 const MAX_HORIZON_MS = 5 * 365 * 24 * 60 * 60 * 1000;
+
+// Hard ceiling on walker iterations. With smart-skip, @yearly costs ~5
+// iterations per fire, and `* * * * *` costs 1 iteration per fire. 5M
+// is comfortably above any sane workload (e.g. `*/15 * * * *` × 7 fires
+// = 7 iterations) but rejects pathologically-crafted patterns.
+const MAX_ITERATIONS = 5_000_000;
 
 const MACRO_TO_CANONICAL: Record<string, string> = {
   "@yearly": "0 0 1 1 *",
@@ -131,15 +144,23 @@ function parseCron(expr: string): ParsedCron | null {
 
 /**
  * Compute the next N firing timestamps for `expr` strictly after `from`.
- * Returns `[]` if `expr` is invalid OR the pattern doesn't fire within
- * 7 days. UTC. Pure: deterministic given `from`.
+ * Returns `[]` if `expr` is invalid OR if `n <= 0` after coercion. UTC.
+ *
+ * `n` is coerced via `Math.max(0, Math.floor(n))` so NaN, negative, and
+ * fractional inputs are robust. Walker is bounded by iteration count,
+ * not wall-clock; rare patterns (`@yearly`, leap-day) return promptly,
+ * adversarial patterns are rejected at the iteration ceiling.
+ *
+ * Pure: deterministic given `from`.
  */
 export function nextNRuns(
   expr: string,
   n = 7,
   from: number = Date.now(),
 ): Date[] {
-  if (!validateCron(expr) || n <= 0) {
+  // Coerce N defensively: NaN → 0, negatives → 0, fractions → floor.
+  const target = Math.max(0, Math.floor(Number(n)));
+  if (target === 0 || !validateCron(expr)) {
     return [];
   }
   const parsed = parseCron(expr);
@@ -148,41 +169,60 @@ export function nextNRuns(
   }
 
   const out: Date[] = [];
-  const start = Math.floor(from / 60000) * 60000 + 60000;
-  const firstMatchDeadline = from + FIRST_MATCH_WINDOW_MS;
+  // Step strictly past `from`: round up to the next minute boundary.
+  let t = Math.floor(from / 60000) * 60000 + 60000;
   const horizon = from + MAX_HORIZON_MS;
+  let iterations = 0;
 
-  for (let t = start; t <= horizon && out.length < n; t += 60000) {
-    if (out.length === 0 && t > firstMatchDeadline) {
-      return [];
-    }
+  while (t <= horizon && out.length < target && iterations < MAX_ITERATIONS) {
+    iterations += 1;
     const d = new Date(t);
-    if (!parsed.minutes.has(d.getUTCMinutes())) {
+    const year = d.getUTCFullYear();
+    const monthIdx = d.getUTCMonth(); // 0-11
+    const dayOfMonth = d.getUTCDate();
+    const hour = d.getUTCHours();
+    const minute = d.getUTCMinutes();
+
+    // Month skip: jump to start of next month at 00:00:00 UTC.
+    if (!parsed.months.has(monthIdx + 1)) {
+      t = Date.UTC(year, monthIdx + 1, 1, 0, 0, 0);
       continue;
     }
-    if (!parsed.hours.has(d.getUTCHours())) {
-      continue;
-    }
-    if (!parsed.months.has(d.getUTCMonth() + 1)) {
-      continue;
-    }
-    const domMatch = parsed.daysOfMonth.has(d.getUTCDate());
+
+    // Day skip (dom/dow OR semantics): jump to start of next day.
+    const domMatch = parsed.daysOfMonth.has(dayOfMonth);
     const dowMatch = parsed.daysOfWeek.has(d.getUTCDay());
+    let dayOk: boolean;
     if (parsed.domStar && parsed.dowStar) {
-      // pass — neither field restricts the day
+      dayOk = true;
     } else if (parsed.domStar) {
-      if (!dowMatch) {
-        continue;
-      }
+      dayOk = dowMatch;
     } else if (parsed.dowStar) {
-      if (!domMatch) {
-        continue;
-      }
-    } else if (!domMatch && !dowMatch) {
+      dayOk = domMatch;
+    } else {
+      // Both restricted → fire if EITHER matches.
+      dayOk = domMatch || dowMatch;
+    }
+    if (!dayOk) {
+      t = Date.UTC(year, monthIdx, dayOfMonth + 1, 0, 0, 0);
+      continue;
+    }
+
+    // Hour skip: jump to next hour at :00.
+    if (!parsed.hours.has(hour)) {
+      t = Date.UTC(year, monthIdx, dayOfMonth, hour + 1, 0, 0);
+      continue;
+    }
+
+    // Minute walk: only iteration that ticks +60s. Bounded to 60 per fire
+    // because the hour-skip lands us at :00 each time we enter this loop.
+    if (!parsed.minutes.has(minute)) {
+      t += 60_000;
       continue;
     }
 
     out.push(d);
+    t += 60_000;
   }
 
   return out;

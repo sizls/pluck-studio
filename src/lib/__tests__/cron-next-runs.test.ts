@@ -76,9 +76,102 @@ describe("nextNRuns", () => {
     expect(out).toHaveLength(3);
   });
 
-  it("returns [] when the pattern doesn't fire within 7 days (Feb 31)", () => {
-    // Day-of-month=31, month=Feb — never fires.
+  it("returns [] for impossible patterns (Feb 31 — never fires)", () => {
+    // Day-of-month=31, month=Feb — never fires. Smart-skip walker
+    // hops Feb→Feb without ever hitting a valid day, exhausts horizon,
+    // returns []. (Previously bailed at a 7-day window; now bounded
+    // by the 5-year horizon and iteration ceiling.)
     expect(nextNRuns("0 0 31 2 *", 7, MONDAY_2026_05_04)).toEqual([]);
+  });
+
+  it('returns 3 yearly fires for "@yearly" (year apart, Jan 1)', () => {
+    // Anchor: 2026-05-04. First fire: 2027-01-01, then 2028, 2029.
+    const out = nextNRuns("@yearly", 3, MONDAY_2026_05_04);
+    expect(out).toHaveLength(3);
+    for (const d of out) {
+      expect(d.getUTCMonth()).toBe(0); // January
+      expect(d.getUTCDate()).toBe(1);
+      expect(d.getUTCHours()).toBe(0);
+      expect(d.getUTCMinutes()).toBe(0);
+    }
+    expect(out[0]!.getUTCFullYear()).toBe(2027);
+    expect(out[1]!.getUTCFullYear()).toBe(2028);
+    expect(out[2]!.getUTCFullYear()).toBe(2029);
+  });
+
+  it('returns Jan-1 dates for "0 0 1 1 *" (canonical @yearly)', () => {
+    const out = nextNRuns("0 0 1 1 *", 5, MONDAY_2026_05_04);
+    expect(out).toHaveLength(5);
+    for (const d of out) {
+      expect(d.getUTCMonth()).toBe(0);
+      expect(d.getUTCDate()).toBe(1);
+    }
+    // Five distinct years, each one apart.
+    for (let i = 1; i < out.length; i += 1) {
+      expect(out[i]!.getUTCFullYear() - out[i - 1]!.getUTCFullYear()).toBe(1);
+    }
+  });
+
+  it('returns Feb-29 dates for "0 0 29 2 *" (leap-year only)', () => {
+    // Anchor: 2026-05-04. Next leap years: 2028, 2032, 2036, 2040, 2044
+    // → all five inside the 5-year horizon (max ~2031). So we get only
+    // 1 fire (2028-02-29). Walker MUST find it without bailing at 7 days.
+    const out = nextNRuns("0 0 29 2 *", 3, MONDAY_2026_05_04);
+    expect(out.length).toBeGreaterThanOrEqual(1);
+    expect(out.length).toBeLessThanOrEqual(2);
+    for (const d of out) {
+      expect(d.getUTCMonth()).toBe(1); // February
+      expect(d.getUTCDate()).toBe(29);
+      // Year must be a leap year.
+      const y = d.getUTCFullYear();
+      const isLeap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+      expect(isLeap).toBe(true);
+    }
+  });
+
+  it('honors dom/dow OR semantics for "0 0 1 * 1" (Mondays OR 1sts)', () => {
+    const out = nextNRuns("0 0 1 * 1", 7, MONDAY_2026_05_04);
+    expect(out).toHaveLength(7);
+    for (const d of out) {
+      const isMonday = d.getUTCDay() === 1;
+      const isFirst = d.getUTCDate() === 1;
+      expect(isMonday || isFirst).toBe(true);
+      expect(d.getUTCHours()).toBe(0);
+      expect(d.getUTCMinutes()).toBe(0);
+    }
+    // Should be a mix — there's at least one Monday-not-1st and one
+    // 1st-not-Monday in any 7-fire window starting from a Monday in May.
+    const hasMondayNot1st = out.some(
+      (d) => d.getUTCDay() === 1 && d.getUTCDate() !== 1,
+    );
+    expect(hasMondayNot1st).toBe(true);
+  });
+
+  it('Sunday equivalence: "0 0 * * 0" and "0 0 * * 7" produce identical output', () => {
+    const a = nextNRuns("0 0 * * 0", 4, MONDAY_2026_05_04);
+    const b = nextNRuns("0 0 * * 7", 4, MONDAY_2026_05_04);
+    expect(a.map((d) => d.getTime())).toEqual(b.map((d) => d.getTime()));
+  });
+
+  it("@yearly performance: returns 5 fires in well under 50ms", () => {
+    const t0 = performance.now();
+    const out = nextNRuns("@yearly", 5, MONDAY_2026_05_04);
+    const elapsed = performance.now() - t0;
+    expect(out).toHaveLength(5);
+    // Smart-skip should be near-instant. Generous bound to avoid CI
+    // flake; the linear walker would take ~180ms for 5 yearly fires.
+    expect(elapsed).toBeLessThan(50);
+  });
+
+  it("coerces NaN/fractional/negative N defensively", () => {
+    // NaN → 0 → []
+    expect(nextNRuns("@daily", Number.NaN, MONDAY_2026_05_04)).toEqual([]);
+    // -1 → 0 → []
+    expect(nextNRuns("@daily", -1, MONDAY_2026_05_04)).toEqual([]);
+    // 1.5 → floor(1.5) = 1
+    const out = nextNRuns("@daily", 1.5, MONDAY_2026_05_04);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toBeInstanceOf(Date);
   });
 
   it("is deterministic given a fixed `from` timestamp", () => {

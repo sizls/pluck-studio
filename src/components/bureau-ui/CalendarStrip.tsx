@@ -1,10 +1,19 @@
 // ---------------------------------------------------------------------------
 // CalendarStrip — render the next N fires of a cron expression as pills
 // ---------------------------------------------------------------------------
+//
+// Three empty states (operators must be able to tell them apart):
+//   1. cron is null/empty           → "(no schedule)"
+//   2. cron is provided but invalid → "(invalid schedule)"
+//   3. cron is valid but no fires   → "(pattern too sparse — no fires
+//      within 5 years)" — only reachable if the walker exhausts its
+//      iteration ceiling (effectively pathological input).
+// ---------------------------------------------------------------------------
 
 import type { CSSProperties, ReactNode } from "react";
 
 import { nextNRuns } from "../../lib/cron/next-runs";
+import { validateCron } from "../../lib/cron/validate";
 
 export interface CalendarStripProps {
   cron: string | null | undefined;
@@ -66,16 +75,27 @@ export function CalendarStrip({
   from,
   heading,
 }: CalendarStripProps): ReactNode {
-  const headingText = heading ?? `Next ${count} fires`;
   const trimmed = typeof cron === "string" ? cron.trim() : "";
-  const fires = trimmed.length === 0 ? [] : nextNRuns(trimmed, count, from);
+  const hasInput = trimmed.length > 0;
+  const isValid = hasInput && validateCron(trimmed);
+  const fires = isValid ? nextNRuns(trimmed, count, from) : [];
+  const headingText = heading ?? `Next ${fires.length || count} fires (UTC)`;
+
+  let emptyCopy: string | null = null;
+  if (!hasInput) {
+    emptyCopy = "(no schedule)";
+  } else if (!isValid) {
+    emptyCopy = "(invalid schedule)";
+  } else if (fires.length === 0) {
+    emptyCopy = "(pattern too sparse — no fires within 5 years)";
+  }
 
   return (
     <div data-testid="calendar-strip">
       <p style={HEAD}>{headingText}</p>
-      {fires.length === 0 ? (
+      {emptyCopy !== null ? (
         <p style={MUTED} data-testid="calendar-empty">
-          (no schedule)
+          {emptyCopy}
         </p>
       ) : (
         <>
@@ -92,7 +112,10 @@ export function CalendarStrip({
             ))}
           </div>
           {fires.length < count ? (
-            <p style={MUTED}>(no further fires within 7 days)</p>
+            <p style={MUTED}>
+              (only {fires.length} fire{fires.length === 1 ? "" : "s"} within
+              the 5-year horizon)
+            </p>
           ) : null}
         </>
       )}

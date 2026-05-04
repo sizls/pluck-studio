@@ -143,7 +143,31 @@ export default function MonitorsPage(): ReactNode {
 
       <section>
         <h2 style={HEAD}>Next 24 hours (UTC)</h2>
-        <div style={WRAP} data-testid="monitors-timeline" aria-label="24-hour pack-fire timeline">
+        {/* Narrow viewports collapse the timeline (220px label + ticks
+            crush the dot row into an unreadable smear under ~720px).
+            We hide the timeline and surface a note pointing at the list
+            view, which is already mobile-friendly. */}
+        <style>{`
+          .monitors-mobile-note { display: none; }
+          @media (max-width: 720px) {
+            .monitors-timeline { display: none !important; }
+            .monitors-mobile-note { display: block; }
+          }
+        `}</style>
+        <p
+          className="monitors-mobile-note"
+          data-testid="monitors-mobile-note"
+          style={BANNER}
+        >
+          Timeline view is desktop-only — the list view below shows the same
+          data on narrow screens.
+        </p>
+        <div
+          className="monitors-timeline"
+          style={WRAP}
+          data-testid="monitors-timeline"
+          aria-label="24-hour pack-fire timeline"
+        >
           <div style={TIMELINE_HEAD}>
             {HOUR_TICKS.map((h) => (
               <span key={h} style={{ ...TICK, left: `${(h / 24) * 100}%` }}>
