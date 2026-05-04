@@ -44,6 +44,24 @@ export default function TripwireIndexPage(): ReactNode {
           notarized. Per-machine timeline lives at{" "}
           <a href="/bureau/tripwire/me">tripwire/me</a>.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/tripwire/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Configure a tripwire →
+          </a>
+        </p>
       </section>
 
       <section style={CalloutStyle}>

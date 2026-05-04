@@ -19,8 +19,9 @@ const ACTIVE_SLUGS = [
   "bounty",
   "sbom-ai",
   "rotate",
+  "tripwire",
 ] as const;
-const COMING_SOON_SLUGS = ["tripwire", "nuclei", "mole"] as const;
+const COMING_SOON_SLUGS = ["nuclei", "mole"] as const;
 
 test.describe("/runs activations directory", () => {
   test("renders all four active program cards", async ({ page }) => {
@@ -30,7 +31,7 @@ test.describe("/runs activations directory", () => {
       await expect(page.getByTestId(`run-cta-${slug}`)).toBeVisible();
       await expect(page.getByTestId(`landing-cta-${slug}`)).toBeVisible();
     }
-    await expect(page.getByTestId("active-count")).toContainText(/8 of 11/);
+    await expect(page.getByTestId("active-count")).toContainText(/9 of 11/);
   });
 
   test("DRAGNET CTA navigates to the run route", async ({ page }) => {
@@ -79,6 +80,12 @@ test.describe("/runs activations directory", () => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-rotate").click();
     await page.waitForURL(/\/bureau\/rotate\/run$/);
+  });
+
+  test("TRIPWIRE CTA navigates to the run route", async ({ page }) => {
+    await page.goto("/runs");
+    await page.getByTestId("run-cta-tripwire").click();
+    await page.waitForURL(/\/bureau\/tripwire\/run$/);
   });
 
   test("coming-soon programs are listed with reasons", async ({ page }) => {

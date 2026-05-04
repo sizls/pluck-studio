@@ -131,6 +131,18 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     runPath: "/bureau/rotate/run",
     landingPath: "/bureau/rotate",
   },
+  {
+    slug: "tripwire",
+    name: "TRIPWIRE",
+    actionVerb: "Configure a tripwire",
+    summary:
+      "JS-layer interceptor for outbound LLM traffic. Studio issues a signed TripwirePolicy/v1 + install snippet + ingestion endpoint per dev machine; intercepted bodies stay local unless notarize is on.",
+    outputShape:
+      "configuration verdict (configured / machine-already-active / 3 named failure modes) + signed policy + install snippet",
+    predicateUri: "https://pluck.run/TripwirePolicy/v1",
+    runPath: "/bureau/tripwire/run",
+    landingPath: "/bureau/tripwire",
+  },
 ];
 
 /**
@@ -148,13 +160,6 @@ export interface ComingSoonProgram {
 }
 
 export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [
-  {
-    slug: "tripwire",
-    name: "TRIPWIRE",
-    reason:
-      "Continuous JS-layer interceptor — needs a key-issuance flow + live attestation feed (different scaffolding from one-shot activation).",
-    landingPath: "/bureau/tripwire",
-  },
   {
     slug: "nuclei",
     name: "NUCLEI",
