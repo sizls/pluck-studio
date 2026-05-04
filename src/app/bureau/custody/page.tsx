@@ -46,6 +46,42 @@ export default function CustodyIndexPage(): ReactNode {
           902(13) compliance result appears in your browser, no
           network round-trip.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/custody/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+              marginRight: 12,
+            }}
+          >
+            Verify a bundle by URL →
+          </a>
+          <a
+            href="/bureau/custody/verify"
+            data-testid="verify-offline-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "transparent",
+              color: "var(--bureau-fg)",
+              textDecoration: "none",
+              border: "1px solid var(--bureau-fg-dim)",
+              borderRadius: 4,
+            }}
+          >
+            Drag-drop verify (offline) →
+          </a>
+        </p>
       </section>
 
       <section style={CalloutStyle}>
