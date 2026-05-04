@@ -206,11 +206,24 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
         {isPublished && !isFullyVerified ? (
           <p style={{ ...StatLineStyle, color: "#a78a1f" }}>
             <strong data-testid="published-ingested-callout">
-              Published (ingested-only) — registry-fenced. Consumers
-              refuse to honor this entry without an SBOM-AI cross-reference.
-              The entry exists in the registry but downstream verifiers
-              will not run anything pinned to it.
+              Registry-fenced — entry exists in NUCLEI but consumers
+              refuse to honor without an SBOM-AI cross-reference.
+              Downstream verifiers will not run anything pinned to it.
             </strong>
+            <br />
+            <small
+              style={{
+                fontFamily: "var(--bureau-mono)",
+                color: "var(--bureau-fg-dim)",
+                fontStyle: "italic",
+              }}
+              data-testid="published-ingested-verdict-tag"
+              data-verdict="published-ingested-only"
+            >
+              Status: Registry-fenced (no SBOM-AI cross-reference).
+              Verdict tag:{" "}
+              <code>published-ingested-only</code>
+            </small>
           </p>
         ) : null}
         {isFailure && verdict ? (

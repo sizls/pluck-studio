@@ -47,6 +47,10 @@ export type ReceiptStatus =
 
 export type DotColor = "red" | "amber" | "green";
 
+/** DRAGNET cycle spec predicateType (canonical, surfaced in the receipt UI). */
+export const DRAGNET_CYCLE_PREDICATE_URI =
+  "https://pluck.run/DragnetCycle/v1";
+
 export interface Classifications {
   contradict: number;
   mirror: number;

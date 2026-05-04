@@ -104,6 +104,17 @@ export function isAllowedLicense(s: string): boolean {
 // step (`*/n` or `a-b/n`), or a comma-list combining the above.
 // Whitespace between fields is one-or-more spaces or tabs; leading /
 // trailing whitespace on the whole expression is rejected.
+//
+// Additionally accepts the standard Vixie/ISC `@`-macros — these are
+// honored by every real-world cron daemon (Vixie cron, ISC cron,
+// Cloudflare Workers cron, GitHub Actions cron) and every Node lib
+// (`cron-parser`, `croner`, `node-cron`). Probe-pack authors using
+// `@daily` via the CLI would otherwise round-trip-fail at our submit
+// boundary. Macros are case-sensitive (per POSIX). `@reboot` is
+// intentionally rejected — runtime-relative, doesn't make sense for
+// a registry-published interval.
+const CRON_MACRO_PATTERN =
+  /^@(yearly|annually|monthly|weekly|daily|midnight|hourly)$/;
 
 interface CronFieldBounds {
   readonly min: number;
@@ -197,6 +208,11 @@ export function validateCron(s: string): boolean {
   // worse than a hard fail at submit time.
   if (s !== s.trim() || s.length === 0) {
     return false;
+  }
+  // Accept standard `@`-macros before falling through to 5-field grammar.
+  // Case-sensitive — that's the POSIX/Vixie standard.
+  if (CRON_MACRO_PATTERN.test(s)) {
+    return true;
   }
   const fields = s.split(/[\t ]+/);
   if (fields.length !== CRON_FIELD_BOUNDS.length) {

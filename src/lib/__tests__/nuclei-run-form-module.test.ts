@@ -216,6 +216,44 @@ describe("validateCron — 5-field cron grammar", () => {
   it("rejects malformed range ('30-0 * * * *')", () => {
     expect(validateCron("30-0 * * * *")).toBe(false);
   });
+
+  // @-macros — every real-world cron daemon (Vixie, ISC, Cloudflare
+  // Workers, GitHub Actions) and every Node lib (cron-parser, croner,
+  // node-cron) honors these. Probe-pack authors using `@daily` via the
+  // CLI would otherwise round-trip-fail at our submit boundary.
+  it("accepts @yearly", () => {
+    expect(validateCron("@yearly")).toBe(true);
+  });
+  it("accepts @annually (synonym of @yearly)", () => {
+    expect(validateCron("@annually")).toBe(true);
+  });
+  it("accepts @monthly", () => {
+    expect(validateCron("@monthly")).toBe(true);
+  });
+  it("accepts @weekly", () => {
+    expect(validateCron("@weekly")).toBe(true);
+  });
+  it("accepts @daily", () => {
+    expect(validateCron("@daily")).toBe(true);
+  });
+  it("accepts @midnight (synonym of @daily)", () => {
+    expect(validateCron("@midnight")).toBe(true);
+  });
+  it("accepts @hourly", () => {
+    expect(validateCron("@hourly")).toBe(true);
+  });
+  it("rejects @reboot (runtime-relative, not registry-publishable)", () => {
+    expect(validateCron("@reboot")).toBe(false);
+  });
+  it("rejects uppercase macros (@HOURLY) — POSIX is case-sensitive", () => {
+    expect(validateCron("@HOURLY")).toBe(false);
+  });
+  it("rejects unknown macros (@unknown)", () => {
+    expect(validateCron("@unknown")).toBe(false);
+  });
+  it("rejects nonsense macros (@every-second)", () => {
+    expect(validateCron("@every-second")).toBe(false);
+  });
 });
 
 describe("recommendedIntervalIsValid + canSubmit (cron integration)", () => {

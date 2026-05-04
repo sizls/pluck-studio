@@ -140,6 +140,41 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
 
 Total: 6 days for the full v3-R1 viral compounds bundle.
 
+## v3-R2 Game-Changer Ideas (post-R1-fixes ship)
+
+Surfaced after R1 hardened the activation surface (D1 license tightening, D3 cron validation, D2/D4 verdict semantics, A2 derivation composition). Three new ideas — all pass the FUCK YES filter, all compound on what R1 introduced. Deferred this round (2 majors had to land first).
+
+### Top 3 Ranked
+
+1. **The Negative-Knowledge Page** — `/what-we-dont-know`
+   - Pitch: public page, one row per program: "MOLE — we will never see your canary body. WHISTLE — we will never see your source. ROTATE — we will never see your key fingerprint." Powered by `PHRASE_ID_PREFIX_CONVENTIONS` rationales (R1 introduced) — load-bearing privacy invariants rendered as a marketing asset.
+   - Tweet: *"Most security tools brag about what they collect. Here's everything pluck refuses to know about your operation. One row per program. The phrase-ID schema is the proof — if we knew it, it'd be in the URL."*
+   - Compound: massive. Becomes the URL pasted into every regulator/SOC2 conversation. Every new program adds a row automatically. Inverts the entire surveillance-tooling genre — Karpathy quote-tweet candidate.
+   - Buildable in: hours. Data exists in `registry.ts` (`PHRASE_ID_PREFIX_CONVENTIONS`); it's a new route + a styled table.
+   - Status: **FUCK YES tier — keystone of v3-R2. Ship before Vendor Honesty Index.**
+
+2. **Cron Calendar Strip** — visualize next 7 fires of every monitor
+   - Pitch: R1's `validateCron` knows the grammar parses. Add `nextNRuns(cron, n=7)` and render a calendar strip on every NUCLEI receipt: "Next 7 fires: Mon 04:00 · Mon 08:00 · Mon 12:00…". Aggregate view at `/monitors` becomes a 24h timeline of every published pack's upcoming fires.
+   - Tweet: *"every NUCLEI pack now shows when it'll fire next. paste a cron, see the future. the registry just became a TV guide for AI vendor probes."*
+   - Compound: high — pairs with Subscription Feed (v3-R1 backlog) to become a "what's about to happen" daily digest.
+   - Buildable in: 1 day (`cron-parser` does next-N).
+   - Status: BUILD second — exposes the value of R1's grammar work.
+
+3. **Verdict-Verbose Badge** — registry-fence visibility per pack
+   - Pitch: R1 added `published-ingested-only` (NUCLEI) and `re-witnessed` (MOLE) as load-bearing distinctions, currently visible only on individual receipts. Add a public `<VerdictBadge variant="registry-fenced" />` component; surface it on `/runs`, on (future) `/vendor/openai`, and on the NUCLEI registry index. Any pack that's published-but-fenced renders an amber pill linking to a classifications explainer.
+   - Tweet: *"NUCLEI's amber 'registry-fenced' badge: 'this pack is in the registry, but consumers refuse to honor it until the SBOM-AI cross-reference clears.' transparent supply-chain trust state, one pixel."*
+   - Compound: medium-high — multiplies VHI / Auto-Stitch when those land. Polish on its own; load-bearing combined.
+   - Buildable in: hours.
+   - Status: BUILD third (or fold into VHI when that ships).
+
+### Recommended sequence
+
+1. **Negative-Knowledge Page** (hours) — keystone, ship first
+2. **Cron Calendar Strip** (1 day)
+3. **Verdict-Verbose Badge** (hours) — fold into next viral compound
+
+All three pass the filter. The Negative-Knowledge Page is the round's standout — TechCrunch headline writes itself ("The first AI-monitoring tool that brags about its own ignorance").
+
 ## R0 (plan-doc) — already captured in `mighty-gliding-swan.md`
 
 These are part of the plan, not surfaced this round:

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   Classifications,
+  DRAGNET_CYCLE_PREDICATE_URI,
   dotColorFromClassifications,
   dragnetRunReceiptModule,
 } from "../dragnet/run-receipt-module.js";
@@ -114,5 +115,11 @@ describe("dotColorFromClassifications", () => {
       snare: 0,
     };
     expect(dotColorFromClassifications(empty)).toBe("green");
+  });
+
+  it("DRAGNET_CYCLE_PREDICATE_URI is the canonical wire form", () => {
+    expect(DRAGNET_CYCLE_PREDICATE_URI).toBe(
+      "https://pluck.run/DragnetCycle/v1",
+    );
   });
 });

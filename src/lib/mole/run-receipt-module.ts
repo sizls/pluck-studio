@@ -109,6 +109,9 @@ export const moleRunReceiptModule = createModule("mole-run-receipt", {
     isSealed: (facts) =>
       facts.status === "anchored" &&
       (facts.verdict === "sealed" || facts.verdict === "re-witnessed"),
+    // TODO(R3): operational path that flips verdict 'sealed' → 're-witnessed'
+    // will originate from a ROTATE → MOLE side-effect on ReWitnessReport ingest.
+    // Schema is ready; route emission is post-pluck-api.
     isReWitnessed: (facts) =>
       facts.status === "anchored" && facts.verdict === "re-witnessed",
     isFailure: (facts) =>

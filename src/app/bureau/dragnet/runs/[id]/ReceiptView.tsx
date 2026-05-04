@@ -22,7 +22,10 @@ import {
   type ReactNode,
 } from "react";
 
-import { dragnetRunReceiptModule } from "../../../../../lib/dragnet/run-receipt-module";
+import {
+  DRAGNET_CYCLE_PREDICATE_URI,
+  dragnetRunReceiptModule,
+} from "../../../../../lib/dragnet/run-receipt-module";
 import { isPhraseId } from "../../../../../lib/phrase-id";
 
 const SectionHeadingStyle = {
@@ -240,6 +243,9 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
 
       <section>
         <h2 style={SectionHeadingStyle}>Verification</h2>
+        <p style={StatLineStyle} data-testid="predicate-uri">
+          Predicate: <code>{DRAGNET_CYCLE_PREDICATE_URI}</code>
+        </p>
         {isAnchored && receiptUrl && rekorUuid ? (
           <>
             <p data-testid="rekor-uuid">
