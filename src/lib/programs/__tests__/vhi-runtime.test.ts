@@ -80,6 +80,7 @@ describe("VHI verdict distribution", () => {
 
   it("no receipt summary names a real product, model family, or vendor URL", () => {
     const banned: ReadonlyArray<RegExp> = [
+      // Product / model families (case-insensitive)
       /\bGPT-?\d/i,
       /\bClaude\b/i,
       /\bGemini\b/i,
@@ -88,6 +89,23 @@ describe("VHI verdict distribution", () => {
       /\bSonar\b/i,
       /\bGrok\b/i,
       /\bCopilot\b/i,
+      // OpenAI reasoning models
+      /\bo1\b/i,
+      /\bo3\b/i,
+      // OpenAI image / audio / video gen
+      /\bDALL-E\b/i,
+      /\bDALL\.E\b/i,
+      /\bWhisper\b/i,
+      /\bSora\b/i,
+      // Hosting surfaces — banning these protects us when the underlying
+      // model name (Claude/Llama/Mistral) might otherwise sneak in via a
+      // "hosted on …" phrasing.
+      /\bBedrock\b/i,
+      /\bAzure\s+OpenAI\b/i,
+      // Consumer products distinct from API-tier names
+      /\bChatGPT\b/i,
+      /\bAnthropic\s+API\b/i,
+      // Vendor URLs / well-known endpoints
       /api\.[a-z]+\.(com|ai|dev)/i,
       /\.well-known\/pluck-oath\.json/i,
     ];
@@ -100,6 +118,42 @@ describe("VHI verdict distribution", () => {
             expect(
               re.test(r.summary),
               `${slug}/${r.phraseId} summary trips banned pattern ${re}: "${r.summary}"`,
+            ).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it("no receipt summary names a vendor company directly", () => {
+    // Vendor company names should never appear in the summary itself —
+    // vendor identity is encoded in the phrase-ID prefix and the page
+    // header. A summary that names the vendor undermines the symmetric
+    // "every vendor renders identically" guarantee. Case-sensitive so
+    // mid-word matches (e.g. "metadata" containing "meta") don't false-
+    // positive — the risk is a copywriter typing the brand, not a
+    // lowercase noun collision.
+    const bannedCompanies: ReadonlyArray<RegExp> = [
+      /\bOpenAI\b/,
+      /\bAnthropic\b/,
+      /\bGoogle\b/,
+      /\bMeta\b/,
+      /\bMistral\b/,
+      /\bCohere\b/,
+      /\bPerplexity\b/,
+      /\bDeepSeek\b/,
+      /\bxAI\b/,
+      /\bMicrosoft\b/,
+    ];
+    for (const slug of listVendorSlugs()) {
+      const preview = getVendorPreview(slug);
+      const p = preview as NonNullable<typeof preview>;
+      for (const program of p.programs) {
+        for (const r of program.receipts) {
+          for (const re of bannedCompanies) {
+            expect(
+              re.test(r.summary),
+              `${slug}/${r.phraseId} summary names a vendor company ${re}: "${r.summary}"`,
             ).toBe(false);
           }
         }

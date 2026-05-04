@@ -75,7 +75,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/PluckOath/v1",
     runPath: "/bureau/oath/run",
     landingPath: "/bureau/oath",
-    accent: "#d4a017",
+    accent: "#a78a1f",
     vendorBearing: true,
   },
   {
@@ -89,7 +89,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/ModelFingerprint/v1",
     runPath: "/bureau/fingerprint/run",
     landingPath: "/bureau/fingerprint",
-    accent: "#5a8fbf",
+    accent: "#a3208a",
     vendorBearing: true,
   },
   {
@@ -103,7 +103,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/CustodyBundle/v1",
     runPath: "/bureau/custody/run",
     landingPath: "/bureau/custody",
-    accent: "#7c5fa3",
+    accent: "#1f7a3a",
     vendorBearing: true,
   },
   {
@@ -117,7 +117,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/WhistleSubmission/v1",
     runPath: "/bureau/whistle/run",
     landingPath: "/bureau/whistle",
-    accent: "#6f8a8a",
+    accent: "#a3201d",
     vendorBearing: false,
   },
   {
@@ -131,7 +131,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/BountySubmission/v1",
     runPath: "/bureau/bounty/run",
     landingPath: "/bureau/bounty",
-    accent: "#b07a3a",
+    accent: "#1f7a3a",
     vendorBearing: false,
   },
   {
@@ -145,7 +145,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/SbomAi/ProbePack/v1",
     runPath: "/bureau/sbom-ai/run",
     landingPath: "/bureau/sbom-ai",
-    accent: "#4a7a8a",
+    accent: "#3a7aa3",
     vendorBearing: false,
   },
   {
@@ -159,7 +159,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/KeyRevocation/v1",
     runPath: "/bureau/rotate/run",
     landingPath: "/bureau/rotate",
-    accent: "#8a6a8a",
+    accent: "#a78a1f",
     vendorBearing: false,
   },
   {
@@ -173,7 +173,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/TripwirePolicy/v1",
     runPath: "/bureau/tripwire/run",
     landingPath: "/bureau/tripwire",
-    accent: "#8a8a4a",
+    accent: "#a3201d",
     vendorBearing: false,
   },
   {
@@ -187,7 +187,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/NucleiPackEntry/v1",
     runPath: "/bureau/nuclei/run",
     landingPath: "/bureau/nuclei",
-    accent: "#3a8a5a",
+    accent: "#9b59b6",
     vendorBearing: true,
   },
   {
@@ -201,7 +201,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/CanaryDocument/v1",
     runPath: "/bureau/mole/run",
     landingPath: "/bureau/mole",
-    accent: "#9a6a4a",
+    accent: "#b8941f",
     vendorBearing: true,
   },
 ];
