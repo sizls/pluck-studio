@@ -217,6 +217,16 @@ export default function RunsPage(): ReactNode {
       </section>
 
       <section>
+        <h2 style={SectionHeadingStyle}>Per-vendor profiles</h2>
+        <p style={{ marginTop: 8 }} data-testid="vendor-index-cross-link">
+          Every receipt that names a vendor enriches that vendor's
+          permanent URL. <a href="/vendor">/vendor</a> renders the
+          honesty index across all 11 programs — bookmark a vendor, cite
+          a vendor, watch a vendor.
+        </p>
+      </section>
+
+      <section>
         <h2 style={SectionHeadingStyle}>What every receipt gets you</h2>
         <ul style={{ lineHeight: 1.7 }}>
           <li>
