@@ -35,6 +35,32 @@ const SLUG_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 const MODEL_SLUG_PATTERN = /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/;
 
 /**
+ * Vendors whose model APIs the hosted-mode runner actually wires
+ * a transport for. Form rejects unsupported slugs early so the
+ * operator doesn't land on a receipt that can never resolve.
+ *
+ * NB: this is a *hosted-mode* allowlist. The OSS pluck CLI accepts
+ * arbitrary `--vendor` slugs because it lets the operator supply a
+ * `--responder` module — we don't have that affordance here.
+ */
+export const SUPPORTED_VENDORS: ReadonlyArray<string> = [
+  "openai",
+  "anthropic",
+  "google",
+  "meta",
+  "mistral",
+  "cohere",
+  "openrouter",
+  "groq",
+  "ai21",
+  "deepseek",
+];
+
+export function isSupportedVendor(slug: string): boolean {
+  return SUPPORTED_VENDORS.includes(slug);
+}
+
+/**
  * True for `openai`, `anthropic`, `meta`, `google` etc. Intentionally
  * narrower than `MODEL_SLUG_PATTERN` — vendor names are short
  * lowercase identifiers; allowing dots/underscores would conflate

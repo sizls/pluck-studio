@@ -26,7 +26,9 @@ import {
   BureauSignInPrompt,
 } from "../../../../components/bureau-ui/forms";
 import {
+  SUPPORTED_VENDORS,
   fingerprintRunFormModule,
+  isSupportedVendor,
   isValidModelSlug,
   isValidVendorSlug,
 } from "../../../../lib/fingerprint/run-form-module";
@@ -45,6 +47,9 @@ function isClientSideBadVendor(raw: string): string | null {
   }
   if (!isValidVendorSlug(v)) {
     return "Vendor must be a short lowercase slug (e.g. 'openai').";
+  }
+  if (!isSupportedVendor(v)) {
+    return `Vendor '${v}' is not yet supported in hosted mode. Supported: ${SUPPORTED_VENDORS.join(", ")}.`;
   }
   return null;
 }
@@ -182,9 +187,15 @@ export function FingerprintRunForm(): ReactNode {
         />
       </BureauLabel>
       <BureauHelpText>
-        Short slug. The vendor whose model is being scanned —{" "}
-        <code>openai</code>, <code>anthropic</code>, <code>meta</code>,{" "}
-        <code>google</code>, etc.
+        Short slug. Hosted-mode supports:{" "}
+        {SUPPORTED_VENDORS.map((v, i) => (
+          <span key={v}>
+            <code>{v}</code>
+            {i < SUPPORTED_VENDORS.length - 1 ? ", " : ""}
+          </span>
+        ))}
+        . For other vendors, run <code>pluck bureau fingerprint scan --responder</code>{" "}
+        in the CLI.
       </BureauHelpText>
 
       <BureauLabel text="Model">
@@ -225,9 +236,10 @@ export function FingerprintRunForm(): ReactNode {
         onChange={setAuthAck}
         testId="auth-ack"
       >
-        I am authorized to scan this vendor's model. (Required —
-        FINGERPRINT logs this assertion to the public transparency log
-        on each scan.)
+        I am authorized to scan this vendor's model, and I understand
+        that this scan will be public — the signed cassette + the
+        delta envelope are anchored to the public Sigstore Rekor log
+        and the receipt URL is shareable.
       </BureauCheckbox>
 
       <p

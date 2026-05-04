@@ -21,6 +21,8 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
 import {
+  SUPPORTED_VENDORS,
+  isSupportedVendor,
   isValidModelSlug,
   isValidVendorSlug,
 } from "../../../../../lib/fingerprint/run-form-module";
@@ -82,6 +84,15 @@ export async function POST(req: Request): Promise<Response> {
       {
         error:
           "Vendor must be a short lowercase slug (e.g. 'openai', 'anthropic'); no spaces, no dots, no slashes.",
+      },
+      { status: 400 },
+    );
+  }
+  if (!isSupportedVendor(vendor)) {
+    return NextResponse.json(
+      {
+        error: `Vendor '${vendor}' is not yet supported in hosted mode. Supported: ${SUPPORTED_VENDORS.join(", ")}. Run the CLI with --responder for unsupported vendors.`,
+        supportedVendors: SUPPORTED_VENDORS,
       },
       { status: 400 },
     );

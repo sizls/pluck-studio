@@ -2,7 +2,9 @@ import { createSystem } from "@directive-run/core";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  SUPPORTED_VENDORS,
   fingerprintRunFormModule,
+  isSupportedVendor,
   isValidModelSlug,
   isValidVendorSlug,
 } from "../fingerprint/run-form-module.js";
@@ -115,6 +117,27 @@ describe("isValidVendorSlug", () => {
     expect(isValidVendorSlug("openai.com")).toBe(false);
     expect(isValidVendorSlug("a".repeat(33))).toBe(false);
     expect(isValidVendorSlug("UPPER")).toBe(false);
+  });
+});
+
+describe("isSupportedVendor", () => {
+  it("accepts the canonical hosted-mode vendor list", () => {
+    for (const v of SUPPORTED_VENDORS) {
+      expect(isSupportedVendor(v)).toBe(true);
+    }
+  });
+
+  it("rejects unknown vendors", () => {
+    expect(isSupportedVendor("acme")).toBe(false);
+    expect(isSupportedVendor("openai-pretender")).toBe(false);
+    expect(isSupportedVendor("")).toBe(false);
+  });
+
+  it("includes the major frontier-lab vendors", () => {
+    expect(SUPPORTED_VENDORS).toContain("openai");
+    expect(SUPPORTED_VENDORS).toContain("anthropic");
+    expect(SUPPORTED_VENDORS).toContain("google");
+    expect(SUPPORTED_VENDORS).toContain("meta");
   });
 });
 

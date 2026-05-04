@@ -15,8 +15,11 @@ import {
 } from "react";
 
 import {
+  CLASSIFICATION_THRESHOLDS,
+  FINGERPRINT_DELTA_PREDICATE_URI,
   FINGERPRINT_PREDICATE_URI,
   fingerprintRunReceiptModule,
+  formatCassetteHash,
 } from "../../../../../lib/fingerprint/run-receipt-module";
 import { isPhraseId } from "../../../../../lib/phrase-id";
 
@@ -83,18 +86,23 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   const vendor = useFact(system, "vendor");
   const model = useFact(system, "model");
   const classification = useFact(system, "classification");
+  const driftScore = useFact(system, "driftScore");
   const fingerprintHash = useFact(system, "fingerprintHash");
   const priorFingerprintHash = useFact(system, "priorFingerprintHash");
   const probeCount = useFact(system, "probeCount");
+  const probeSetVersion = useFact(system, "probeSetVersion");
   const probes = useFact(system, "probes");
+  const transport = useFact(system, "transport");
   const signerFingerprint = useFact(system, "signerFingerprint");
   const cassetteUrl = useFact(system, "cassetteUrl");
+  const deltaUrl = useFact(system, "deltaUrl");
   const rekorUuid = useFact(system, "rekorUuid");
   const scannedAt = useFact(system, "scannedAt");
 
   const isPending = useDerived(system, "isPending");
   const isAnchored = useDerived(system, "isAnchored");
   const isSwap = useDerived(system, "isSwap");
+  const hasDelta = useDerived(system, "hasDelta");
   const classificationColor = useDerived(system, "classificationColor");
   const targetDossierUrl = useDerived(system, "targetDossierUrl");
 
@@ -214,16 +222,25 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
                   ? "#1f7a3a"
                   : classificationColor === "amber"
                     ? "#a78a1f"
-                    : "#a3201d",
+                    : classificationColor === "red"
+                      ? "#a3201d"
+                      : "#888273", // gray = no scan yet
               marginLeft: 8,
             }}
           />
+          {driftScore !== null && driftScore !== undefined ? (
+            <span style={{ marginLeft: 12 }}>
+              (score: <code>{driftScore.toFixed(3)}</code>)
+            </span>
+          ) : null}
         </p>
         {isSwap ? (
           <p style={{ ...StatLineStyle, color: "#ff8888" }}>
             <strong data-testid="swap-callout">
               SWAP — vendor's model changed entirely. Public silent-swap
-              alert fires when this scan anchors.
+              alert fires when this scan anchors (RSS at{" "}
+              <code>/bureau/fingerprint/swaps.rss</code> + @pluckbureau
+              social bot).
             </strong>
           </p>
         ) : null}
@@ -231,37 +248,79 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
           Vendor / model: {vendor ?? "—"} / {model ?? "—"}
         </p>
         <p style={StatLineStyle} data-testid="probe-count">
-          Probes run: {probeCount ?? "—"} (5-probe calibration set)
+          Probes run: {probeCount ?? "—"} (5-probe calibration set,
+          version <code>{probeSetVersion ?? "—"}</code>)
+        </p>
+        <p style={StatLineStyle} data-testid="transport">
+          Transport: {transport ? <code>{transport}</code> : "—"}
         </p>
         {scannedAt ? (
           <p style={StatLineStyle} data-testid="scanned-at">
             Scanned at: {scannedAt}
           </p>
         ) : null}
-        <p style={{ ...StatLineStyle, marginTop: 12, fontSize: 11 }}>
-          <em>
-            Drift classifications:{" "}
-            <code>stable</code>{" "}
-            <span style={{ color: "#1f7a3a" }}>green</span> (within
-            tolerance) · <code>minor</code>{" "}
-            <span style={{ color: "#a78a1f" }}>amber</span>{" "}
-            (measurable but not load-bearing) · <code>major</code>{" "}
-            <span style={{ color: "#a3201d" }}>red</span> (capability
-            shift) · <code>swap</code>{" "}
-            <span style={{ color: "#a3201d" }}>red</span> (fingerprint
-            hash diverges entirely — vendor swapped the model).
-          </em>
-        </p>
+        <details style={{ marginTop: 12 }}>
+          <summary
+            style={{
+              fontSize: 11,
+              color: "var(--bureau-fg-dim)",
+              cursor: "pointer",
+            }}
+          >
+            Drift-classification thresholds
+          </summary>
+          <ul
+            style={{ marginTop: 8, fontSize: 11, lineHeight: 1.6 }}
+            data-testid="threshold-doc"
+          >
+            <li>
+              <code>stable</code>{" "}
+              <span style={{ color: "#1f7a3a" }}>green</span> —{" "}
+              {CLASSIFICATION_THRESHOLDS.stable}
+            </li>
+            <li>
+              <code>minor</code>{" "}
+              <span style={{ color: "#a78a1f" }}>amber</span> —{" "}
+              {CLASSIFICATION_THRESHOLDS.minor}
+            </li>
+            <li>
+              <code>major</code>{" "}
+              <span style={{ color: "#a3201d" }}>red</span> —{" "}
+              {CLASSIFICATION_THRESHOLDS.major}
+            </li>
+            <li>
+              <code>swap</code>{" "}
+              <span style={{ color: "#a3201d" }}>red</span> —{" "}
+              {CLASSIFICATION_THRESHOLDS.swap}
+            </li>
+          </ul>
+        </details>
       </section>
 
       <section>
         <h2 style={SectionHeadingStyle}>Fingerprint</h2>
         <p style={StatLineStyle} data-testid="fingerprint-hash">
-          Current hash: {fingerprintHash ? <code>{fingerprintHash}</code> : "—"}
+          Current hash:{" "}
+          {fingerprintHash ? (
+            <code>{formatCassetteHash(fingerprintHash)}</code>
+          ) : (
+            "—"
+          )}
         </p>
         <p style={StatLineStyle} data-testid="prior-fingerprint-hash">
           Prior scan hash:{" "}
-          {priorFingerprintHash ? <code>{priorFingerprintHash}</code> : "—"}
+          {priorFingerprintHash ? (
+            <code>{formatCassetteHash(priorFingerprintHash)}</code>
+          ) : (
+            "—"
+          )}
+        </p>
+        <p style={{ ...StatLineStyle, fontSize: 11, marginTop: 8 }}>
+          <em>
+            Hashes are SHA-256 over the canonical-JSON probe-response
+            cassette body, prefixed{" "}
+            <code>local:</code> per the FINGERPRINT wire spec.
+          </em>
         </p>
       </section>
 
@@ -296,8 +355,18 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
 
       <section>
         <h2 style={SectionHeadingStyle}>Verification</h2>
-        <p style={StatLineStyle} data-testid="predicate-uri">
-          Predicate: <code>{FINGERPRINT_PREDICATE_URI}</code>
+        <p style={StatLineStyle} data-testid="cassette-predicate-uri">
+          Cassette predicate: <code>{FINGERPRINT_PREDICATE_URI}</code>
+        </p>
+        {hasDelta ? (
+          <p style={StatLineStyle} data-testid="delta-predicate-uri">
+            Delta predicate:{" "}
+            <code>{FINGERPRINT_DELTA_PREDICATE_URI}</code>
+          </p>
+        ) : null}
+        <p style={StatLineStyle} data-testid="signer-fingerprint">
+          Signer SPKI:{" "}
+          {signerFingerprint ? <code>{signerFingerprint}</code> : "—"}
         </p>
         {isAnchored && cassetteUrl && rekorUuid ? (
           <>
@@ -305,31 +374,53 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
               Rekor UUID: <code>{rekorUuid}</code>
             </p>
             <p>
-              Verify the cassette offline:{" "}
+              Re-run the delta locally to audit drift:
+              <br />
               <code>
-                pluck bureau fingerprint verify {cassetteUrl}
+                pluck bureau fingerprint scan --vendor {vendor ?? "&lt;vendor&gt;"}{" "}
+                --model {model ?? "&lt;model&gt;"} --responder ./responder.js
+                --out ./.fp
+              </code>
+              <br />
+              <code>
+                pluck bureau fingerprint delta {priorFingerprintHash
+                  ? formatCassetteHash(priorFingerprintHash)
+                  : "&lt;prior&gt;"}{" "}
+                {fingerprintHash
+                  ? formatCassetteHash(fingerprintHash)
+                  : "&lt;current&gt;"}
               </code>
             </p>
+            {deltaUrl ? (
+              <p data-testid="delta-url">
+                Delta envelope: <a href={deltaUrl}><code>{deltaUrl}</code></a>
+              </p>
+            ) : null}
           </>
         ) : (
           <ul style={{ lineHeight: 1.7 }}>
             <li>
-              <strong>ModelFingerprint cassette</strong> — verify
-              offline with{" "}
-              <code>
-                pluck bureau fingerprint verify ./.fp/&lt;hash&gt;.cassette
-              </code>
-              .
+              <strong>ModelFingerprint cassette</strong> — the signed
+              envelope of this scan's probe responses.
             </li>
+            {hasDelta ? (
+              <li>
+                <strong>FingerprintDelta envelope</strong> — separate
+                signed envelope encoding the per-probe diff +
+                classification, anchored as its own Rekor entry.
+              </li>
+            ) : (
+              <li>
+                <strong>FingerprintDelta envelope</strong> — emitted
+                only for second-and-later scans of the same target.
+                This is the first scan; the next scan triggers the
+                delta.
+              </li>
+            )}
             <li>
               <strong>Rekor entry</strong> — public transparency-log
               anchor; cross-checks the fingerprint hash against the
               vendor's prior scans.
-            </li>
-            <li>
-              <strong>Signer fingerprint</strong> — SPKI fingerprint of
-              the Pluck-fleet hosted key (64-char hex).{" "}
-              {signerFingerprint ? <code>{signerFingerprint}</code> : "—"}
             </li>
           </ul>
         )}

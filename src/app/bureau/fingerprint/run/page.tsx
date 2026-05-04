@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { FingerprintRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Scan a model — FINGERPRINT — Pluck Bureau",
+  title: "Scan a target — FINGERPRINT — Pluck Bureau",
 };
 
 const SectionHeadingStyle = {
@@ -23,7 +23,7 @@ export default function FingerprintRunPage(): ReactNode {
   return (
     <>
       <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Scan a FINGERPRINT</h1>
+        <h1 className="bureau-hero-title">Scan a target</h1>
         <p className="bureau-hero-tagline">
           Hand a vendor + model to Studio. We run a fixed 5-probe
           calibration set against the model API, produce a signed{" "}

@@ -111,6 +111,23 @@ describe("POST /api/bureau/fingerprint/run — body validation", () => {
     expect(body.error).toMatch(/short lowercase slug/);
   });
 
+  it("rejects unsupported vendor slugs", async () => {
+    const res = await POST(
+      buildRequest({
+        headers: SAME_SITE_AUTHED_HEADERS,
+        body: validBody({ vendor: "acme" }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as {
+      error: string;
+      supportedVendors: string[];
+    };
+    expect(body.error).toMatch(/not yet supported/);
+    expect(body.supportedVendors).toContain("openai");
+    expect(body.supportedVendors).toContain("anthropic");
+  });
+
   it("rejects vendor with slash", async () => {
     const res = await POST(
       buildRequest({
