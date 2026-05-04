@@ -155,6 +155,18 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     runPath: "/bureau/nuclei/run",
     landingPath: "/bureau/nuclei",
   },
+  {
+    slug: "mole",
+    name: "MOLE",
+    actionVerb: "Seal a canary",
+    summary:
+      "Adversarial training-data extraction. Operator seals a canary BEFORE probing — Rekor timestamp predates any probe-run, so vendors can't claim 'we trained on it AFTER the seal.' Canary body stays with the operator.",
+    outputShape:
+      "binary verdict (sealed / 4 named failure modes) + sha256 + fingerprint phrases (canary body NEVER published)",
+    predicateUri: "https://pluck.run/CanaryDocument/v1",
+    runPath: "/bureau/mole/run",
+    landingPath: "/bureau/mole",
+  },
 ];
 
 /**
@@ -171,12 +183,4 @@ export interface ComingSoonProgram {
   landingPath: string;
 }
 
-export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [
-  {
-    slug: "mole",
-    name: "MOLE",
-    reason:
-      "Continuous insider-leak detection — long-running monitor, not a one-shot run.",
-    landingPath: "/bureau/mole",
-  },
-];
+export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [];

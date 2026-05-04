@@ -21,8 +21,8 @@ const ACTIVE_SLUGS = [
   "rotate",
   "tripwire",
   "nuclei",
+  "mole",
 ] as const;
-const COMING_SOON_SLUGS = ["mole"] as const;
 
 test.describe("/runs activations directory", () => {
   test("renders all four active program cards", async ({ page }) => {
@@ -32,7 +32,7 @@ test.describe("/runs activations directory", () => {
       await expect(page.getByTestId(`run-cta-${slug}`)).toBeVisible();
       await expect(page.getByTestId(`landing-cta-${slug}`)).toBeVisible();
     }
-    await expect(page.getByTestId("active-count")).toContainText(/10 of 11/);
+    await expect(page.getByTestId("active-count")).toContainText(/11 of 11/);
   });
 
   test("DRAGNET CTA navigates to the run route", async ({ page }) => {
@@ -95,12 +95,16 @@ test.describe("/runs activations directory", () => {
     await page.waitForURL(/\/bureau\/nuclei\/run$/);
   });
 
-  test("coming-soon programs are listed with reasons", async ({ page }) => {
+  test("MOLE CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
-    for (const slug of COMING_SOON_SLUGS) {
-      await expect(
-        page.getByTestId(`coming-soon-${slug}`),
-      ).toBeVisible();
-    }
+    await page.getByTestId("run-cta-mole").click();
+    await page.waitForURL(/\/bureau\/mole\/run$/);
+  });
+
+  test("/runs surfaces the all-active callout (no coming-soon section)", async ({ page }) => {
+    await page.goto("/runs");
+    await expect(page.getByTestId("all-active-callout")).toBeVisible();
+    // No coming-soon entries should render.
+    expect(await page.getByTestId(/^coming-soon-/).count()).toBe(0);
   });
 });

@@ -41,6 +41,24 @@ export default function MoleIndexPage(): ReactNode {
           publicly citable falsification when the model regurgitates
           fingerprint phrases verbatim. NYT-vs-OpenAI as a public service.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/mole/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Seal a canary →
+          </a>
+        </p>
       </section>
 
       <section style={CalloutStyle}>

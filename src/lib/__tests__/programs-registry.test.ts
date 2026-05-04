@@ -16,8 +16,9 @@ import {
 } from "../programs/registry.js";
 
 describe("ACTIVE_PROGRAMS", () => {
-  it("includes the 10 active programs (through NUCLEI)", () => {
+  it("includes ALL 11 alpha programs through the activation pattern", () => {
     const slugs = ACTIVE_PROGRAMS.map((p) => p.slug);
+    expect(slugs.length).toBe(11);
     expect(slugs).toEqual(
       expect.arrayContaining([
         "dragnet",
@@ -30,6 +31,7 @@ describe("ACTIVE_PROGRAMS", () => {
         "rotate",
         "tripwire",
         "nuclei",
+        "mole",
       ]),
     );
   });
@@ -70,15 +72,7 @@ describe("ACTIVE_PROGRAMS", () => {
 });
 
 describe("COMING_SOON_PROGRAMS", () => {
-  it("each has a non-empty reason", () => {
-    for (const p of COMING_SOON_PROGRAMS) {
-      expect(p.reason.length).toBeGreaterThan(20);
-    }
-  });
-
-  it("landing paths point at /bureau/<slug>", () => {
-    for (const p of COMING_SOON_PROGRAMS) {
-      expect(p.landingPath).toBe(`/bureau/${p.slug}`);
-    }
+  it("is empty — all 11 alpha programs are now active", () => {
+    expect(COMING_SOON_PROGRAMS.length).toBe(0);
   });
 });

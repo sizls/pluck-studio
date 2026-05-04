@@ -141,53 +141,71 @@ export default function RunsPage(): ReactNode {
           {ACTIVE_PROGRAMS.length} of{" "}
           {ACTIVE_PROGRAMS.length + COMING_SOON_PROGRAMS.length} alpha
           programs are wired through the v2 activation pattern.
+          {COMING_SOON_PROGRAMS.length === 0
+            ? " (Full coverage — every alpha program activated.)"
+            : ""}
         </p>
         {ACTIVE_PROGRAMS.map((program) => (
           <ProgramCard key={program.slug} program={program} />
         ))}
       </section>
 
-      <section>
-        <h2 style={SectionHeadingStyle}>Coming soon</h2>
-        <p style={{ marginTop: 8 }}>
-          These programs have landing pages but aren't yet wired
-          through the activation pattern — most need scaffolding
-          distinct from the verify-and-sign one-shot shape.
-        </p>
-        <ul style={{ marginTop: 16, padding: 0, listStyle: "none" }}>
-          {COMING_SOON_PROGRAMS.map((p) => (
-            <li
-              key={p.slug}
-              style={ComingSoonRowStyle}
-              data-testid={`coming-soon-${p.slug}`}
-            >
-              <strong style={{ ...ProgramNameStyle, fontSize: 14 }}>
-                {p.name}
-              </strong>{" "}
-              <a
-                href={p.landingPath}
-                style={{
-                  marginLeft: 12,
-                  fontSize: 12,
-                  color: "var(--bureau-fg-dim)",
-                }}
+      {COMING_SOON_PROGRAMS.length > 0 ? (
+        <section>
+          <h2 style={SectionHeadingStyle}>Coming soon</h2>
+          <p style={{ marginTop: 8 }}>
+            These programs have landing pages but aren't yet wired
+            through the activation pattern — most need scaffolding
+            distinct from the verify-and-sign one-shot shape.
+          </p>
+          <ul style={{ marginTop: 16, padding: 0, listStyle: "none" }}>
+            {COMING_SOON_PROGRAMS.map((p) => (
+              <li
+                key={p.slug}
+                style={ComingSoonRowStyle}
+                data-testid={`coming-soon-${p.slug}`}
               >
-                landing →
-              </a>
-              <p
-                style={{
-                  marginTop: 4,
-                  fontSize: 13,
-                  color: "var(--bureau-fg-dim)",
-                  lineHeight: 1.6,
-                }}
-              >
-                {p.reason}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
+                <strong style={{ ...ProgramNameStyle, fontSize: 14 }}>
+                  {p.name}
+                </strong>{" "}
+                <a
+                  href={p.landingPath}
+                  style={{
+                    marginLeft: 12,
+                    fontSize: 12,
+                    color: "var(--bureau-fg-dim)",
+                  }}
+                >
+                  landing →
+                </a>
+                <p
+                  style={{
+                    marginTop: 4,
+                    fontSize: 13,
+                    color: "var(--bureau-fg-dim)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {p.reason}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <section>
+          <h2 style={SectionHeadingStyle}>All 11 alpha programs activated</h2>
+          <p
+            style={{ marginTop: 8 }}
+            data-testid="all-active-callout"
+          >
+            Every alpha program is wired through the v2 activation
+            pattern. The next surface area is the real{" "}
+            <code>pluck-api /v1</code> backend that turns the stub
+            receipts into anchored Sigstore Rekor entries.
+          </p>
+        </section>
+      )}
 
       <section>
         <h2 style={SectionHeadingStyle}>What every receipt gets you</h2>
