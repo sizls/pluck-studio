@@ -33,6 +33,24 @@ export default function NucleiIndexPage(): ReactNode {
           subscribers run them automatically (gated by SBOM-AI provenance);
           leaderboards rank "first probe to red-dot vendor X."
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/nuclei/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Publish to registry →
+          </a>
+        </p>
       </section>
 
       <section>

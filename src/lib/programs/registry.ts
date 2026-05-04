@@ -143,6 +143,18 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     runPath: "/bureau/tripwire/run",
     landingPath: "/bureau/tripwire",
   },
+  {
+    slug: "nuclei",
+    name: "NUCLEI",
+    actionVerb: "Publish to registry",
+    summary:
+      "Signed probe-pack registry — authors publish NucleiPackEntry/v1 wrappers around SBOM-AI-attested packs. Trust model is TOFU: every entry MUST cross-reference an SBOM-AI Rekor uuid or consumers refuse to honor it.",
+    outputShape:
+      "verdict (published / 5 named failure modes) + trustTier (verified vs ingested) + canonical pack-entry URL",
+    predicateUri: "https://pluck.run/NucleiPackEntry/v1",
+    runPath: "/bureau/nuclei/run",
+    landingPath: "/bureau/nuclei",
+  },
 ];
 
 /**
@@ -160,13 +172,6 @@ export interface ComingSoonProgram {
 }
 
 export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [
-  {
-    slug: "nuclei",
-    name: "NUCLEI",
-    reason:
-      "Probe-pack registry — browse + fork, not activate. Surfaces under DRAGNET as the pack source.",
-    landingPath: "/bureau/nuclei",
-  },
   {
     slug: "mole",
     name: "MOLE",

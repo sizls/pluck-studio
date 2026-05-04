@@ -16,7 +16,7 @@ import {
 } from "../programs/registry.js";
 
 describe("ACTIVE_PROGRAMS", () => {
-  it("includes the 9 active programs (through TRIPWIRE)", () => {
+  it("includes the 10 active programs (through NUCLEI)", () => {
     const slugs = ACTIVE_PROGRAMS.map((p) => p.slug);
     expect(slugs).toEqual(
       expect.arrayContaining([
@@ -29,6 +29,7 @@ describe("ACTIVE_PROGRAMS", () => {
         "sbom-ai",
         "rotate",
         "tripwire",
+        "nuclei",
       ]),
     );
   });
