@@ -75,6 +75,11 @@ const idempotency: Map<string, string> =
  * two semantically-identical requests collide regardless of object key
  * order. The hash is sha256 — deterministic, collision-resistant, and
  * safe to use as a Map key.
+ *
+ * @internal — implementation detail of the stub. Not part of the public
+ * /v1/runs contract; the Supabase swap is free to compute idempotency
+ * differently. Tests that import this directly are stub-coupled and
+ * gated by the `PLUCK_REAL_BACKEND` env (see __tests__/run-store.test.ts).
  */
 export function idempotencyHashOf(spec: RunSpec): string | null {
   if (spec.idempotencyKey === undefined) {
@@ -92,6 +97,14 @@ export function idempotencyHashOf(spec: RunSpec): string | null {
 /**
  * Canonical JSON: sorted object keys, deep-recursive. Arrays preserve
  * order. Used so {a:1,b:2} and {b:2,a:1} hash the same.
+ *
+ * Object keys whose value is `undefined` are skipped so `{a: undefined}`
+ * and `{}` produce the same canonical string. This matches the way
+ * `JSON.stringify` itself drops undefined object values, and avoids the
+ * gotcha where two semantically-identical requests hash differently
+ * just because one client serialised a missing field as `undefined`.
+ *
+ * @internal — implementation detail; see idempotencyHashOf.
  */
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") {
@@ -101,7 +114,9 @@ export function canonicalJson(value: unknown): string {
     return `[${value.map(canonicalJson).join(",")}]`;
   }
   const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
   const parts = keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`);
 
   return `{${parts.join(",")}}`;
@@ -271,5 +286,21 @@ export function __idempotencyCount(): number {
   return idempotency.size;
 }
 
+// ---------------------------------------------------------------------------
+// STUB-only constants — NOT part of the /v1/runs public API contract.
+//
+// The TTL + cap are properties of THIS in-memory implementation. The
+// Supabase swap will likely use a different retention story (proper
+// archival, background eviction, no fixed cap) and these symbols WILL
+// disappear when the real backend lands.
+//
+// Tests that import these are stub-coupled and gated by the
+// `PLUCK_REAL_BACKEND=1` env (see __tests__/run-store.test.ts) so they
+// only run against this stub. Public consumers should NOT depend on the
+// names, types, or values below.
+// ---------------------------------------------------------------------------
+
+/** @internal — stub-only TTL constant. Not part of the public API. */
 export const __INTERNAL_TTL_MS = TTL_MS;
+/** @internal — stub-only cap constant. Not part of the public API. */
 export const __INTERNAL_MAX_ENTRIES = MAX_ENTRIES;

@@ -5,9 +5,18 @@
 // Locks the store contract so the eventual Supabase swap can re-prove
 // identical behaviour: idempotency, TTL eviction, FIFO cap, runId
 // generation, receipt URL shape.
+//
+// STUB-COUPLED tests below assert the in-memory implementation's TTL +
+// FIFO eviction semantics. Those won't survive the Supabase swap (the
+// real backend handles retention out-of-band). They run only when
+// `PLUCK_REAL_BACKEND` is unset or != "1" — flip the env to skip them
+// once the swap lands. The CONTRACT-level tests (idempotency, runId
+// shape, receipt URL shape) run against any backend.
 // ---------------------------------------------------------------------------
 
 import { beforeEach, describe, expect, it } from "vitest";
+
+const STUB_ONLY = process.env.PLUCK_REAL_BACKEND !== "1";
 
 import {
   __idempotencyCount,
@@ -129,16 +138,23 @@ describe("run-store — getRun + TTL", () => {
     expect(getRun("does-not-exist-0000")).toBeNull();
   });
 
-  it("evicts records older than 24h on read", () => {
-    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-    const { record } = createRun(validBureauSpec, t0);
-    expect(getRun(record.runId, t0 + 1000)).not.toBeNull();
-    // 24h + 1s after creation → evicted.
-    expect(getRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000)).toBeNull();
+  // STUB-coupled: 24h TTL is a property of the in-memory implementation,
+  // not of the /v1/runs HTTP contract. Real backend (Supabase) handles
+  // retention separately.
+  describe.skipIf(!STUB_ONLY)("STUB-only — in-memory TTL eviction", () => {
+    it("evicts records older than 24h on read", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      const { record } = createRun(validBureauSpec, t0);
+      expect(getRun(record.runId, t0 + 1000)).not.toBeNull();
+      // 24h + 1s after creation → evicted.
+      expect(getRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000)).toBeNull();
+    });
   });
 });
 
-describe("run-store — FIFO cap (smoke)", () => {
+// STUB-coupled: 10K-entry FIFO cap is implementation-private to the
+// in-memory store. Skip when running against a real backend.
+describe.skipIf(!STUB_ONLY)("run-store — STUB-only FIFO cap (smoke)", () => {
   it("drops idempotency rows when their owning run is evicted by the cap", () => {
     // Use a realistic small batch to exercise the path without burning
     // 10K iterations in a unit test. We assert the invariant rather
@@ -172,6 +188,28 @@ describe("run-store — canonicalJson", () => {
     expect(canonicalJson("hello")).toBe('"hello"');
     expect(canonicalJson(42)).toBe("42");
     expect(canonicalJson(true)).toBe("true");
+  });
+
+  it("skips object keys whose value is undefined (matches JSON.stringify)", () => {
+    // `{a: undefined}` and `{}` must produce the same canonical string
+    // so two semantically-identical idempotency requests collide.
+    expect(canonicalJson({ a: undefined })).toBe("{}");
+    expect(canonicalJson({ a: 1, b: undefined, c: 2 })).toBe('{"a":1,"c":2}');
+    expect(canonicalJson({ a: undefined, b: undefined })).toBe("{}");
+  });
+
+  it("idempotency hash collides for {a: undefined} vs {} payloads", () => {
+    const withUndef = idempotencyHashOf({
+      pipeline: "bureau:dragnet",
+      payload: { ...validBureauSpec.payload, optionalField: undefined },
+      idempotencyKey: "k",
+    });
+    const without = idempotencyHashOf({
+      pipeline: "bureau:dragnet",
+      payload: { ...validBureauSpec.payload },
+      idempotencyKey: "k",
+    });
+    expect(withUndef).toBe(without);
   });
 });
 

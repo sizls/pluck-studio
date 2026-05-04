@@ -99,6 +99,20 @@ describe("POST /api/v1/runs — auth + same-site", () => {
     expect(res.status).toBe(401);
   });
 
+  it("401 carries a pipeline-aware signInUrl when the body names a bureau pipeline", async () => {
+    const res = await POST(postReq(validBody(), SAME_SITE));
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { signInUrl: string };
+    expect(body.signInUrl).toBe("/sign-in?redirect=/bureau/dragnet/run");
+  });
+
+  it("401 falls back to /bureau when the body doesn't name a known bureau pipeline", async () => {
+    const res = await POST(postReq({ pipeline: "extract", payload: {} }, SAME_SITE));
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { signInUrl: string };
+    expect(body.signInUrl).toBe("/sign-in?redirect=/bureau");
+  });
+
   it("accepts same-site authed POST", async () => {
     const res = await POST(postReq(validBody()));
     expect(res.status).toBe(200);
@@ -248,6 +262,82 @@ describe("GET /api/v1/runs/[id]", () => {
       params: Promise.resolve({ id: "x".repeat(200) }),
     });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () => {
+  it("rejects DRAGNET payload pointing at localhost (private IP block)", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:dragnet",
+        payload: {
+          targetUrl: "http://localhost:8080/",
+          probePackId: "canon-honesty",
+          cadence: "once",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/localhost.*private.*link-local/);
+  });
+
+  it("rejects DRAGNET payload with a javascript: scheme", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:dragnet",
+        payload: {
+          targetUrl: "javascript:alert(1)",
+          probePackId: "canon-honesty",
+          cadence: "once",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/http:\/\/ or https:\/\//);
+  });
+
+  it("rejects DRAGNET payload with an unknown probe-pack id", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:dragnet",
+        payload: {
+          targetUrl: "https://api.openai.com/v1/chat/completions",
+          probePackId: "canon-honestly",
+          cadence: "once",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/Unknown probe-pack/);
+  });
+
+  it("rejects DRAGNET payload missing authorizationAcknowledged", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:dragnet",
+        payload: {
+          targetUrl: "https://api.openai.com/v1/chat/completions",
+          probePackId: "canon-honesty",
+          cadence: "once",
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/authorized to probe/);
+  });
+
+  it("rejects unknown top-level keys in the envelope", async () => {
+    const res = await POST(postReq(validBody({ surprise: "extra" })));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/unexpected top-level key: surprise/);
   });
 });
 

@@ -92,8 +92,21 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   // page used. Old phrase IDs (created before the migration, or after
   // store TTL eviction) fall back to the pre-/v1 stub render — same UI,
   // no indicator. Graceful migration runway per the Phase 3 plan.
+  //
+  // This is purely cosmetic. To avoid burning a network round-trip on
+  // every receipt render in production we gate the probe behind dev
+  // builds OR an explicit `?debug=1` query param. The chosen-cheaper
+  // option per the AE review.
   const [viaV1, setViaV1] = useState(false);
   useEffect(() => {
+    if (process.env.NODE_ENV === "production") {
+      const hasDebug =
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("debug") === "1";
+      if (!hasDebug) {
+        return;
+      }
+    }
     let cancelled = false;
     fetch(`/api/v1/runs/${encodeURIComponent(id)}`, {
       headers: { "content-type": "application/json" },

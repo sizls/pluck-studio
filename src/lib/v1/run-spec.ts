@@ -105,6 +105,12 @@ export interface RunRecord {
   receiptUrl: string;
 }
 
+const ALLOWED_TOP_LEVEL: ReadonlySet<string> = new Set([
+  "pipeline",
+  "payload",
+  "idempotencyKey",
+]);
+
 /**
  * Validate the shape of an inbound RunSpec. Returns null on success or a
  * human-readable error string. Caller decides the HTTP code (400 for
@@ -121,6 +127,15 @@ export function validateRunSpec(value: unknown): {
     return { ok: false, error: "Body must be a JSON object." };
   }
   const obj = value as Record<string, unknown>;
+
+  // Reject unknown top-level keys so future fields (e.g. `priority`) added
+  // to RunSpec don't get silently absorbed by clients that haven't migrated.
+  // Keeps the contract tight from day one.
+  for (const key of Object.keys(obj)) {
+    if (!ALLOWED_TOP_LEVEL.has(key)) {
+      return { ok: false, error: `unexpected top-level key: ${key}` };
+    }
+  }
   const pipeline = obj.pipeline;
 
   if (typeof pipeline !== "string" || pipeline.length === 0) {

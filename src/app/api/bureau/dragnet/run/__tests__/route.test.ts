@@ -19,7 +19,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetRateLimit } from "../../../../../../lib/rate-limit.js";
+import { __resetForTests } from "../../../../../../lib/v1/run-store.js";
 import { POST } from "../route.js";
+import { POST as POST_V1 } from "../../../../v1/runs/route.js";
 
 interface SuccessBody {
   runId: string;
@@ -66,6 +68,7 @@ function validBody(overrides: Record<string, unknown> = {}): unknown {
 
 beforeEach(() => {
   resetRateLimit();
+  __resetForTests();
 });
 
 afterEach(() => {
@@ -393,7 +396,7 @@ describe("POST /api/bureau/dragnet/run — body validation", () => {
 });
 
 describe("POST /api/bureau/dragnet/run — output shape", () => {
-  it("returns a fresh runId + phraseId on each call", async () => {
+  it("returns a fresh legacy runId on each call (UUID is per-request)", async () => {
     const r1 = (await (
       await POST(
         buildRequest({
@@ -410,9 +413,68 @@ describe("POST /api/bureau/dragnet/run — output shape", () => {
         }),
       )
     ).json()) as SuccessBody;
+    // Legacy runId is a fresh UUID per request — that contract is preserved.
     expect(r1.runId).not.toEqual(r2.runId);
-    // Phrase IDs draw from a 64M space; near-certain to be unique on 2 draws.
-    expect(r1.phraseId).not.toEqual(r2.phraseId);
+  });
+});
+
+describe("POST /api/bureau/dragnet/run — idempotency dedupe (C1 fix)", () => {
+  it("two same-payload posts within the minute bucket return the SAME phraseId (no ghost runs)", async () => {
+    // Pre-C1: every legacy POST created a fresh ghost record in the v1 store.
+    // After C1: legacy POSTs synthesize a minute-bucketed idempotency key,
+    // so a double-click collapses to a single record — same phrase as a
+    // /v1/runs caller posting the same body.
+    const r1 = (await (
+      await POST(
+        buildRequest({
+          headers: SAME_SITE_AUTHED_HEADERS,
+          body: validBody(),
+        }),
+      )
+    ).json()) as SuccessBody;
+    const r2 = (await (
+      await POST(
+        buildRequest({
+          headers: SAME_SITE_AUTHED_HEADERS,
+          body: validBody(),
+        }),
+      )
+    ).json()) as SuccessBody;
+    expect(r2.phraseId).toBe(r1.phraseId);
+  });
+
+  it("legacy callers + /v1/runs callers with the same payload converge on the SAME phraseId", async () => {
+    // Cross-route dedupe — proves the synthesized key matches what the
+    // RunForm sends to /v1/runs. (Strict equality is only guaranteed
+    // when both calls land in the same minute bucket.)
+    const legacy = (await (
+      await POST(
+        buildRequest({
+          headers: SAME_SITE_AUTHED_HEADERS,
+          body: validBody(),
+        }),
+      )
+    ).json()) as SuccessBody;
+
+    // Mirror the RunForm's idempotency-key shape: minute-bucketed.
+    const minuteBucket = Math.floor(Date.now() / 60_000);
+    const v1Body = {
+      pipeline: "bureau:dragnet",
+      payload: validBody(),
+      idempotencyKey: `dragnet:canon-honesty:https://api.openai.com/v1/chat/completions:once:${minuteBucket}`,
+    };
+    const v1 = (await (
+      await POST_V1(
+        new Request("http://localhost:3030/api/v1/runs", {
+          method: "POST",
+          headers: SAME_SITE_AUTHED_HEADERS,
+          body: JSON.stringify(v1Body),
+        }),
+      )
+    ).json()) as { runId: string; reused: boolean };
+
+    expect(v1.runId).toBe(legacy.phraseId);
+    expect(v1.reused).toBe(true);
   });
 });
 

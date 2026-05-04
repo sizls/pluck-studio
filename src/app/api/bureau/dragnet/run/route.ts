@@ -25,6 +25,13 @@
 //      shape); `phraseId` is the phrase ID that doubles as the canonical
 //      /v1/runs runId. The receipt URL on the frontend redirects to the
 //      phrase, not the UUID.
+//
+// Idempotency contract: legacy DRAGNET callers double-clicking within ~60s
+// dedupe to the SAME phraseId as a /v1/runs caller posting the same body
+// — we synthesize the same minute-bucketed key the RunForm uses
+// (`dragnet:<pack>:<url>:<minute>`) before delegating to the v1 store.
+// Without this synthesis every legacy POST creates a fresh ghost record
+// that no /v1 caller could ever dedupe against. C1 fix.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
@@ -32,10 +39,10 @@ import { randomUUID } from "node:crypto";
 
 import {
   isAuthed,
-  isPrivateOrLocalHost,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { validateDragnetPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
 
 interface RunRequestBody {
@@ -45,12 +52,31 @@ interface RunRequestBody {
   authorizationAcknowledged?: boolean;
 }
 
-const ALLOWED_TARGET_SCHEMES = new Set(["http:", "https:"]);
-const BUNDLED_PACK_IDS = new Set(["canon-honesty"]);
-const QUALIFIED_PACK_ID = /^[a-z0-9_-]+\/[a-z0-9_-]+@[a-zA-Z0-9._+-]+$/;
-
-function isAllowedPackId(id: string): boolean {
-  return BUNDLED_PACK_IDS.has(id) || QUALIFIED_PACK_ID.test(id);
+/**
+ * Synthesize the same minute-bucketed idempotency key the
+ * `/bureau/dragnet/run` RunForm sends to /v1/runs. Format:
+ *   `dragnet:<probePackId>:<targetUrl>:<minute-bucket>`
+ *
+ * This guarantees that a legacy double-click and a /v1/runs double-click
+ * with the same payload land on the SAME stored run record — the legacy
+ * route can no longer create ghost runs that diverge from the unified store.
+ *
+ * The minute-bucket has a known seam: a click at :59.9 and another at
+ * :00.1 cross the bucket boundary and produce different keys. That's
+ * acceptable for the dedupe goal (catch double-click bursts, not
+ * deliberate "run again" minutes apart). Documented in V1_API.md.
+ */
+function synthesizeIdempotencyKey(
+  targetUrl: string,
+  probePackId: string,
+  cadence: "once" | "continuous",
+  now: number = Date.now(),
+): string {
+  const minuteBucket = Math.floor(now / 60_000);
+  // Cadence is included so a future "once" + "continuous" toggle on the
+  // same target+pack within the same minute would NOT collide. Today
+  // continuous is rejected upstream, but the key shape is forward-stable.
+  return `dragnet:${probePackId}:${targetUrl}:${cadence}:${minuteBucket}`;
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -84,78 +110,31 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const targetUrl = body.targetUrl?.trim();
-  const probePackId = body.probePackId?.trim();
+
+  // Single source of truth — the same validator /v1/runs uses. Keeps the
+  // two surfaces from drifting (M1 fix).
+  const result = validateDragnetPayload(body);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
+
+  // After validation passes, these are guaranteed strings and a known
+  // cadence value. Trim/default to mirror the validator's normalization.
+  const targetUrl = (body.targetUrl ?? "").trim();
+  const probePackId = (body.probePackId ?? "").trim();
   const cadence = body.cadence ?? "once";
 
-  if (!targetUrl || !probePackId) {
-    return NextResponse.json(
-      { error: "Target endpoint and Probe-pack ID are required" },
-      { status: 400 },
-    );
-  }
-  if (cadence !== "once" && cadence !== "continuous") {
-    return NextResponse.json(
-      { error: "Cadence must be 'once' or 'continuous'" },
-      { status: 400 },
-    );
-  }
-  if (cadence === "continuous") {
-    return NextResponse.json(
-      {
-        error:
-          "Continuous monitoring is coming soon — for now, run once and we'll re-run on cycle when scheduling lands.",
-      },
-      { status: 400 },
-    );
-  }
-  if (body.authorizationAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge that you are authorized to probe this target before running.",
-      },
-      { status: 400 },
-    );
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(targetUrl);
-  } catch {
-    return NextResponse.json(
-      { error: "Target endpoint must be a valid URL (include https://)" },
-      { status: 400 },
-    );
-  }
-  if (!ALLOWED_TARGET_SCHEMES.has(parsed.protocol)) {
-    return NextResponse.json(
-      { error: "Target endpoint must use http:// or https://" },
-      { status: 400 },
-    );
-  }
-  if (isPrivateOrLocalHost(parsed.hostname)) {
-    return NextResponse.json(
-      {
-        error:
-          "Target endpoint cannot point at localhost, private, or link-local addresses.",
-      },
-      { status: 400 },
-    );
-  }
-  if (!isAllowedPackId(probePackId)) {
-    return NextResponse.json(
-      {
-        error:
-          "Unknown probe-pack. Use 'canon-honesty' (bundled) or a NUCLEI-qualified ID like 'author/pack@version'.",
-      },
-      { status: 400 },
-    );
-  }
   const legacyRunId = randomUUID();
   // Delegate persistence to the unified /v1/runs store so the receipt
   // page can read this run back via GET /api/v1/runs/[id]. The store
   // assigns the canonical phrase-id-shaped runId (vendor-scoped, e.g.
   // `openai-swift-falcon-3742`) — that becomes the user-facing phraseId.
+  //
+  // We synthesize an idempotency key from (targetUrl, probePackId, cadence,
+  // minute-bucket) so a double-click within the same minute returns the
+  // SAME phraseId — both for legacy callers and for /v1/runs callers
+  // posting the same body. Without this, every legacy POST created a
+  // ghost run regardless of dedupe (C1 critical from the AE review).
   const { record } = createRun({
     pipeline: "bureau:dragnet",
     payload: {
@@ -164,6 +143,7 @@ export async function POST(req: Request): Promise<Response> {
       cadence,
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
+    idempotencyKey: synthesizeIdempotencyKey(targetUrl, probePackId, cadence),
   });
 
   return NextResponse.json(

@@ -35,12 +35,35 @@ import {
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../lib/security/request-guards";
+import { PIPELINE_VALIDATORS } from "../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../lib/v1/run-store";
 import {
+  bureauSlugOf,
   isBureauPipeline,
   isFuturePipeline,
   validateRunSpec,
 } from "../../../../lib/v1/run-spec";
+
+/**
+ * Best-effort peek at the pipeline before full validation, used only to
+ * pick a pipeline-aware sign-in redirect on the 401 path. Returns a
+ * Bureau slug if the body is shaped like `{ pipeline: "bureau:<slug>", … }`,
+ * otherwise null (caller falls back to the generic /bureau redirect).
+ */
+function peekBureauSlug(req: Request, raw: unknown): string | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const pipeline = (raw as { pipeline?: unknown }).pipeline;
+  if (typeof pipeline !== "string") {
+    return null;
+  }
+  if (!isBureauPipeline(pipeline)) {
+    return null;
+  }
+  // Belt — bureauSlugOf trusts the prefix; we already validated it.
+  return bureauSlugOf(pipeline);
+}
 
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
@@ -55,16 +78,10 @@ export async function POST(req: Request): Promise<Response> {
       { status: 429 },
     );
   }
-  if (!isAuthed(req)) {
-    return NextResponse.json(
-      {
-        error: "authentication required",
-        signInUrl: "/sign-in?redirect=/bureau",
-      },
-      { status: 401 },
-    );
-  }
-
+  // Parse body BEFORE the auth check so the 401 can carry a pipeline-aware
+  // sign-in redirect (e.g. `/sign-in?redirect=/bureau/dragnet/run`). Body
+  // parsing is cheap and the same-site + rate-limit gates above already
+  // mitigate body-payload abuse.
   let raw: unknown;
   try {
     raw = await req.json();
@@ -72,6 +89,18 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json(
       { error: "invalid JSON body" },
       { status: 400 },
+    );
+  }
+
+  if (!isAuthed(req)) {
+    const slug = peekBureauSlug(req, raw);
+    const redirect = slug !== null ? `/bureau/${slug}/run` : "/bureau";
+    return NextResponse.json(
+      {
+        error: "authentication required",
+        signInUrl: `/sign-in?redirect=${redirect}`,
+      },
+      { status: 401 },
     );
   }
 
@@ -95,6 +124,17 @@ export async function POST(req: Request): Promise<Response> {
       { error: `Unknown pipeline \`${spec.pipeline}\`.` },
       { status: 400 },
     );
+  }
+
+  // Per-pipeline payload validation. `validateRunSpec` only shape-checks
+  // the envelope; the program-specific rules (DRAGNET URL allowlist +
+  // private-IP block + pack-ID grammar; NUCLEI cron grammar; …) live in
+  // the registry so /v1/runs and the legacy /api/bureau/<slug>/run share
+  // a single source of truth. M1 fix.
+  const validator = PIPELINE_VALIDATORS[spec.pipeline];
+  const payloadResult = validator(spec.payload);
+  if (!payloadResult.ok) {
+    return NextResponse.json({ error: payloadResult.error }, { status: 400 });
   }
 
   const { record, reused } = createRun(spec);

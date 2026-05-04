@@ -113,13 +113,66 @@ sha256(canonical-json({ pipeline, payload, idempotencyKey }))
 `{b:2,a:1}` collide. Arrays preserve order.
 
 When `idempotencyKey` is omitted, every POST creates a fresh run. The
-DRAGNET form sends a minute-bucketed key (`dragnet:<pack>:<url>:<minute>`)
-so a double-click within ~60s collapses to the same runId, but a
-deliberate "run again" 2 minutes later is a fresh run.
+DRAGNET form sends a minute-bucketed key
+(`dragnet:<pack>:<url>:<cadence>:<minute>`) so a double-click within
+~60s collapses to the same runId, but a deliberate "run again" 2
+minutes later is a fresh run.
+
+> **Edge case — minute-bucket boundary.** Two clicks straddling the
+> :59 → :00 boundary (e.g. 14:32:59.4 and 14:33:00.1) fall into
+> different buckets and produce different keys, even though they're
+> only ~700ms apart. We accept this seam: the goal of the bucket is
+> to absorb double-click bursts, not to guarantee dedupe over an
+> arbitrary time window. Clients that need a stronger guarantee
+> should pass an explicit caller-controlled `idempotencyKey`.
+
+The legacy `POST /api/bureau/dragnet/run` route synthesizes the same
+minute-bucketed key before delegating to the v1 store, so a legacy
+double-click and a `/v1/runs` double-click with the same payload
+return the SAME `phraseId`. Without this synthesis, every legacy POST
+would create a ghost record that no `/v1/runs` caller could dedupe
+against.
 
 The response surfaces `reused: true` on idempotency replays — clients
 can use this to differentiate "fresh run" from "your retry hit our
 cache" without reading status codes.
+
+### curl example — POST + idempotent replay
+
+```bash
+# First POST creates a new run.
+curl -sS -X POST http://localhost:3030/api/v1/runs \
+  -H 'content-type: application/json' \
+  -H 'sec-fetch-site: same-origin' \
+  -H 'authorization: Bearer dev-jwt' \
+  -d '{
+    "pipeline": "bureau:dragnet",
+    "payload": {
+      "targetUrl": "https://api.openai.com/v1/chat/completions",
+      "probePackId": "canon-honesty",
+      "cadence": "once",
+      "authorizationAcknowledged": true
+    },
+    "idempotencyKey": "demo-run-2026-05-04"
+  }'
+# → { "runId": "openai-swift-falcon-3742",
+#     "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742",
+#     "status": "pending", "reused": false }
+
+# Replay with the SAME body returns the SAME runId — reused:true tells
+# you it hit the idempotency cache, not a fresh run.
+curl -sS -X POST http://localhost:3030/api/v1/runs \
+  -H 'content-type: application/json' \
+  -H 'sec-fetch-site: same-origin' \
+  -H 'authorization: Bearer dev-jwt' \
+  -d '{ … same body, same idempotencyKey … }'
+# → { "runId": "openai-swift-falcon-3742", … "reused": true }
+
+# Read the record back — public read, phraseId IS the share credential.
+curl -sS http://localhost:3030/api/v1/runs/openai-swift-falcon-3742 \
+  -H 'sec-fetch-site: same-origin'
+# → full RunRecord
+```
 
 ---
 
@@ -210,3 +263,21 @@ Documented in `RunSpecPipeline` so client SDKs can be generated against
 the union today. The route returns 400 with a `documented but not yet
 implemented` error message. The non-Bureau shelves land per the
 plan in `~/.claude/plans/mighty-gliding-swan.md`.
+
+---
+
+## Future surfaces tracked
+
+The following endpoints are documented as planned API surface but have
+**no current implementation**. They land alongside the real-backend
+swap so SDKs can be generated against the planned union today.
+
+| Endpoint | Purpose | Status |
+|---|---|---|
+| `GET /v1/runs` | Paginated list of recent runs (caller-scoped) | Planned — no impl |
+| `DELETE /v1/runs/:id` | Cancel an in-flight run | Planned — no impl |
+| `GET /v1/runs/:id/events` | Server-Sent Events stream of run progress | Planned — no impl |
+
+Until each ships, the only run-discovery primitive is the `runId` /
+`phraseId` returned by `POST /v1/runs` — bookmark-and-share is the
+intended UX for the wedge.
