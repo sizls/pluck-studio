@@ -95,6 +95,18 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     runPath: "/bureau/whistle/run",
     landingPath: "/bureau/whistle",
   },
+  {
+    slug: "bounty",
+    name: "BOUNTY",
+    actionVerb: "File a bounty",
+    summary:
+      "Autonomous HackerOne / Bugcrowd filer. Wraps a DRAGNET red dot, FINGERPRINT delta, or MOLE verdict into an EvidencePacket and dispatches to the platform; auth tokens stay local.",
+    outputShape:
+      "verdict (filed / rate-limited / platform-rejected / source-not-found / source-malformed / dispatch-failed) + platform submission ID + bounty amount when claimed",
+    predicateUri: "https://pluck.run/BountySubmission/v1",
+    runPath: "/bureau/bounty/run",
+    landingPath: "/bureau/bounty",
+  },
 ];
 
 /**
@@ -132,13 +144,6 @@ export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [
     reason:
       "Continuous insider-leak detection — long-running monitor, not a one-shot run.",
     landingPath: "/bureau/mole",
-  },
-  {
-    slug: "bounty",
-    name: "BOUNTY",
-    reason:
-      "Vendor-honesty bounty filing — submission shape similar to WHISTLE but with structured evidence + bounty-amount fields.",
-    landingPath: "/bureau/bounty",
   },
   {
     slug: "sbom-ai",

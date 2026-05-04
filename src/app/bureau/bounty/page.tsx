@@ -41,6 +41,24 @@ export default function BountyIndexPage(): ReactNode {
           operator's auth token (read from env, never logged, never in
           the body).
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/bounty/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            File a bounty →
+          </a>
+        </p>
       </section>
 
       <section style={CalloutStyle}>
