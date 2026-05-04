@@ -107,6 +107,18 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     runPath: "/bureau/bounty/run",
     landingPath: "/bureau/bounty",
   },
+  {
+    slug: "sbom-ai",
+    name: "SBOM-AI",
+    actionVerb: "Publish provenance",
+    summary:
+      "Sigstore-anchored AI supply-chain registry. Publish an in-toto attestation for a probe-pack, model card, or MCP-server tarball — consumers verify provenance before running anything.",
+    outputShape:
+      "binary verdict (published / 5 named failure modes) + canonical sha256 digest + per-kind predicate URI",
+    predicateUri: "https://pluck.run/SbomAi/ProbePack/v1",
+    runPath: "/bureau/sbom-ai/run",
+    landingPath: "/bureau/sbom-ai",
+  },
 ];
 
 /**
@@ -144,13 +156,6 @@ export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [
     reason:
       "Continuous insider-leak detection — long-running monitor, not a one-shot run.",
     landingPath: "/bureau/mole",
-  },
-  {
-    slug: "sbom-ai",
-    name: "SBOM-AI",
-    reason:
-      "AI-generated content detection over a content sample. Fits activation pattern; queued behind the existing 4.",
-    landingPath: "/bureau/sbom-ai",
   },
   {
     slug: "rotate",

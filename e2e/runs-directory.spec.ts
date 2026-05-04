@@ -17,14 +17,9 @@ const ACTIVE_SLUGS = [
   "custody",
   "whistle",
   "bounty",
-] as const;
-const COMING_SOON_SLUGS = [
-  "tripwire",
-  "nuclei",
-  "mole",
   "sbom-ai",
-  "rotate",
 ] as const;
+const COMING_SOON_SLUGS = ["tripwire", "nuclei", "mole", "rotate"] as const;
 
 test.describe("/runs activations directory", () => {
   test("renders all four active program cards", async ({ page }) => {
@@ -34,7 +29,7 @@ test.describe("/runs activations directory", () => {
       await expect(page.getByTestId(`run-cta-${slug}`)).toBeVisible();
       await expect(page.getByTestId(`landing-cta-${slug}`)).toBeVisible();
     }
-    await expect(page.getByTestId("active-count")).toContainText(/6 of 11/);
+    await expect(page.getByTestId("active-count")).toContainText(/7 of 11/);
   });
 
   test("DRAGNET CTA navigates to the run route", async ({ page }) => {
@@ -71,6 +66,12 @@ test.describe("/runs activations directory", () => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-bounty").click();
     await page.waitForURL(/\/bureau\/bounty\/run$/);
+  });
+
+  test("SBOM-AI CTA navigates to the run route", async ({ page }) => {
+    await page.goto("/runs");
+    await page.getByTestId("run-cta-sbom-ai").click();
+    await page.waitForURL(/\/bureau\/sbom-ai\/run$/);
   });
 
   test("coming-soon programs are listed with reasons", async ({ page }) => {

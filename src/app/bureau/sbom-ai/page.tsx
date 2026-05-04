@@ -34,6 +34,24 @@ export default function SbomAiIndexPage(): ReactNode {
           in-toto attestation to Rekor. Consumers verify provenance
           before running anything.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/sbom-ai/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Publish provenance →
+          </a>
+        </p>
       </section>
 
       <section>
