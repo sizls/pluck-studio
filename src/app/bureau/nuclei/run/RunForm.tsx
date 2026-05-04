@@ -30,6 +30,7 @@ import {
   isValidRekorUuid,
   nucleiRunFormModule,
   parseVendorScope,
+  validateCron,
 } from "../../../../lib/nuclei/run-form-module";
 
 interface RunResponse {
@@ -70,6 +71,11 @@ export function NucleiRunForm(): ReactNode {
   const needsSignIn = useDerived(system, "needsSignIn");
   const vendorScopeIsValid = useDerived(system, "vendorScopeIsValid");
   const vendorScopeCount = useDerived(system, "vendorScopeCount");
+  const sbomRekorUuidIsValid = useDerived(system, "sbomRekorUuidIsValid");
+  const recommendedIntervalIsValid = useDerived(
+    system,
+    "recommendedIntervalIsValid",
+  );
 
   const setAuthor = useCallback(
     (v: string) => {
@@ -144,6 +150,12 @@ export function NucleiRunForm(): ReactNode {
     }
     if (!isAllowedLicense((license ?? "").trim())) {
       setClientGuardError("License must be an allowed SPDX identifier.");
+      return;
+    }
+    if (!validateCron((recommendedInterval ?? "").trim())) {
+      setClientGuardError(
+        "Recommended interval must be a valid 5-field cron expression (e.g. '0 */4 * * *').",
+      );
       return;
     }
     setClientGuardError(null);
@@ -245,8 +257,18 @@ export function NucleiRunForm(): ReactNode {
         <strong>Required.</strong> Without a SBOM-AI cross-reference,
         the entry lands at <code>trustTier: "ingested"</code> and
         consumers refuse to honor it. Publish via{" "}
-        <a href="/bureau/sbom-ai/run">/bureau/sbom-ai/run</a> first;
-        copy the Rekor UUID from that receipt; paste it here.
+        <a href="/bureau/sbom-ai/run" target="_blank" rel="noreferrer">
+          /bureau/sbom-ai/run
+        </a>{" "}
+        first; copy the Rekor UUID from that receipt; paste it here.
+        {!sbomRekorUuidIsValid && (sbomRekorUuid ?? "").length > 0 ? (
+          <span
+            style={{ color: "#ff8888" }}
+            data-testid="sbom-rekor-uuid-invalid"
+          >
+            {" "}— must be 64–80 hex characters.
+          </span>
+        ) : null}
       </BureauHelpText>
 
       <BureauLabel text="Vendor scope">
@@ -276,16 +298,14 @@ export function NucleiRunForm(): ReactNode {
         ) : null}
       </BureauHelpText>
 
-      <BureauLabel text="License (SPDX identifier)">
-        <BureauRadioGroup
-          name="license"
-          legend="License"
-          options={LICENSE_OPTIONS}
-          value={license ?? "MIT"}
-          onChange={setLicense}
-          testId="license"
-        />
-      </BureauLabel>
+      <BureauRadioGroup
+        name="license"
+        legend="License (SPDX identifier)"
+        options={LICENSE_OPTIONS}
+        value={license ?? "MIT"}
+        onChange={setLicense}
+        testId="license"
+      />
 
       <BureauLabel text="Recommended cron interval">
         <BureauInput
@@ -302,6 +322,13 @@ export function NucleiRunForm(): ReactNode {
         Default cron expression DRAGNET subscribers will use unless
         they override. Conservative default: every 4 hours.
       </BureauHelpText>
+      {!recommendedIntervalIsValid && (recommendedInterval ?? "").length > 0 ? (
+        <BureauHelpText error testId="recommended-interval-invalid">
+          Not a valid 5-field cron expression. Format: <code>min hour dom month dow</code>{" "}
+          (e.g. <code>0 */4 * * *</code>, <code>*/15 * * * *</code>,{" "}
+          <code>0 0 * * 1-5</code>).
+        </BureauHelpText>
+      ) : null}
 
       <BureauCheckbox
         checked={authAck ?? false}

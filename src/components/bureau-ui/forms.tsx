@@ -162,12 +162,28 @@ export function BureauLabel({
 
 interface BureauHelpTextProps {
   children: ReactNode;
+  /**
+   * When true, the help text takes on the form's error color — used
+   * for inline field-level validation feedback (e.g. malformed cron).
+   */
+  error?: boolean;
+  testId?: string;
 }
 
 export function BureauHelpText({
   children,
+  error = false,
+  testId,
 }: BureauHelpTextProps): ReactNode {
-  return <p style={HelpTextStyle}>{children}</p>;
+  const style = error
+    ? { ...HelpTextStyle, color: "#ff8888" }
+    : HelpTextStyle;
+
+  return (
+    <p style={style} data-testid={testId}>
+      {children}
+    </p>
+  );
 }
 
 interface BureauCheckboxProps {

@@ -28,7 +28,12 @@ export interface SubmitResult {
   phraseId: string;
 }
 
-/** OSI-approved licenses we accept on registry entries. */
+/**
+ * OSI-approved licenses + CC0 (public-domain dedication for sample-data
+ * packs). CC-BY-4.0 is intentionally excluded — it's a Creative Commons
+ * content license, not a software license; FSF + OSI flag CC-BY for
+ * software bodies as inappropriate.
+ */
 export const ALLOWED_LICENSES: ReadonlyArray<string> = [
   "MIT",
   "Apache-2.0",
@@ -38,7 +43,6 @@ export const ALLOWED_LICENSES: ReadonlyArray<string> = [
   "MPL-2.0",
   "GPL-3.0-only",
   "AGPL-3.0-only",
-  "CC-BY-4.0",
   "CC0-1.0",
 ];
 
@@ -85,6 +89,133 @@ export function isAllowedLicense(s: string): boolean {
   return ALLOWED_LICENSES.includes(s);
 }
 
+// ---------------------------------------------------------------------------
+// Cron grammar — 5-field validator for `recommendedInterval`
+// ---------------------------------------------------------------------------
+//
+// Fields (in order):
+//   minute        0-59
+//   hour          0-23
+//   day-of-month  1-31
+//   month         1-12
+//   day-of-week   0-7  (0 and 7 both = Sun)
+//
+// Each field is one of: `*`, integer, list (`a,b,c`), range (`a-b`),
+// step (`*/n` or `a-b/n`), or a comma-list combining the above.
+// Whitespace between fields is one-or-more spaces or tabs; leading /
+// trailing whitespace on the whole expression is rejected.
+
+interface CronFieldBounds {
+  readonly min: number;
+  readonly max: number;
+}
+
+const CRON_FIELD_BOUNDS: ReadonlyArray<CronFieldBounds> = [
+  { min: 0, max: 59 }, // minute
+  { min: 0, max: 23 }, // hour
+  { min: 1, max: 31 }, // day-of-month
+  { min: 1, max: 12 }, // month
+  { min: 0, max: 7 }, // day-of-week (0 + 7 = Sun)
+];
+
+function isValidCronInteger(token: string, bounds: CronFieldBounds): boolean {
+  if (!/^\d+$/.test(token)) {
+    return false;
+  }
+  const n = Number.parseInt(token, 10);
+
+  return n >= bounds.min && n <= bounds.max;
+}
+
+function isValidCronAtom(atom: string, bounds: CronFieldBounds): boolean {
+  // Handle step: <range-or-star>/<positive-int>
+  const slashIdx = atom.indexOf("/");
+  if (slashIdx !== -1) {
+    const head = atom.slice(0, slashIdx);
+    const step = atom.slice(slashIdx + 1);
+    if (!/^\d+$/.test(step)) {
+      return false;
+    }
+    const stepN = Number.parseInt(step, 10);
+    if (stepN <= 0) {
+      return false;
+    }
+    if (head === "*") {
+      return true;
+    }
+    // Range or single int as the head of a step is allowed.
+    return isValidCronAtom(head, bounds);
+  }
+
+  if (atom === "*") {
+    return true;
+  }
+
+  // Range: a-b
+  const dashIdx = atom.indexOf("-");
+  if (dashIdx !== -1) {
+    const a = atom.slice(0, dashIdx);
+    const b = atom.slice(dashIdx + 1);
+    if (!isValidCronInteger(a, bounds) || !isValidCronInteger(b, bounds)) {
+      return false;
+    }
+
+    return Number.parseInt(a, 10) <= Number.parseInt(b, 10);
+  }
+
+  return isValidCronInteger(atom, bounds);
+}
+
+function isValidCronField(field: string, bounds: CronFieldBounds): boolean {
+  if (field.length === 0) {
+    return false;
+  }
+  // Comma-list of atoms; an empty atom (",,") is invalid.
+  const atoms = field.split(",");
+  for (const atom of atoms) {
+    if (atom.length === 0) {
+      return false;
+    }
+    if (!isValidCronAtom(atom, bounds)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Validate a 5-field cron expression. Tight grammar: rejects 6-field
+ * (seconds), trailing whitespace, and out-of-range values.
+ */
+export function validateCron(s: string): boolean {
+  if (typeof s !== "string") {
+    return false;
+  }
+  // Reject leading/trailing whitespace explicitly — operators paste
+  // values from chat; trailing spaces silently breaking schedules is
+  // worse than a hard fail at submit time.
+  if (s !== s.trim() || s.length === 0) {
+    return false;
+  }
+  const fields = s.split(/[\t ]+/);
+  if (fields.length !== CRON_FIELD_BOUNDS.length) {
+    return false;
+  }
+  for (let i = 0; i < fields.length; i += 1) {
+    const field = fields[i];
+    const bounds = CRON_FIELD_BOUNDS[i];
+    if (field === undefined || bounds === undefined) {
+      return false;
+    }
+    if (!isValidCronField(field, bounds)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export const nucleiRunFormModule = createModule("nuclei-run-form", {
   schema: {
     facts: {
@@ -107,6 +238,12 @@ export const nucleiRunFormModule = createModule("nuclei-run-form", {
       needsSignIn: t.boolean(),
       vendorScopeIsValid: t.boolean(),
       vendorScopeCount: t.number(),
+      parsedVendorScope: t.object<{
+        pairs: ReadonlyArray<string>;
+        invalid: ReadonlyArray<string>;
+      }>(),
+      recommendedIntervalIsValid: t.boolean(),
+      sbomRekorUuidIsValid: t.boolean(),
     },
   },
 
@@ -126,7 +263,21 @@ export const nucleiRunFormModule = createModule("nuclei-run-form", {
 
   derive: {
     isSubmitting: (facts) => facts.submitStatus === "submitting",
-    canSubmit: (facts) => {
+    // Base derivation: parse once, reused by vendorScopeCount,
+    // vendorScopeIsValid, and canSubmit. Auto-tracking would otherwise
+    // re-run parseVendorScope() three times per keystroke.
+    parsedVendorScope: (facts) => parseVendorScope(facts.vendorScope),
+    vendorScopeCount: (facts, derived) => derived.parsedVendorScope.pairs.length,
+    vendorScopeIsValid: (facts, derived) => {
+      const { pairs, invalid } = derived.parsedVendorScope;
+
+      return invalid.length === 0 && pairs.length > 0;
+    },
+    recommendedIntervalIsValid: (facts) =>
+      validateCron(facts.recommendedInterval),
+    sbomRekorUuidIsValid: (facts) =>
+      isValidRekorUuid(facts.sbomRekorUuid.trim()),
+    canSubmit: (facts, derived) => {
       if (facts.submitStatus === "submitting") {
         return false;
       }
@@ -139,24 +290,22 @@ export const nucleiRunFormModule = createModule("nuclei-run-form", {
       if (!isValidRekorUuid(facts.sbomRekorUuid.trim())) {
         return false;
       }
-      const { pairs, invalid } = parseVendorScope(facts.vendorScope);
-      if (pairs.length === 0 || invalid.length > 0) {
+      if (!derived.vendorScopeIsValid) {
         return false;
       }
       if (!isAllowedLicense(facts.license.trim())) {
         return false;
       }
+      if (!derived.recommendedIntervalIsValid) {
+        return false;
+      }
       if (!facts.authorizationAcknowledged) {
         return false;
       }
+
       return true;
     },
     hasError: (facts) => facts.errorMessage !== null,
     needsSignIn: (facts) => facts.signInUrl !== null,
-    vendorScopeIsValid: (facts) => {
-      const { pairs, invalid } = parseVendorScope(facts.vendorScope);
-      return invalid.length === 0 && pairs.length > 0;
-    },
-    vendorScopeCount: (facts) => parseVendorScope(facts.vendorScope).pairs.length,
   },
 });

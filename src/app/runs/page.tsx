@@ -2,16 +2,16 @@
 // /runs — cross-program activations directory
 // ---------------------------------------------------------------------------
 //
-// One-stop hub for "what can I run from Studio right now." Lists every
-// program activated through the v2 pattern + a "coming soon" rail for
-// programs that still need their /run wiring (TRIPWIRE, MOLE, WHISTLE,
-// BOUNTY, SBOM-AI, ROTATE) or that don't fit the activation pattern at
-// all (NUCLEI registry).
+// One-stop hub for "what can I run from Studio right now." All 11 alpha
+// programs are wired through the unified activation pattern: DRAGNET,
+// OATH, FINGERPRINT, CUSTODY, WHISTLE, BOUNTY, SBOM-AI, ROTATE,
+// TRIPWIRE, NUCLEI, and MOLE. New programs land in
+// `lib/programs/registry.ts` and auto-render here.
 //
+// The coming-soon section gracefully handles the empty case — when no
+// programs are pending, it renders an "all activated" callout instead.
 // When the pluck-api /v1/runs backend lands, this page extends to also
-// list the operator's recent activations across programs ("My runs").
-// Today it's directory-only — every fact rendered is static metadata
-// from the registry.
+// list the operator's recent activations ("My runs").
 // ---------------------------------------------------------------------------
 
 import type { CSSProperties, ReactNode } from "react";

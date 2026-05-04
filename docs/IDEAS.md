@@ -91,6 +91,55 @@ These came out of R3's domain review but require breaking changes / external wor
    - Currently any phrase prefix renders in the OG card. A vetted allowlist would strengthen the brand-safety story for shared receipts. Trade-off: gates new vendors behind a manual review step.
    - Defer until first abuse signal.
 
+## v3-R1 Game-Changer Ideas (post-Phase-11 ship)
+
+Surfaced after all 11 alpha programs activated through the unified pattern. Compound on the 11-program × phrase-ID-prefix surface. All deferred this round (1 critical + 8 majors had to land first); revisit when the loop converges.
+
+### Top 5 Ranked
+
+1. **Vendor Honesty Index** — `studio.pluck.run/vendor/openai`
+   - Why: every vendor gets a permanent live URL aggregating ALL 11 programs' receipts (DRAGNET reds, FINGERPRINT swaps, OATH expirations, MOLE verdicts, ROTATE notices) into one scrolling timeline.
+   - Tweet: *"openai's pluck profile right now: 12 contradictions this week, 1 silent model swap, oath expired 3 days ago. Permanent URL. Updates live."*
+   - Compound: massive — every future receipt across every program auto-enriches every vendor page. Permanent SEO + share surface per vendor. Karpathy bookmarks `/vendor/openai`.
+   - Buildable in: 2 days. Server-side groupBy on phrase-ID prefix is the entire query (prefixes already vendor-scoped: `openai-...`, `nyt20240115-...`, etc.).
+   - Risk: defamation surface for unverified prefixes — gate to vetted prefix allowlist (R3 deferred item — pull forward).
+   - Status: **FUCK YES tier — top priority for next build phase.**
+
+2. **Phrase-ID Auto-Stitch Search** — paste any phrase ID, see the receipt graph
+   - Why: single search bar; paste `openai-swift-falcon-3742`; get every related receipt across all 11 programs (same vendor, same operator, BOUNTY/DRAGNET parent-child links).
+   - Compound: high — every new program inherits search for free. Becomes the default landing page when someone receives a phrase ID cold.
+   - Buildable in: 1 day. Index implicit in prefix scheme; `/search?q=swift-falcon-3742` does prefix decomposition + fan-out.
+   - Status: **FUCK YES tier — pairs with #1.**
+
+3. **NUCLEI ↔ SBOM-AI Auto-Link CTA** — supply-chain loop close
+   - Why: SBOM-AI receipts show "Publish to NUCLEI registry →" with rekor-uuid pre-filled. NUCLEI receipts back-link the SBOM-AI parent.
+   - Compound: medium — strengthens supply-chain narrative; necessary but not viral solo.
+   - Buildable in: 1 day. Both programs ship; just CTA + back-link section.
+   - Status: BUILD — closes the unblocked supply-chain story.
+
+4. **Daily Roll-Up OG Card** — `/today/opengraph-image` shows one tile per program color-coded by today's verdict density
+   - Why: the daily-tweet asset; one shareable image summarizes Pluck's last 24h across all 11 programs.
+   - Compound: medium-high — pairs with #1 + #2 as the daily distribution arm.
+   - Buildable in: 1 day. Reuses existing OG infrastructure.
+   - Risk: empty days look sad — pre-seed with stub-status colors.
+   - Status: BUILD third in sequence.
+
+5. **Receipt Subscription Feed** — RSS/Atom per vendor (`/vendor/openai/feed.xml`)
+   - Why: free passive distribution. Journalists subscribe; every new red dot lands in their RSS reader.
+   - Compound: high long-tail. Atom is read-only XML, no security surface.
+   - Buildable in: 1 day after #1 (depends on the vendor-aggregation query).
+   - Status: BUILD after #1.
+
+### Recommended sequence
+
+1. **Vendor Honesty Index** (2d) — keystone
+2. **Auto-Stitch Search** (1d) — multiplies #1
+3. **Daily Roll-Up OG** (1d) — daily-tweet asset
+4. **NUCLEI↔SBOM-AI Link** (1d) — supply-chain loop
+5. **Subscription Feed** (1d) — passive distribution
+
+Total: 6 days for the full v3-R1 viral compounds bundle.
+
 ## R0 (plan-doc) — already captured in `mighty-gliding-swan.md`
 
 These are part of the plan, not surfaced this round:

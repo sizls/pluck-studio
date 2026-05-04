@@ -21,6 +21,7 @@ export type ReceiptStatus =
 
 export type Verdict =
   | "sealed"
+  | "re-witnessed"
   | "canary-too-short"
   | "fingerprints-not-found"
   | "duplicate-canary"
@@ -73,6 +74,7 @@ export const moleRunReceiptModule = createModule("mole-run-receipt", {
     derivations: {
       isPending: t.boolean(),
       isSealed: t.boolean(),
+      isReWitnessed: t.boolean(),
       isFailure: t.boolean(),
       verdictColor: t.string<"gray" | "red" | "green">(),
     },
@@ -99,17 +101,32 @@ export const moleRunReceiptModule = createModule("mole-run-receipt", {
       facts.status === "fetching-canary" ||
       facts.status === "hashing" ||
       facts.status === "anchoring",
+    // Trustworthy seal — both the original 'sealed' verdict AND
+    // 're-witnessed' (signing identity re-attested by ROTATE successor
+    // key, original Rekor timestamp untouched). Operationally
+    // indistinguishable for downstream verifiers; the verdict tag
+    // exists for audit-trail purposes only.
     isSealed: (facts) =>
-      facts.status === "anchored" && facts.verdict === "sealed",
+      facts.status === "anchored" &&
+      (facts.verdict === "sealed" || facts.verdict === "re-witnessed"),
+    isReWitnessed: (facts) =>
+      facts.status === "anchored" && facts.verdict === "re-witnessed",
     isFailure: (facts) =>
       facts.status === "failed" ||
-      (facts.verdict !== null && facts.verdict !== "sealed"),
-    // MOLE seal is binary — sealed or rejected. No amber state; a
-    // canary that's too short or has wrong fingerprints isn't
-    // partially-sealed, it's not sealed.
+      (facts.verdict !== null &&
+        facts.verdict !== "sealed" &&
+        facts.verdict !== "re-witnessed"),
+    // MOLE seal is binary — sealed (or re-witnessed) or rejected. No
+    // amber state; a canary that's too short or has wrong fingerprints
+    // isn't partially-sealed, it's not sealed.
     verdictColor: (facts) => {
-      if (facts.verdict === null) return "gray";
-      if (facts.verdict === "sealed") return "green";
+      if (facts.verdict === null) {
+        return "gray";
+      }
+      if (facts.verdict === "sealed" || facts.verdict === "re-witnessed") {
+        return "green";
+      }
+
       return "red";
     },
   },

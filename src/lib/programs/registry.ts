@@ -184,3 +184,93 @@ export interface ComingSoonProgram {
 }
 
 export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [];
+
+// ---------------------------------------------------------------------------
+// Phrase-ID prefix conventions
+// ---------------------------------------------------------------------------
+//
+// Documented invariant — for cross-program consistency. Each program
+// generates a phrase-ID for its receipt URL; the human-readable prefix
+// of that phrase-ID encodes provenance/context. The choice of prefix
+// is load-bearing for privacy and UX:
+//
+//   - Use vendor/source when transparency aids the receipt's purpose
+//     (DRAGNET probe-pack runs, OATH vendor checks, etc).
+//   - Use a routing partner (NOT the source) when source-attribution
+//     would compromise anonymity (WHISTLE submissions).
+//   - Use an artifact kind when the source identity is variable but
+//     the artifact category is stable (SBOM-AI: probe-pack, model-card,
+//     mcp-server).
+//   - Use a private machine identifier (NOT the canary content) when
+//     the body must stay local (MOLE).
+//
+// Not wired into rendering — this is a design contract. Adding a new
+// program means adding an entry here AND in ACTIVE_PROGRAMS, locked
+// in by the registry test suite.
+
+export interface PhraseIdPrefixConvention {
+  /** Where the prefix slug comes from (one short noun). */
+  readonly prefixSource: string;
+  /** One-line privacy / UX explainer. */
+  readonly rationale: string;
+}
+
+export const PHRASE_ID_PREFIX_CONVENTIONS: Readonly<
+  Record<string, PhraseIdPrefixConvention>
+> = {
+  dragnet: {
+    prefixSource: "vendor",
+    rationale:
+      "Probe-pack target vendor (e.g. 'openai') — receipt URL self-discloses which AI vendor was probed.",
+  },
+  oath: {
+    prefixSource: "vendor",
+    rationale:
+      "Vendor whose oath was verified — surfaces accountability target directly in the URL.",
+  },
+  fingerprint: {
+    prefixSource: "vendor",
+    rationale:
+      "Vendor whose model was fingerprinted — drift attribution must be unambiguous from the URL.",
+  },
+  custody: {
+    prefixSource: "vendor (or 'unknown' if generic bundle)",
+    rationale:
+      "Source of the CustodyBundle — falls back to 'unknown' for generic third-party bundles where source attribution is unavailable.",
+  },
+  whistle: {
+    prefixSource: "routing partner (NOT source)",
+    rationale:
+      "Newsroom partner (ProPublica / Bellingcat / 404 Media / EFF Press) — source identity must NEVER appear in a public URL; the routing partner does.",
+  },
+  bounty: {
+    prefixSource: "target platform",
+    rationale:
+      "HackerOne or Bugcrowd — phrase-ID encodes the platform the bounty was filed against, not the vulnerability source.",
+  },
+  "sbom-ai": {
+    prefixSource: "artifact kind",
+    rationale:
+      "Artifact kind ('probe-pack' / 'model-card' / 'mcp-server') — author identity is variable; the artifact category is the load-bearing dimension.",
+  },
+  rotate: {
+    prefixSource: "reason",
+    rationale:
+      "Rotation reason ('compromised' / 'routine' / 'lost') — the reason is what re-witness consumers need; the actual key fingerprint stays in the body.",
+  },
+  tripwire: {
+    prefixSource: "machine ID slug",
+    rationale:
+      "Per-dev-machine ID slug — phrase-ID lets ops staff ack/route TRIPWIRE receipts back to the correct workstation without leaking the operator's identity.",
+  },
+  nuclei: {
+    prefixSource: "author handle",
+    rationale:
+      "Registry author handle (e.g. 'alice', 'openai-eng') — registry entries belong to authors; receipt URL self-discloses provenance. Note: until pluck-api binds NUCLEI authors to authenticated user IDs, handles can be impersonated; see route.ts comment.",
+  },
+  mole: {
+    prefixSource: "canary ID (NOT canary content)",
+    rationale:
+      "Operator-chosen canary identifier — the canary BODY never enters any public surface; only the operator's local ID does.",
+  },
+};

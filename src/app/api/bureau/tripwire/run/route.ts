@@ -29,6 +29,18 @@ interface TripwireRequestBody {
 const VALID_POLICY_SOURCES = new Set(["default", "custom"]);
 const ALLOWED_SCHEMES = new Set(["https:"]);
 
+// SECURITY: customPolicyUrl is validated at submission (HTTPS + private-IP block)
+// but the runner (Phase 2.5) will FETCH the URL at evaluation time. Runner
+// contract REQUIRED:
+//   1. Re-validate scheme = https at fetch time
+//   2. Re-resolve hostname; reject if any resolved address falls in
+//      RFC1918 / link-local / loopback / IPv6 ULA ranges (TOCTOU defence
+//      against DNS rebinding)
+//   3. Disallow redirects (or re-validate every redirect target the same way)
+//   4. Cap fetch timeout + body size
+//   5. Treat fetched policy as untrusted JSON (parse with Zod, no eval)
+// Persist canonicalised parsed.href; do NOT persist raw user input.
+// See AE R1 finding S2. Runner adopters must reference this comment.
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
     return NextResponse.json(

@@ -37,6 +37,22 @@ describe("moleRunReceiptModule", () => {
     sys.facts.status = "anchored";
     sys.facts.verdict = "sealed";
     expect(sys.derive.isSealed).toBe(true);
+    expect(sys.derive.isReWitnessed).toBe(false);
+    expect(sys.derive.verdictColor).toBe("green");
+  });
+
+  it("verdict='re-witnessed' → green + isSealed=true + isReWitnessed=true", () => {
+    // ROTATE emits KeyRevocation/v1 + ReWitnessReport/v1 when an
+    // operator's signing key rotates. The canary's original Rekor
+    // timestamp is untouched — only the signing identity is re-attested
+    // by the successor key. Operationally indistinguishable from
+    // 'sealed' for downstream verifiers; verdict tag is for audit-trail.
+    const sys = setup();
+    sys.facts.status = "anchored";
+    sys.facts.verdict = "re-witnessed";
+    expect(sys.derive.isSealed).toBe(true);
+    expect(sys.derive.isReWitnessed).toBe(true);
+    expect(sys.derive.isFailure).toBe(false);
     expect(sys.derive.verdictColor).toBe("green");
   });
 

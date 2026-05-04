@@ -91,6 +91,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
 
   const isPending = useDerived(system, "isPending");
   const isSealed = useDerived(system, "isSealed");
+  const isReWitnessed = useDerived(system, "isReWitnessed");
   const isFailure = useDerived(system, "isFailure");
   const verdictColor = useDerived(system, "verdictColor");
 
@@ -190,11 +191,23 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
           />
         </p>
         {verdictDetail ? <p style={StatLineStyle}>{verdictDetail}</p> : null}
-        {isSealed ? (
+        {isSealed && !isReWitnessed ? (
           <p style={{ ...StatLineStyle, color: "#7fbe7f" }}>
             <strong data-testid="sealed-callout">
               Sealed. Rekor timestamp predates any probe-run. Operator
               holds the canary body locally.
+            </strong>
+          </p>
+        ) : null}
+        {isReWitnessed ? (
+          <p style={{ ...StatLineStyle, color: "#7fbe7f" }}>
+            <strong data-testid="re-witnessed-callout">
+              Re-witnessed. This canary&apos;s seal predates probe — the
+              original Rekor timestamp is preserved. Signing identity has
+              been re-attested via a{" "}
+              <a href="/bureau/rotate">ROTATE ReWitnessReport</a> after a
+              key rotation. Trust-chain intact; downstream verifiers honor
+              this canary identically to a fresh seal.
             </strong>
           </p>
         ) : null}

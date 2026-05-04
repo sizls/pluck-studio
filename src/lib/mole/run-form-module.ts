@@ -85,6 +85,10 @@ export const moleRunFormModule = createModule("mole-run-form", {
       needsSignIn: t.boolean(),
       fingerprintCount: t.number(),
       fingerprintsValid: t.boolean(),
+      parsedFingerprints: t.object<{
+        phrases: ReadonlyArray<string>;
+        outOfBounds: ReadonlyArray<string>;
+      }>(),
     },
   },
 
@@ -101,7 +105,23 @@ export const moleRunFormModule = createModule("mole-run-form", {
 
   derive: {
     isSubmitting: (facts) => facts.submitStatus === "submitting",
-    canSubmit: (facts) => {
+    // Base derivation: parse once, reused by fingerprintCount,
+    // fingerprintsValid, and canSubmit. Auto-tracking would otherwise
+    // re-run parseFingerprintPhrases() three times per keystroke.
+    parsedFingerprints: (facts) =>
+      parseFingerprintPhrases(facts.fingerprintPhrases),
+    fingerprintCount: (facts, derived) =>
+      derived.parsedFingerprints.phrases.length,
+    fingerprintsValid: (facts, derived) => {
+      const { phrases, outOfBounds } = derived.parsedFingerprints;
+
+      return (
+        outOfBounds.length === 0 &&
+        phrases.length > 0 &&
+        phrases.length <= FP_MAX_COUNT
+      );
+    },
+    canSubmit: (facts, derived) => {
       if (facts.submitStatus === "submitting") {
         return false;
       }
@@ -112,31 +132,17 @@ export const moleRunFormModule = createModule("mole-run-form", {
       if (!url || !/^https:\/\//i.test(url)) {
         return false;
       }
-      const { phrases, outOfBounds } = parseFingerprintPhrases(
-        facts.fingerprintPhrases,
-      );
-      if (
-        phrases.length === 0 ||
-        phrases.length > FP_MAX_COUNT ||
-        outOfBounds.length > 0
-      ) {
+      if (!derived.fingerprintsValid) {
         return false;
       }
       if (!facts.authorizationAcknowledged) {
         return false;
       }
+
       return true;
     },
     hasError: (facts) => facts.errorMessage !== null,
     needsSignIn: (facts) => facts.signInUrl !== null,
-    fingerprintCount: (facts) =>
-      parseFingerprintPhrases(facts.fingerprintPhrases).phrases.length,
-    fingerprintsValid: (facts) => {
-      const { phrases, outOfBounds } = parseFingerprintPhrases(
-        facts.fingerprintPhrases,
-      );
-      return outOfBounds.length === 0 && phrases.length > 0 && phrases.length <= FP_MAX_COUNT;
-    },
   },
 });
 

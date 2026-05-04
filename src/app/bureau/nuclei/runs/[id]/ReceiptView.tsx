@@ -92,8 +92,8 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
 
   const isPending = useDerived(system, "isPending");
   const isPublished = useDerived(system, "isPublished");
+  const isFullyVerified = useDerived(system, "isFullyVerified");
   const isFailure = useDerived(system, "isFailure");
-  const isVerifiedTier = useDerived(system, "isVerifiedTier");
   const verdictColor = useDerived(system, "verdictColor");
   const packDossierUrl = useDerived(system, "packDossierUrl");
 
@@ -195,20 +195,21 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
           />
         </p>
         {verdictDetail ? <p style={StatLineStyle}>{verdictDetail}</p> : null}
-        {isPublished && isVerifiedTier ? (
+        {isFullyVerified ? (
           <p style={{ ...StatLineStyle, color: "#7fbe7f" }}>
             <strong data-testid="published-verified-callout">
-              Published (verified). SBOM-AI cross-reference confirmed;
-              consumers can pin to this entry.
+              Published (verified) — consumers honor. SBOM-AI
+              cross-reference confirmed; subscribers can pin to this entry.
             </strong>
           </p>
         ) : null}
-        {isPublished && !isVerifiedTier ? (
+        {isPublished && !isFullyVerified ? (
           <p style={{ ...StatLineStyle, color: "#a78a1f" }}>
             <strong data-testid="published-ingested-callout">
-              Published (ingested-only). Trust tier &quot;ingested&quot;
-              — consumers will refuse to honor this entry until the
-              SBOM-AI cross-reference verifies.
+              Published (ingested-only) — registry-fenced. Consumers
+              refuse to honor this entry without an SBOM-AI cross-reference.
+              The entry exists in the registry but downstream verifiers
+              will not run anything pinned to it.
             </strong>
           </p>
         ) : null}
@@ -221,6 +222,21 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
         ) : null}
         <p style={StatLineStyle} data-testid="author-row">
           Author: {author ?? "—"}
+        </p>
+        <p
+          style={{
+            fontFamily: "var(--bureau-mono)",
+            fontSize: 12,
+            color: "var(--bureau-fg-dim)",
+            marginTop: 2,
+            fontStyle: "italic",
+          }}
+          data-testid="author-handle-note"
+        >
+          <small>
+            Author handle is operator-asserted; not yet bound to
+            authenticated identity. Pre-pluck-api stub.
+          </small>
         </p>
         <p style={StatLineStyle} data-testid="pack-row">
           Pack: {packName ?? "—"}

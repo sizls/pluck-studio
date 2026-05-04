@@ -13,6 +13,8 @@ interface SuccessBody {
   license: string;
   recommendedInterval: string;
   status: string;
+  pendingVerdict?: "published" | "published-ingested-only";
+  pendingTrustTier?: "verified" | "ingested";
 }
 
 const HEADERS = {
@@ -96,9 +98,42 @@ describe("POST /api/bureau/nuclei/run — validation", () => {
     expect(r.status).toBe(400);
   });
 
+  it("rejects malformed recommendedInterval (cron grammar)", async () => {
+    const r = await POST(buildRequest(valid({ recommendedInterval: "not cron" })));
+    expect(r.status).toBe(400);
+    const b = (await r.json()) as { error: string };
+    expect(b.error).toMatch(/cron/i);
+  });
+
+  it("rejects out-of-range recommendedInterval ('0 25 * * *')", async () => {
+    const r = await POST(buildRequest(valid({ recommendedInterval: "0 25 * * *" })));
+    expect(r.status).toBe(400);
+  });
+
   it("rejects when ack missing", async () => {
     const r = await POST(buildRequest(valid({ authorizationAcknowledged: false })));
     expect(r.status).toBe(400);
+  });
+});
+
+describe("POST /api/bureau/nuclei/run — author handle squat (AE R1 S1)", () => {
+  // Codifies the known stub-era gap: until pluck-api binds NUCLEI
+  // authors to authenticated user IDs, two different authenticated
+  // operators can both submit author=bob and BOTH succeed. This test
+  // pins current behavior so the gap can't silently change before
+  // the public-registry launch fix lands. See route.ts SECURITY block.
+  it("accepts the same author=bob from two consecutive submissions (squat is reproducible)", async () => {
+    const r1 = await POST(buildRequest(valid({ author: "bob" })));
+    expect(r1.status).toBe(200);
+    const b1 = (await r1.json()) as SuccessBody;
+    expect(b1.author).toBe("bob");
+    expect(b1.phraseId).toMatch(/^bob-[a-z]+-[a-z]+-\d{4}$/);
+
+    const r2 = await POST(buildRequest(valid({ author: "bob" })));
+    expect(r2.status).toBe(200);
+    const b2 = (await r2.json()) as SuccessBody;
+    expect(b2.author).toBe("bob");
+    expect(b2.phraseId).toMatch(/^bob-[a-z]+-[a-z]+-\d{4}$/);
   });
 });
 
@@ -123,5 +158,18 @@ describe("POST /api/bureau/nuclei/run — success", () => {
     expect(r.status).toBe(200);
     const b = (await r.json()) as SuccessBody;
     expect(b.vendorScope).toEqual(["openai/gpt-4o"]);
+  });
+
+  it("response shape carries pendingVerdict + pendingTrustTier", async () => {
+    // Distinct verdict members ('published' vs 'published-ingested-only')
+    // are exposed on the success response so subscribers don't have to
+    // do a 2-field (verdict + trustTier) join. Phase-stub: all
+    // pre-validated submissions land at 'published' until the real
+    // TOFU step (against pluck-api Rekor) downgrades to ingested-only.
+    const r = await POST(buildRequest(valid()));
+    expect(r.status).toBe(200);
+    const b = (await r.json()) as SuccessBody;
+    expect(b.pendingVerdict).toBe("published");
+    expect(b.pendingTrustTier).toBe("verified");
   });
 });

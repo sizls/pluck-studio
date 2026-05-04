@@ -200,6 +200,10 @@ export function TripwireRunForm(): ReactNode {
         onChange={setPolicySource}
         testId="policy-source"
       />
+      <BureauHelpText>
+        The policy you fetch decides which hosts get intercepted; only
+        point at a URL you fully control.
+      </BureauHelpText>
 
       {requiresPolicyUrl ? (
         <>

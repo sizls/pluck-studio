@@ -14,6 +14,7 @@ export type ReceiptStatus =
 
 export type Verdict =
   | "published"
+  | "published-ingested-only"
   | "sbom-not-found"
   | "sbom-mismatch"
   | "pack-already-published"
@@ -24,6 +25,10 @@ export type Verdict =
  * Trust tier — published with verified SBOM-AI cross-ref = "verified",
  * published without = "ingested" (consumers refuse to honor). Per
  * landing's "trust model — registry ingest is TOFU" section.
+ *
+ * The verdict carries the operational meaning:
+ *   - 'published'                  → tier=verified, consumers honor
+ *   - 'published-ingested-only'    → tier=ingested, consumers refuse
  */
 export type TrustTier = "verified" | "ingested";
 
@@ -59,6 +64,7 @@ export const nucleiRunReceiptModule = createModule("nuclei-run-receipt", {
     derivations: {
       isPending: t.boolean(),
       isPublished: t.boolean(),
+      isFullyVerified: t.boolean(),
       isFailure: t.boolean(),
       isVerifiedTier: t.boolean(),
       verdictColor: t.string<"gray" | "red" | "amber" | "green">(),
@@ -90,23 +96,35 @@ export const nucleiRunReceiptModule = createModule("nuclei-run-receipt", {
       facts.status === "verifying-sbom" ||
       facts.status === "signing" ||
       facts.status === "anchoring",
+    // Registry-existence: both 'published' and 'published-ingested-only'
+    // mean the entry was anchored. The two differ on whether consumers
+    // will honor the entry (verified) vs. refuse to honor it (ingested).
     isPublished: (facts) =>
+      facts.status === "anchored" &&
+      (facts.verdict === "published" ||
+        facts.verdict === "published-ingested-only"),
+    // Consumer-honored: only 'published' (tier=verified). 'ingested-only'
+    // is registry-fenced — entry exists but downstream verifiers refuse
+    // it without an SBOM-AI cross-reference.
+    isFullyVerified: (facts) =>
       facts.status === "anchored" && facts.verdict === "published",
     isFailure: (facts) =>
       facts.status === "failed" ||
-      (facts.verdict !== null && facts.verdict !== "published"),
+      (facts.verdict !== null &&
+        facts.verdict !== "published" &&
+        facts.verdict !== "published-ingested-only"),
     isVerifiedTier: (facts) => facts.trustTier === "verified",
     verdictColor: (facts) => {
       if (facts.verdict === null) {
         return "gray";
       }
       if (facts.verdict === "published") {
-        // Published-but-ingested = amber (consumers refuse to honor).
-        // Published-and-verified = green.
-        if (facts.trustTier === "ingested") {
-          return "amber";
-        }
         return "green";
+      }
+      if (facts.verdict === "published-ingested-only") {
+        // Registry-fenced — entry exists but consumers refuse to honor
+        // it until an SBOM-AI cross-reference verifies.
+        return "amber";
       }
       return "red";
     },

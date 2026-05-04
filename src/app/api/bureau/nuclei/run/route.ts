@@ -16,6 +16,7 @@ import {
   isValidPackName,
   isValidRekorUuid,
   parseVendorScope,
+  validateCron,
 } from "../../../../../lib/nuclei/run-form-module";
 import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import {
@@ -36,6 +37,11 @@ interface NucleiRequestBody {
 
 const MAX_INTERVAL_LENGTH = 64;
 
+// SECURITY: author handle squat — until pluck-api binds NUCLEI authors
+// to authenticated user IDs, anyone can submit any author=<handle>.
+// Phrase-ID prefix bakes handle into receipt URL → impersonation
+// primitive when registry goes public. Tracking: must be fixed before
+// public registry launch (NUCLEI v1.0 GA gate). See AE R1 finding S1.
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
     return NextResponse.json(
@@ -127,6 +133,15 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
+  if (!validateCron(recommendedInterval)) {
+    return NextResponse.json(
+      {
+        error:
+          "Recommended interval must be a valid 5-field cron expression (e.g. '0 */4 * * *').",
+      },
+      { status: 400 },
+    );
+  }
   if (body.authorizationAcknowledged !== true) {
     return NextResponse.json(
       {
@@ -141,6 +156,17 @@ export async function POST(req: Request): Promise<Response> {
   // the URL self-discloses provenance.
   const phraseId = generateScopedPhraseId(`https://${author}.example`);
 
+  // Anticipated verdict — Phase-stub: there's no real TOFU step yet, so
+  // we mirror eventual semantics. A pre-validated sbomRekorUuid (passed
+  // isValidRekorUuid above) anticipates 'published'. Once TOFU lands and
+  // the cross-reference fails to verify against the SBOM-AI Rekor entry,
+  // that path will downgrade to 'published-ingested-only' + tier
+  // 'ingested' (registry-fenced; consumers refuse). The response shape
+  // is ready for both verdicts now so subscribers don't have to do a
+  // 2-field (verdict + trustTier) join later.
+  const pendingVerdict: "published" | "published-ingested-only" = "published";
+  const pendingTrustTier: "verified" | "ingested" = "verified";
+
   return NextResponse.json(
     {
       runId,
@@ -152,6 +178,8 @@ export async function POST(req: Request): Promise<Response> {
       license,
       recommendedInterval,
       status: "publish pending",
+      pendingVerdict,
+      pendingTrustTier,
       note: "stub publish — pluck-api /v1/nuclei/publish not yet wired; see plan",
     },
     { status: 200 },

@@ -32,23 +32,30 @@ describe("nucleiRunReceiptModule", () => {
     expect(sys.derive.verdictColor).toBe("gray");
   });
 
-  it("isPublished requires anchored + verdict='published' + verified tier", () => {
+  it("isPublished + isFullyVerified for verdict='published' (tier=verified)", () => {
     const sys = setup();
     sys.facts.status = "anchored";
     sys.facts.verdict = "published";
     sys.facts.trustTier = "verified";
     expect(sys.derive.isPublished).toBe(true);
+    expect(sys.derive.isFullyVerified).toBe(true);
     expect(sys.derive.isVerifiedTier).toBe(true);
     expect(sys.derive.verdictColor).toBe("green");
   });
 
-  it("ingested-tier publish maps to amber (consumers refuse)", () => {
+  it("verdict='published-ingested-only' → amber + isPublished=true + isFullyVerified=false", () => {
+    // Distinct verdict member: registry-fenced (anchored, but consumers
+    // refuse to honor without SBOM-AI cross-reference). Removes the
+    // 2-field (verdict + trustTier) join subscribers had to do before.
     const sys = setup();
     sys.facts.status = "anchored";
-    sys.facts.verdict = "published";
+    sys.facts.verdict = "published-ingested-only";
     sys.facts.trustTier = "ingested";
+    expect(sys.derive.isPublished).toBe(true);
+    expect(sys.derive.isFullyVerified).toBe(false);
     expect(sys.derive.isVerifiedTier).toBe(false);
     expect(sys.derive.verdictColor).toBe("amber");
+    expect(sys.derive.isFailure).toBe(false);
   });
 
   it("hard failures map to red", () => {

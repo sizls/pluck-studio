@@ -95,6 +95,7 @@ export const tripwireRunFormModule = createModule("tripwire-run-form", {
         }
         // Soft URL check — server enforces HTTPS-only + private-IP
         // block, but client guards an obviously-bad shape early.
+        // Form-side guards are cosmetic. Runner enforces at fetch time. See route.ts SECURITY block.
         if (!/^https:\/\//i.test(url)) {
           return false;
         }
