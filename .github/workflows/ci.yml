@@ -10,6 +10,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# `@sizls/pluck-bureau-*` packages are restricted to org members on npm
+# (private-alpha posture per the pluck repo's README). The `.npmrc`
+# references `${NPM_TOKEN}` for `_authToken`; CI consumes the same env
+# var. Add `NPM_TOKEN` as a repo secret with publish + read access to
+# the `@sizls` scope. CI fails fast (404) when the secret is unset —
+# expected behavior until the secret is provisioned.
+env:
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
   lint:
     name: lint + typecheck
