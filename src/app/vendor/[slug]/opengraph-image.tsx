@@ -17,6 +17,7 @@
 import { ImageResponse } from "next/og";
 import type { ReactElement } from "react";
 
+import { VENDOR_BEARING_PROGRAMS } from "../../../lib/programs/registry";
 import { lookupVendor } from "../../../lib/programs/vendor-registry";
 import { getVendorPreview } from "../../../lib/programs/vendor-preview";
 
@@ -33,6 +34,16 @@ const FG = "#e4dccd";
 const FG_DIM = "#888273";
 const BG = "#1a1a1a";
 const ACCENT = "#a3201d";
+// Demo-data watermark — must be readable at Slack/X thumbnail size
+// (~600×314 effective). Amber background + dark mono text + all-caps
+// makes the chip unmistakable to anyone screenshotting the unfurl.
+const WATERMARK_BG = "#ffd166";
+const WATERMARK_FG = "#1a1a1a";
+const WATERMARK_TEXT = "DEMO DATA — PREVIEW";
+
+// Count of vendor-bearing programs is derived from the registry — adding
+// a new vendor-bearing entry to ACTIVE_PROGRAMS auto-flows through here.
+const VENDOR_BEARING_COUNT = VENDOR_BEARING_PROGRAMS.length;
 
 const VERDICT_COLORS = {
   green: "#4ade80",
@@ -46,6 +57,29 @@ const VERDICT_COLORS = {
 // depth caps slug length up front.
 const MAX_SLUG_LENGTH = 32;
 
+function WatermarkChip(): ReactElement {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        background: WATERMARK_BG,
+        color: WATERMARK_FG,
+        fontFamily:
+          "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace",
+        fontWeight: 700,
+        fontSize: 22,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        padding: "8px 14px",
+        borderRadius: 4,
+      }}
+    >
+      {WATERMARK_TEXT}
+    </div>
+  );
+}
+
 function renderPlaceholder(): Response {
   return new ImageResponse(
     (
@@ -56,15 +90,18 @@ function renderPlaceholder(): Response {
           background: BG,
           color: FG_DIM,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          gap: 24,
           fontFamily:
             "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace",
           fontSize: 36,
           letterSpacing: "0.08em",
         }}
       >
-        Pluck Bureau · Vendor Honesty Index
+        <WatermarkChip />
+        <span>Pluck Bureau · Vendor Honesty Index</span>
       </div>
     ),
     { ...size },
@@ -114,16 +151,20 @@ export default async function Image({ params }: OgProps): Promise<Response> {
           style={{
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
             color: FG_DIM,
             fontSize: 24,
             letterSpacing: "0.12em",
             textTransform: "uppercase",
           }}
         >
-          <span style={{ color: ACCENT }}>●</span>
-          <span style={{ marginLeft: 16 }}>
-            Pluck Bureau · Vendor Honesty Index
-          </span>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <span style={{ color: ACCENT }}>●</span>
+            <span style={{ marginLeft: 16 }}>
+              Pluck Bureau · Vendor Honesty Index
+            </span>
+          </div>
+          <WatermarkChip />
         </div>
 
         <div
@@ -194,7 +235,9 @@ export default async function Image({ params }: OgProps): Promise<Response> {
             fontSize: 20,
           }}
         >
-          <span>{total} total receipts · across 6 Bureau programs</span>
+          <span>
+            {total} total receipts · across {VENDOR_BEARING_COUNT} Bureau programs
+          </span>
           <span style={{ letterSpacing: "0.08em" }}>studio.pluck.run</span>
         </div>
       </div>

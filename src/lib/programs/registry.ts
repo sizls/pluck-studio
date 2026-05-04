@@ -32,6 +32,21 @@ export interface ActiveProgram {
   runPath: string;
   /** Path the program landing lives at. */
   landingPath: string;
+  /**
+   * Hex accent color used wherever the program is rendered as a label
+   * or section heading (e.g. the Vendor Honesty Index profile page).
+   * Matches the program's existing brand color on its landing page.
+   */
+  accent: string;
+  /**
+   * `true` when the program's phrase-ID schema surfaces a vendor
+   * identity — these are the programs that feed the Vendor Honesty
+   * Index. DRAGNET / OATH / FINGERPRINT / CUSTODY / NUCLEI / MOLE.
+   * `false` when the program deliberately refuses to carry vendor
+   * identity (WHISTLE routing-partner-not-source, BOUNTY platform,
+   * SBOM-AI artifact-kind, ROTATE rotation-reason, TRIPWIRE machine-id).
+   */
+  vendorBearing: boolean;
 }
 
 export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
@@ -46,6 +61,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/DragnetCycle/v1",
     runPath: "/bureau/dragnet/run",
     landingPath: "/bureau/dragnet",
+    accent: "#a3201d",
+    vendorBearing: true,
   },
   {
     slug: "oath",
@@ -58,6 +75,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/PluckOath/v1",
     runPath: "/bureau/oath/run",
     landingPath: "/bureau/oath",
+    accent: "#d4a017",
+    vendorBearing: true,
   },
   {
     slug: "fingerprint",
@@ -70,6 +89,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/ModelFingerprint/v1",
     runPath: "/bureau/fingerprint/run",
     landingPath: "/bureau/fingerprint",
+    accent: "#5a8fbf",
+    vendorBearing: true,
   },
   {
     slug: "custody",
@@ -82,6 +103,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/CustodyBundle/v1",
     runPath: "/bureau/custody/run",
     landingPath: "/bureau/custody",
+    accent: "#7c5fa3",
+    vendorBearing: true,
   },
   {
     slug: "whistle",
@@ -94,6 +117,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/WhistleSubmission/v1",
     runPath: "/bureau/whistle/run",
     landingPath: "/bureau/whistle",
+    accent: "#6f8a8a",
+    vendorBearing: false,
   },
   {
     slug: "bounty",
@@ -106,6 +131,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/BountySubmission/v1",
     runPath: "/bureau/bounty/run",
     landingPath: "/bureau/bounty",
+    accent: "#b07a3a",
+    vendorBearing: false,
   },
   {
     slug: "sbom-ai",
@@ -118,6 +145,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/SbomAi/ProbePack/v1",
     runPath: "/bureau/sbom-ai/run",
     landingPath: "/bureau/sbom-ai",
+    accent: "#4a7a8a",
+    vendorBearing: false,
   },
   {
     slug: "rotate",
@@ -130,6 +159,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/KeyRevocation/v1",
     runPath: "/bureau/rotate/run",
     landingPath: "/bureau/rotate",
+    accent: "#8a6a8a",
+    vendorBearing: false,
   },
   {
     slug: "tripwire",
@@ -142,6 +173,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/TripwirePolicy/v1",
     runPath: "/bureau/tripwire/run",
     landingPath: "/bureau/tripwire",
+    accent: "#8a8a4a",
+    vendorBearing: false,
   },
   {
     slug: "nuclei",
@@ -154,6 +187,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/NucleiPackEntry/v1",
     runPath: "/bureau/nuclei/run",
     landingPath: "/bureau/nuclei",
+    accent: "#3a8a5a",
+    vendorBearing: true,
   },
   {
     slug: "mole",
@@ -166,6 +201,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     predicateUri: "https://pluck.run/CanaryDocument/v1",
     runPath: "/bureau/mole/run",
     landingPath: "/bureau/mole",
+    accent: "#9a6a4a",
+    vendorBearing: true,
   },
 ];
 
@@ -184,6 +221,16 @@ export interface ComingSoonProgram {
 }
 
 export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [];
+
+/**
+ * The active programs whose receipts surface a vendor identity.
+ * These flow into the Vendor Honesty Index. Order matches the order of
+ * `ACTIVE_PROGRAMS` so the per-vendor profile sections render in a
+ * stable, registry-driven sequence — adding a new vendor-bearing
+ * program is a one-line registry change.
+ */
+export const VENDOR_BEARING_PROGRAMS: ReadonlyArray<ActiveProgram> =
+  ACTIVE_PROGRAMS.filter((p) => p.vendorBearing);
 
 // ---------------------------------------------------------------------------
 // Phrase-ID prefix conventions

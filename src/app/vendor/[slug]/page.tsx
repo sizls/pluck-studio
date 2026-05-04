@@ -21,7 +21,10 @@ import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 import { notFound } from "next/navigation";
 
-import { ACTIVE_PROGRAMS } from "../../../lib/programs/registry";
+import {
+  ACTIVE_PROGRAMS,
+  VENDOR_BEARING_PROGRAMS,
+} from "../../../lib/programs/registry";
 import {
   listVendorSlugs,
   lookupVendor,
@@ -81,23 +84,24 @@ export async function generateMetadata({
   };
 }
 
-const PROGRAM_ACCENT: Readonly<Record<VendorProgramSlug, string>> = {
-  dragnet: "#a3201d",
-  oath: "#d4a017",
-  fingerprint: "#5a8fbf",
-  custody: "#7c5fa3",
-  nuclei: "#3a8a5a",
-  mole: "#9a6a4a",
-};
+// Registry-derived: PROGRAM_ACCENT / PROGRAM_LABEL / PROGRAM_ORDER all
+// flow from `VENDOR_BEARING_PROGRAMS` in registry.ts. Adding a new
+// vendor-bearing program is a one-line registry change — the VHI
+// auto-picks it up.
 
-const PROGRAM_LABEL: Readonly<Record<VendorProgramSlug, string>> = {
-  dragnet: "DRAGNET",
-  oath: "OATH",
-  fingerprint: "FINGERPRINT",
-  custody: "CUSTODY",
-  nuclei: "NUCLEI",
-  mole: "MOLE",
-};
+const PROGRAM_ACCENT: Readonly<Record<VendorProgramSlug, string>> =
+  Object.freeze(
+    Object.fromEntries(
+      VENDOR_BEARING_PROGRAMS.map((p) => [p.slug, p.accent]),
+    ) as Record<VendorProgramSlug, string>,
+  );
+
+const PROGRAM_LABEL: Readonly<Record<VendorProgramSlug, string>> =
+  Object.freeze(
+    Object.fromEntries(
+      VENDOR_BEARING_PROGRAMS.map((p) => [p.slug, p.name]),
+    ) as Record<VendorProgramSlug, string>,
+  );
 
 const HeaderStyle: CSSProperties = {
   borderBottom: "1px solid var(--bureau-fg-dim)",
@@ -157,31 +161,59 @@ const ReceiptListStyle: CSSProperties = {
   margin: 0,
 };
 
-const ReceiptRowStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "auto auto 1fr auto",
-  alignItems: "center",
-  gap: 12,
-  padding: "10px 0",
-  borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-  fontSize: 13,
-  lineHeight: 1.5,
-};
+// Receipt row uses a class so a media query can stack the row at narrow
+// widths — at 375px the phraseId + summary + relative-time horizontal
+// layout overflows. Server-rendered <style> block (below) carries the
+// `@media (max-width: 720px)` override.
+const RECEIPT_ROW_CLASS = "vendor-receipt-row";
+const RECEIPT_PHRASE_CLASS = "vendor-receipt-phrase";
+const RECEIPT_SUMMARY_CLASS = "vendor-receipt-summary";
+const RECEIPT_TIME_CLASS = "vendor-receipt-time";
 
-const PhraseIdStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
-  fontSize: 12,
-  color: "var(--bureau-fg)",
-  textDecoration: "none",
-  whiteSpace: "nowrap",
-};
-
-const RelativeTimeStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
-  fontSize: 11,
-  color: "var(--bureau-fg-dim)",
-  whiteSpace: "nowrap",
-};
+const RESPONSIVE_RECEIPT_CSS = `
+.${RECEIPT_ROW_CLASS} {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.${RECEIPT_PHRASE_CLASS} {
+  font-family: var(--bureau-mono);
+  font-size: 12px;
+  color: var(--bureau-fg);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.${RECEIPT_SUMMARY_CLASS} {
+  min-width: 0;
+}
+.${RECEIPT_TIME_CLASS} {
+  font-family: var(--bureau-mono);
+  font-size: 11px;
+  color: var(--bureau-fg-dim);
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .${RECEIPT_ROW_CLASS} {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "dot phrase"
+      "dot summary"
+      "dot time";
+    column-gap: 12px;
+    row-gap: 4px;
+  }
+  .${RECEIPT_ROW_CLASS} > [data-slot="dot"] { grid-area: dot; align-self: start; margin-top: 6px; }
+  .${RECEIPT_ROW_CLASS} > [data-slot="phrase"] { grid-area: phrase; }
+  .${RECEIPT_ROW_CLASS} > [data-slot="summary"] { grid-area: summary; white-space: normal; word-break: break-word; }
+  .${RECEIPT_ROW_CLASS} > [data-slot="time"] { grid-area: time; }
+  .${RECEIPT_PHRASE_CLASS} { white-space: normal; word-break: break-all; }
+}
+`;
 
 const SubscribeRowStyle: CSSProperties = {
   marginTop: 32,
@@ -230,15 +262,23 @@ function ReceiptRow({
 }): ReactNode {
   return (
     <li
-      style={ReceiptRowStyle}
+      className={RECEIPT_ROW_CLASS}
       data-testid={`vendor-receipt-${receipt.phraseId}`}
     >
-      <VerdictDot verdict={receipt.verdict} />
-      <a href={receiptUrl(programSlug, receipt.phraseId)} style={PhraseIdStyle}>
+      <span data-slot="dot">
+        <VerdictDot verdict={receipt.verdict} />
+      </span>
+      <a
+        data-slot="phrase"
+        className={RECEIPT_PHRASE_CLASS}
+        href={receiptUrl(programSlug, receipt.phraseId)}
+      >
         {receipt.phraseId}
       </a>
-      <span>{receipt.summary}</span>
-      <span style={RelativeTimeStyle}>
+      <span data-slot="summary" className={RECEIPT_SUMMARY_CLASS}>
+        {receipt.summary}
+      </span>
+      <span data-slot="time" className={RECEIPT_TIME_CLASS}>
         {formatRelative(receipt.capturedAt, PREVIEW_NOW)}
       </span>
     </li>
@@ -344,9 +384,15 @@ export default async function VendorProfilePage({
 
   return (
     <>
-      <VendorHeader vendor={vendor} activity={activity} />
-
+      <style
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: static CSS string with no user input
+        dangerouslySetInnerHTML={{ __html: RESPONSIVE_RECEIPT_CSS }}
+      />
+      {/* PreviewBanner sits ABOVE the header so a screenshot of the
+          header alone cannot be misread as published verdict telemetry. */}
       <PreviewBanner />
+
+      <VendorHeader vendor={vendor} activity={activity} />
 
       {activity === null || activity.programs.length === 0 ? (
         <p style={{ marginTop: 24 }} data-testid="vendor-profile-empty">
