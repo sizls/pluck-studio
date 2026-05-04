@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 import { OathRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Run an OATH check — Pluck Bureau",
+  title: "Run an OATH verification — Pluck Bureau",
 };
 
 const SectionHeadingStyle = {
@@ -29,7 +29,7 @@ export default function OathRunPage(): ReactNode {
   return (
     <>
       <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Run an OATH check</h1>
+        <h1 className="bureau-hero-title">Run an OATH verification</h1>
         <p className="bureau-hero-tagline">
           Hand a vendor domain to Studio. We fetch{" "}
           <code>https://{`{domain}`}/.well-known/pluck-oath.json</code>,

@@ -11,6 +11,7 @@ interface SuccessBody {
   runId: string;
   phraseId: string;
   vendorDomain: string;
+  hostingOrigin: string;
   expectedOrigin: string;
   status: string;
 }
@@ -109,19 +110,19 @@ describe("POST /api/bureau/oath/run — body validation", () => {
     expect(body.error).toMatch(/Vendor domain is required/);
   });
 
-  it("rejects malformed vendorDomain (URL with scheme)", async () => {
+  it("accepts a full URL by extracting the hostname", async () => {
     const res = await POST(
       buildRequest({
         headers: SAME_SITE_AUTHED_HEADERS,
-        body: validBody({ vendorDomain: "https://openai.com" }),
+        body: validBody({ vendorDomain: "https://openai.com/v1/chat" }),
       }),
     );
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toMatch(/no scheme, no path/);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as SuccessBody;
+    expect(body.vendorDomain).toBe("openai.com");
   });
 
-  it("rejects vendorDomain with a path", async () => {
+  it("rejects vendorDomain with a path but no scheme", async () => {
     const res = await POST(
       buildRequest({
         headers: SAME_SITE_AUTHED_HEADERS,
@@ -173,13 +174,13 @@ describe("POST /api/bureau/oath/run — body validation", () => {
     expect(body.error).toMatch(/authorized to fetch/);
   });
 
-  it("rejects http:// expectedOrigin (HTTPS-only per OATH spec)", async () => {
+  it("rejects http:// hostingOrigin (HTTPS-only per OATH spec)", async () => {
     const res = await POST(
       buildRequest({
         headers: SAME_SITE_AUTHED_HEADERS,
         body: validBody({
           vendorDomain: "openai.com",
-          expectedOrigin: "http://openai.com",
+          hostingOrigin: "http://openai.com",
         }),
       }),
     );
@@ -188,30 +189,45 @@ describe("POST /api/bureau/oath/run — body validation", () => {
     expect(body.error).toMatch(/https:\/\//);
   });
 
-  it("rejects malformed expectedOrigin", async () => {
+  it("rejects malformed hostingOrigin", async () => {
     const res = await POST(
       buildRequest({
         headers: SAME_SITE_AUTHED_HEADERS,
         body: validBody({
           vendorDomain: "openai.com",
-          expectedOrigin: "not-a-url",
+          hostingOrigin: "not-a-url",
         }),
       }),
     );
     expect(res.status).toBe(400);
   });
 
-  it("rejects localhost expectedOrigin", async () => {
+  it("rejects localhost hostingOrigin", async () => {
     const res = await POST(
       buildRequest({
         headers: SAME_SITE_AUTHED_HEADERS,
         body: validBody({
           vendorDomain: "openai.com",
-          expectedOrigin: "https://localhost",
+          hostingOrigin: "https://localhost",
         }),
       }),
     );
     expect(res.status).toBe(400);
+  });
+
+  it("accepts the legacy `expectedOrigin` field name (back-compat)", async () => {
+    const res = await POST(
+      buildRequest({
+        headers: SAME_SITE_AUTHED_HEADERS,
+        body: validBody({
+          vendorDomain: "openai.com",
+          expectedOrigin: "https://chat.openai.com",
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as SuccessBody;
+    expect(body.hostingOrigin).toBe("https://chat.openai.com");
   });
 });
 
@@ -228,23 +244,24 @@ describe("POST /api/bureau/oath/run — success path", () => {
     expect(body.runId).toMatch(/^[0-9a-f-]{36}$/);
     expect(body.phraseId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
     expect(body.vendorDomain).toBe("openai.com");
+    expect(body.hostingOrigin).toBe("https://openai.com");
     expect(body.expectedOrigin).toBe("https://openai.com");
     expect(body.status).toBe("verification pending");
   });
 
-  it("respects an explicit expectedOrigin override", async () => {
+  it("respects an explicit hostingOrigin override", async () => {
     const res = await POST(
       buildRequest({
         headers: SAME_SITE_AUTHED_HEADERS,
         body: validBody({
           vendorDomain: "openai.com",
-          expectedOrigin: "https://chat.openai.com",
+          hostingOrigin: "https://chat.openai.com",
         }),
       }),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as SuccessBody;
-    expect(body.expectedOrigin).toBe("https://chat.openai.com");
+    expect(body.hostingOrigin).toBe("https://chat.openai.com");
   });
 
   it("lowercases the vendorDomain", async () => {

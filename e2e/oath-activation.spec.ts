@@ -89,13 +89,15 @@ test.describe("OATH activation flow", () => {
     ]);
 
     await page.goto("/bureau/oath/run");
-    // URL with scheme — looks like a vendor URL but isn't a hostname.
-    await page.getByTestId("vendor-domain").fill("https://openai.com");
+    // Single-label hostname (no TLD) — fails HOSTNAME_PATTERN.
+    // (URLs with scheme now auto-normalize to hostname per the v2-R1
+    // domain fix, so paste of `https://openai.com` is now legal.)
+    await page.getByTestId("vendor-domain").fill("openai");
     await page.getByTestId("auth-ack").check();
     await page.getByTestId("run-submit").click();
 
     await expect(page.getByTestId("run-error")).toContainText(
-      /no scheme, no path/i,
+      /public hostname/i,
     );
   });
 

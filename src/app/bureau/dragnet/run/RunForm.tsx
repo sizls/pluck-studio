@@ -297,7 +297,11 @@ export function DragnetRunForm(): ReactNode {
       </BureauButton>
 
       {needsSignIn && signInUrl ? (
-        <BureauSignInPrompt signInUrl={signInUrl} testId="sign-in-prompt" />
+        <BureauSignInPrompt
+          signInUrl={signInUrl}
+          action="run a probe-pack"
+          testId="sign-in-prompt"
+        />
       ) : null}
 
       {errorToShow ? (

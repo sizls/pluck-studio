@@ -11,17 +11,22 @@
 // Form shape:
 //   - vendorDomain: bare hostname ("openai.com") — Studio derives the
 //     full URL `https://<domain>/.well-known/pluck-oath.json` server-side.
-//   - expectedOrigin: optional override; defaults to `https://<domain>`.
-//     Used as the `--expected-origin` parameter on `pluck bureau oath
-//     verify` so we cross-check the served Origin against the body's
-//     `vendor` field.
+//     Renamed-from "vendor URL" because OATH targets a domain, not a URL.
+//   - hostingOrigin: optional override; defaults to `https://<domain>`.
+//     Distinct from `body.vendor` (the vendor's *self-declared*
+//     identity) — at verify time we cross-check the served Origin
+//     against `body.vendor`. Renamed-from `expectedOrigin` because
+//     "expected" was conflating these two distinct concepts.
 //   - authorizationAcknowledged: required, same legal posture as DRAGNET.
+//
+// Helper: `normalizeVendorDomain` accepts both bare hostnames
+// ("openai.com") AND full URLs ("https://openai.com/v1/foo") and
+// extracts the canonical lowercase hostname. The form's onChange uses
+// it so users can paste either shape.
 //
 // This is the second program wired through the Studio activation
 // pattern. Per the v1 plan: "Wire OATH same way to prove
-// generalizability." If OATH activates cleanly using the shared
-// `bureau-ui/forms` primitives + sibling Directive module, the
-// remaining 9 alpha programs can follow the same shape.
+// generalizability."
 // ---------------------------------------------------------------------------
 
 import { createModule, t } from "@directive-run/core";
@@ -33,11 +38,33 @@ export interface SubmitResult {
   phraseId: string;
 }
 
+/**
+ * Accept either a bare hostname (`openai.com`) or a full URL
+ * (`https://openai.com/v1/...`) and return the lowercase hostname.
+ * Returns the trimmed input lowercased on parse failure so the
+ * downstream HOSTNAME_PATTERN check can produce a clear error.
+ */
+export function normalizeVendorDomain(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return "";
+  }
+  // Quick path: looks like a URL → parse → take hostname.
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      return new URL(trimmed).hostname.toLowerCase();
+    } catch {
+      return trimmed.toLowerCase();
+    }
+  }
+  return trimmed.toLowerCase();
+}
+
 export const oathRunFormModule = createModule("oath-run-form", {
   schema: {
     facts: {
       vendorDomain: t.string(),
-      expectedOrigin: t.string(),
+      hostingOrigin: t.string(),
       authorizationAcknowledged: t.boolean(),
       submitStatus: t.string<SubmitStatus>(),
       errorMessage: t.string().nullable(),
@@ -49,13 +76,13 @@ export const oathRunFormModule = createModule("oath-run-form", {
       canSubmit: t.boolean(),
       hasError: t.boolean(),
       needsSignIn: t.boolean(),
-      effectiveExpectedOrigin: t.string(),
+      effectiveHostingOrigin: t.string(),
     },
   },
 
   init: (facts) => {
     facts.vendorDomain = "";
-    facts.expectedOrigin = "";
+    facts.hostingOrigin = "";
     facts.authorizationAcknowledged = false;
     facts.submitStatus = "idle";
     facts.errorMessage = null;
@@ -79,8 +106,8 @@ export const oathRunFormModule = createModule("oath-run-form", {
     },
     hasError: (facts) => facts.errorMessage !== null,
     needsSignIn: (facts) => facts.signInUrl !== null,
-    effectiveExpectedOrigin: (facts) => {
-      const explicit = facts.expectedOrigin.trim();
+    effectiveHostingOrigin: (facts) => {
+      const explicit = facts.hostingOrigin.trim();
       if (explicit.length > 0) {
         return explicit;
       }

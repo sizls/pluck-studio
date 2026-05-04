@@ -60,7 +60,7 @@ export default function OathIndexPage(): ReactNode {
               borderRadius: 4,
             }}
           >
-            Run an OATH check →
+            Run an OATH verification →
           </a>
         </p>
       </section>

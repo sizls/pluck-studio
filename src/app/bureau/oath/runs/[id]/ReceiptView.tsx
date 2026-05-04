@@ -21,7 +21,10 @@ import {
 } from "react";
 
 import { isPhraseId } from "../../../../../lib/phrase-id";
-import { oathRunReceiptModule } from "../../../../../lib/oath/run-receipt-module";
+import {
+  OATH_PREDICATE_URI,
+  oathRunReceiptModule,
+} from "../../../../../lib/oath/run-receipt-module";
 
 const SectionHeadingStyle = {
   fontFamily: "var(--bureau-mono)",
@@ -86,17 +89,18 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   const verdict = useFact(system, "verdict");
   const verdictDetail = useFact(system, "verdictDetail");
   const vendorDomain = useFact(system, "vendorDomain");
-  const expectedOrigin = useFact(system, "expectedOrigin");
+  const hostingOrigin = useFact(system, "hostingOrigin");
   const signerFingerprint = useFact(system, "signerFingerprint");
   const claimsCount = useFact(system, "claimsCount");
   const claims = useFact(system, "claims");
   const expiresAt = useFact(system, "expiresAt");
-  const receiptUrl = useFact(system, "receiptUrl");
+  const oathEnvelopeUrl = useFact(system, "oathEnvelopeUrl");
   const rekorUuid = useFact(system, "rekorUuid");
 
   const isPending = useDerived(system, "isPending");
   const isVerified = useDerived(system, "isVerified");
   const isFailure = useDerived(system, "isFailure");
+  const hasStaleClaim = useDerived(system, "hasStaleClaim");
   const verdictColor = useDerived(system, "verdictColor");
 
   useEffect(() => {
@@ -170,6 +174,17 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
                 ? "Copy failed — select URL bar"
                 : "Copy receipt URL"}
           </button>
+          {isPhrase ? (
+            <span
+              style={{
+                marginLeft: 12,
+                color: "var(--bureau-fg-dim)",
+                fontStyle: "italic",
+              }}
+            >
+              Bookmark it — same phrase, same URL, forever.
+            </span>
+          ) : null}
         </p>
 
         {isPending ? (
@@ -212,76 +227,120 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
         {verdictDetail ? (
           <p style={StatLineStyle}>{verdictDetail}</p>
         ) : null}
+        {isFailure && verdict ? (
+          <p style={{ ...StatLineStyle, color: "#ff8888" }}>
+            <strong data-testid="failure-callout">
+              Failure: no Rekor entry will be emitted for this cycle.
+            </strong>
+          </p>
+        ) : null}
         <p style={StatLineStyle} data-testid="vendor-domain">
           Vendor: {vendorDomain ?? "—"}
         </p>
-        <p style={StatLineStyle} data-testid="expected-origin">
-          Expected origin: {expectedOrigin ?? "—"}
+        <p style={StatLineStyle} data-testid="hosting-origin">
+          Hosting origin: {hostingOrigin ?? "—"}
         </p>
         <p style={StatLineStyle} data-testid="claims-count">
           Claims: {claimsCount ?? "—"}
         </p>
         {expiresAt ? (
           <p style={StatLineStyle} data-testid="expires-at">
-            Expires: {expiresAt}
+            Envelope expires: {expiresAt}
+          </p>
+        ) : null}
+        {hasStaleClaim ? (
+          <p style={{ ...StatLineStyle, color: "#a78a1f" }}>
+            One or more claims past <code>expiresAt</code> — sealed.
           </p>
         ) : null}
         <p style={{ ...StatLineStyle, marginTop: 12, fontSize: 11 }}>
           <em>
-            OATH verdicts: <code>verified</code> (DSSE valid + Origin
-            matches + within TTL) · <code>signature-failed</code> ·{" "}
-            <code>origin-mismatch</code> · <code>expired</code>{" "}
-            (sealed-claim semantics) · <code>not-found</code> ·{" "}
-            <code>fetch-failed</code>.
+            OATH verdicts (color legend): <code>verified</code>{" "}
+            <span style={{ color: "#1f7a3a" }}>green</span> (DSSE valid
+            + Origin matches body's <code>vendor</code> + envelope
+            within TTL) · <code>oath-expired</code>{" "}
+            <span style={{ color: "#a78a1f" }}>amber</span>{" "}
+            (sealed-claim) · <code>did-not-commit</code>{" "}
+            <span style={{ color: "#a78a1f" }}>amber</span> (no oath
+            published — social-pressure badge) ·{" "}
+            <code>signature-failed</code> · <code>origin-mismatch</code>{" "}
+            · <code>not-found</code> · <code>fetch-failed</code>{" "}
+            <span style={{ color: "#a3201d" }}>red</span>.
           </em>
         </p>
       </section>
 
-      {claims && claims.length > 0 ? (
-        <section>
-          <h2 style={SectionHeadingStyle}>Claims</h2>
+      <section>
+        <h2 style={SectionHeadingStyle}>Claims</h2>
+        {claims && claims.length > 0 ? (
           <ul style={{ lineHeight: 1.7 }}>
             {claims.map((c) => (
               <li key={c.id} data-testid={`claim-${c.id}`}>
                 <strong>{c.id}</strong> — {c.text}{" "}
                 <em style={{ color: "var(--bureau-fg-dim)" }}>
-                  (expires {c.expiresAt})
+                  (expires {c.expiresAt}
+                  {c.verdict === "oath-expired" ? (
+                    <>
+                      ; <span style={{ color: "#a78a1f" }}>oath-expired</span>
+                    </>
+                  ) : null}
+                  )
                 </em>
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
+        ) : (
+          <p style={{ ...StatLineStyle, fontStyle: "italic" }}>
+            (Awaiting verification — claims appear here once the runner
+            anchors the receipt.)
+          </p>
+        )}
+      </section>
 
       <section>
         <h2 style={SectionHeadingStyle}>Verification</h2>
-        {isVerified && receiptUrl && rekorUuid ? (
+        <p style={StatLineStyle} data-testid="predicate-uri">
+          Predicate: <code>{OATH_PREDICATE_URI}</code>
+        </p>
+        {isVerified && oathEnvelopeUrl && rekorUuid ? (
           <>
             <p data-testid="rekor-uuid">
               Rekor UUID: <code>{rekorUuid}</code>
             </p>
             <p>
-              Verify offline:{" "}
+              Verify the oath envelope offline:{" "}
               <code>
-                pluck bureau oath verify {receiptUrl} --expected-origin{" "}
-                {expectedOrigin}
+                pluck bureau oath verify {oathEnvelopeUrl}{" "}
+                --expected-origin {hostingOrigin}
               </code>
+            </p>
+            <p style={{ ...StatLineStyle, fontSize: 11, marginTop: 8 }}>
+              <em>
+                Note: this command verifies the vendor's signed oath
+                envelope (the <code>&lt;hash&gt;.intoto.jsonl</code>{" "}
+                artifact). The cycle receipt itself (this URL) is
+                signed separately by the Pluck-fleet hosted key — see
+                Signing below.
+              </em>
             </p>
           </>
         ) : (
           <ul style={{ lineHeight: 1.7 }}>
             <li>
               <strong>DSSE envelope</strong> — verify offline with{" "}
-              <code>pluck bureau oath verify ./oath.intoto.jsonl</code>.
+              <code>
+                pluck bureau oath verify ./.oath/&lt;hash&gt;.intoto.jsonl
+              </code>{" "}
+              (operator-side artifact path).
             </li>
             <li>
               <strong>Rekor entry</strong> — public transparency-log
-              anchor; cross-checks the served Origin against the body's
-              <code> vendor</code> field.
+              anchor; cross-checks the served Origin against the body's{" "}
+              <code>vendor</code> field.
             </li>
             <li>
-              <strong>Signer fingerprint</strong> — Ed25519 SPKI
-              fingerprint of the vendor's signing key.{" "}
+              <strong>Signer fingerprint</strong> — SPKI fingerprint of
+              the vendor's signing key (64-char hex).{" "}
               {signerFingerprint ? <code>{signerFingerprint}</code> : "—"}
             </li>
           </ul>
@@ -324,20 +383,13 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
       <section>
         <h2 style={SectionHeadingStyle}>Signing</h2>
         <p style={{ fontSize: 13 }}>
-          Receipt envelopes are signed with the Pluck-fleet hosted key
+          Cycle receipts are signed with the Pluck-fleet hosted key
           (
           <a href="/.well-known/pluck-keys.json">
             <code>/.well-known/pluck-keys.json</code>
           </a>
           ). The vendor's oath itself is signed with the vendor's own
-          Ed25519 key — fingerprint shown above on success.{" "}
-          {isFailure && verdict ? (
-            <em>
-              On{" "}
-              <code data-testid="failure-verdict">{verdict}</code>{" "}
-              verdicts, no Rekor entry is emitted.
-            </em>
-          ) : null}
+          key — fingerprint shown above on success.
         </p>
       </section>
     </>

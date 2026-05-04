@@ -5,7 +5,12 @@
 import { createSystem } from "@directive-run/core";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { oathRunReceiptModule } from "../oath/run-receipt-module.js";
+import {
+  OATH_PREDICATE_URI,
+  SPKI_FINGERPRINT_PATTERN,
+  oathRunReceiptModule,
+  type OathClaim,
+} from "../oath/run-receipt-module.js";
 
 function makeSystem() {
   const sys = createSystem({ module: oathRunReceiptModule });
@@ -33,7 +38,8 @@ describe("oathRunReceiptModule", () => {
     expect(sys.derive.isPending).toBe(true);
     expect(sys.derive.isVerified).toBe(false);
     expect(sys.derive.isFailure).toBe(false);
-    expect(sys.derive.isExpired).toBe(false);
+    expect(sys.derive.isOathExpired).toBe(false);
+    expect(sys.derive.hasStaleClaim).toBe(false);
     expect(sys.derive.verdictColor).toBe("amber");
   });
 
@@ -68,11 +74,19 @@ describe("oathRunReceiptModule", () => {
     expect(sys.derive.verdictColor).toBe("red");
   });
 
-  it("isExpired matches verdict=expired and renders amber", () => {
+  it("isOathExpired matches verdict=oath-expired and renders amber", () => {
     const sys = setup();
-    sys.facts.verdict = "expired";
-    expect(sys.derive.isExpired).toBe(true);
+    sys.facts.verdict = "oath-expired";
+    expect(sys.derive.isOathExpired).toBe(true);
     expect(sys.derive.verdictColor).toBe("amber");
+  });
+
+  it("did-not-commit renders amber (social-pressure, not failure)", () => {
+    const sys = setup();
+    sys.facts.verdict = "did-not-commit";
+    expect(sys.derive.verdictColor).toBe("amber");
+    // Distinct from a verified pass.
+    expect(sys.derive.isVerified).toBe(false);
   });
 
   it("verdictColor is red for hard failures", () => {
@@ -94,17 +108,50 @@ describe("oathRunReceiptModule", () => {
     expect(sys.derive.isFailure).toBe(true);
   });
 
-  it("claims fact carries the structured oath body", () => {
+  it("hasStaleClaim is true when any claim has verdict='oath-expired'", () => {
     const sys = setup();
     sys.facts.claims = [
       {
         id: "data-retention",
         text: "User chats deleted after 30 days unless flagged.",
         expiresAt: "2027-01-01T00:00:00Z",
+        verdict: "active",
+      },
+      {
+        id: "model-card",
+        text: "Model card updated within 7 days of release.",
+        expiresAt: "2024-12-31T00:00:00Z",
+        verdict: "oath-expired",
+      },
+    ] satisfies OathClaim[];
+    sys.facts.claimsCount = 2;
+    expect(sys.derive.hasStaleClaim).toBe(true);
+  });
+
+  it("hasStaleClaim is false when all claims are active", () => {
+    const sys = setup();
+    sys.facts.claims = [
+      {
+        id: "data-retention",
+        text: "User chats deleted after 30 days unless flagged.",
+        expiresAt: "2027-01-01T00:00:00Z",
+        verdict: "active",
       },
     ];
-    sys.facts.claimsCount = 1;
-    expect(sys.facts.claimsCount).toBe(1);
-    expect(sys.facts.claims).toHaveLength(1);
+    expect(sys.derive.hasStaleClaim).toBe(false);
+  });
+
+  it("OATH_PREDICATE_URI is the canonical wire form", () => {
+    expect(OATH_PREDICATE_URI).toBe("https://pluck.run/PluckOath/v1");
+  });
+
+  it("SPKI_FINGERPRINT_PATTERN accepts 64-char hex strings", () => {
+    expect(
+      SPKI_FINGERPRINT_PATTERN.test(
+        "0123456789abcdef".repeat(4),
+      ),
+    ).toBe(true);
+    expect(SPKI_FINGERPRINT_PATTERN.test("abc")).toBe(false);
+    expect(SPKI_FINGERPRINT_PATTERN.test("ABC".repeat(22))).toBe(false);
   });
 });

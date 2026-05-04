@@ -34,7 +34,10 @@ import {
   BureauLabel,
   BureauSignInPrompt,
 } from "../../../../components/bureau-ui/forms";
-import { oathRunFormModule } from "../../../../lib/oath/run-form-module";
+import {
+  normalizeVendorDomain,
+  oathRunFormModule,
+} from "../../../../lib/oath/run-form-module";
 
 interface RunResponse {
   runId?: string;
@@ -43,17 +46,21 @@ interface RunResponse {
   error?: string;
 }
 
-const HOSTNAME_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+// Same regex as the server route (kept in sync — drift here means an
+// input that passes client-side then bounces server-side, which is bad
+// UX).
+const HOSTNAME_PATTERN =
+  /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
 
 function isClientSideBadDomain(raw: string): string | null {
-  const trimmed = raw.trim().toLowerCase();
-  if (!trimmed) {
+  const normalized = normalizeVendorDomain(raw);
+  if (!normalized) {
     return "Vendor domain is required.";
   }
-  if (!HOSTNAME_PATTERN.test(trimmed)) {
-    return "Vendor domain must be a public hostname like 'openai.com' (no scheme, no path, no IPs).";
+  if (!HOSTNAME_PATTERN.test(normalized)) {
+    return "Vendor domain must be a public hostname like 'openai.com'. Punycode for IDN domains.";
   }
-  if (trimmed === "localhost") {
+  if (normalized === "localhost") {
     return "Vendor domain cannot be localhost.";
   }
   return null;
@@ -67,10 +74,10 @@ function isClientSideBadOrigin(raw: string): string | null {
   try {
     parsed = new URL(raw.trim());
   } catch {
-    return "Expected origin must be a valid URL (include https://).";
+    return "Hosting origin must be a valid URL (include https://).";
   }
   if (parsed.protocol !== "https:") {
-    return "Expected origin must use https:// (per OATH wire spec).";
+    return "Hosting origin must use https:// (per OATH wire spec).";
   }
   return null;
 }
@@ -84,7 +91,7 @@ export function OathRunForm(): ReactNode {
   }, []);
 
   const vendorDomain = useFact(system, "vendorDomain");
-  const expectedOrigin = useFact(system, "expectedOrigin");
+  const hostingOrigin = useFact(system, "hostingOrigin");
   const authAck = useFact(system, "authorizationAcknowledged");
   const submitStatus = useFact(system, "submitStatus");
   const errorMessage = useFact(system, "errorMessage");
@@ -94,7 +101,7 @@ export function OathRunForm(): ReactNode {
   const canSubmit = useDerived(system, "canSubmit");
   const hasError = useDerived(system, "hasError");
   const needsSignIn = useDerived(system, "needsSignIn");
-  const effectiveOrigin = useDerived(system, "effectiveExpectedOrigin");
+  const effectiveOrigin = useDerived(system, "effectiveHostingOrigin");
 
   const setVendorDomain = useCallback(
     (v: string) => {
@@ -102,9 +109,9 @@ export function OathRunForm(): ReactNode {
     },
     [system],
   );
-  const setExpectedOrigin = useCallback(
+  const setHostingOrigin = useCallback(
     (v: string) => {
-      system.facts.expectedOrigin = v;
+      system.facts.hostingOrigin = v;
     },
     [system],
   );
@@ -131,7 +138,7 @@ export function OathRunForm(): ReactNode {
       setClientGuardError(domainError);
       return;
     }
-    const originError = isClientSideBadOrigin(expectedOrigin ?? "");
+    const originError = isClientSideBadOrigin(hostingOrigin ?? "");
     if (originError !== null) {
       setClientGuardError(originError);
       return;
@@ -147,9 +154,11 @@ export function OathRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          vendorDomain,
-          expectedOrigin: expectedOrigin && expectedOrigin.length > 0
-            ? expectedOrigin
+          // Server normalizes URL→hostname too, but doing it client-side
+          // makes the redirect URL self-consistent on success.
+          vendorDomain: normalizeVendorDomain(vendorDomain ?? ""),
+          hostingOrigin: hostingOrigin && hostingOrigin.length > 0
+            ? hostingOrigin
             : undefined,
           authorizationAcknowledged: authAck,
         }),
@@ -199,26 +208,27 @@ export function OathRunForm(): ReactNode {
         />
       </BureauLabel>
       <BureauHelpText>
-        Bare hostname only. Studio fetches{" "}
+        Bare hostname or full URL — Studio fetches{" "}
         <code>https://{`{domain}`}/.well-known/pluck-oath.json</code>{" "}
-        and verifies the DSSE envelope.
+        and verifies the DSSE envelope. Use punycode for IDN domains.
       </BureauHelpText>
 
-      <BureauLabel text="Expected origin (optional)">
+      <BureauLabel text="Hosting origin (optional)">
         <BureauInput
           type="url"
-          name="expectedOrigin"
+          name="hostingOrigin"
           placeholder={effectiveOrigin || "https://openai.com"}
-          value={expectedOrigin ?? ""}
-          onChange={setExpectedOrigin}
-          testId="expected-origin"
+          value={hostingOrigin ?? ""}
+          onChange={setHostingOrigin}
+          testId="hosting-origin"
         />
       </BureauLabel>
       <BureauHelpText>
-        Override the default <code>https://{`{domain}`}</code> when the
-        oath is hosted on a different sub-origin (e.g.{" "}
-        <code>https://chat.openai.com</code>). Cross-checked against
-        the body's <code>vendor</code> field at verify time.
+        Defaults to <code>https://{`{vendorDomain}`}</code>. Override
+        when the oath is served from a sub-origin (e.g.{" "}
+        <code>https://chat.openai.com</code>). At verify time we
+        cross-check the served Origin against the body's{" "}
+        <code>vendor</code> field — distinct from this hosting URL.
       </BureauHelpText>
 
       <BureauCheckbox
@@ -243,11 +253,15 @@ export function OathRunForm(): ReactNode {
       </p>
 
       <BureauButton type="submit" disabled={!canSubmit} testId="run-submit">
-        {isSubmitting ? "Verifying…" : "Fetch + verify oath"}
+        {isSubmitting ? "Verifying…" : "Verify oath"}
       </BureauButton>
 
       {needsSignIn && signInUrl ? (
-        <BureauSignInPrompt signInUrl={signInUrl} testId="sign-in-prompt" />
+        <BureauSignInPrompt
+          signInUrl={signInUrl}
+          action="verify an oath"
+          testId="sign-in-prompt"
+        />
       ) : null}
 
       {errorToShow ? (

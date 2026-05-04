@@ -236,11 +236,18 @@ export function BureauButton({
 
 interface SignInPromptProps {
   signInUrl: string;
+  /**
+   * What the user was about to do, in verb-phrase form ("run a
+   * probe-pack", "verify this oath"). Defaults to a generic phrase.
+   * Caller-provided so the copy reads correctly per program.
+   */
+  action?: string;
   testId?: string;
 }
 
 export function BureauSignInPrompt({
   signInUrl,
+  action = "continue",
   testId,
 }: SignInPromptProps): ReactNode {
   return (
@@ -248,8 +255,8 @@ export function BureauSignInPrompt({
       style={{ marginTop: 16, color: "var(--bureau-fg-dim)" }}
       data-testid={testId}
     >
-      You need to be signed in to run this. <a href={signInUrl}>Sign in</a>{" "}
-      and try again.
+      You need to be signed in to {action}.{" "}
+      <a href={signInUrl}>Sign in</a> and try again.
     </p>
   );
 }
