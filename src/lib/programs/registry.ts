@@ -412,12 +412,12 @@ export const PROGRAM_PRIVACY_POSTURE: Readonly<
   },
   nuclei: {
     knowsNot: [
-      "the author's real-world identity beyond the published handle",
+      "the operator's real-world identity beyond the operator-asserted handle",
       "the underlying probe-pack contents (those live on the SBOM-AI side)",
       "any private trust-graph between authors and consumers",
     ],
     knows: [
-      "registry author handle (anchored in the phrase-ID)",
+      "registry author handle (operator-asserted; NOT yet bound to authenticated identity — see route.ts SECURITY block; binds at NUCLEI v1.0 GA)",
       "SBOM-AI Rekor uuid cross-reference (TOFU enforcement)",
       "trustTier (verified vs ingested) + canonical pack-entry URL",
     ],

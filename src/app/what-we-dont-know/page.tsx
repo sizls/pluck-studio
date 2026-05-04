@@ -83,15 +83,15 @@ const SlugStyle: CSSProperties = {
 
 const TwoColumnStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1fr",
-  gap: 20,
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gap: 28,
   marginTop: 16,
 };
 
 const ColumnLabelKnowsNotStyle: CSSProperties = {
   fontFamily: "var(--bureau-mono)",
   fontSize: 11,
-  color: "var(--bureau-fg)",
+  color: "var(--bureau-accent)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginBottom: 8,
@@ -134,6 +134,13 @@ const PrefixStyle: CSSProperties = {
   position: "absolute",
   left: 0,
   fontFamily: "var(--bureau-mono)",
+};
+
+const KnowsNotPrefixStyle: CSSProperties = {
+  position: "absolute",
+  left: 0,
+  fontFamily: "var(--bureau-mono)",
+  color: "var(--bureau-accent)",
 };
 
 const PrefixSourceLineStyle: CSSProperties = {
@@ -185,7 +192,7 @@ function PostureCard({
           <ul style={ListStyle}>
             {knowsNot.map((claim) => (
               <li key={claim} style={KnowsNotItemStyle}>
-                <span style={PrefixStyle} aria-hidden="true">
+                <span style={KnowsNotPrefixStyle} aria-hidden="true">
                   —
                 </span>
                 {claim}
@@ -226,12 +233,13 @@ export default function WhatWeDontKnowPage(): ReactNode {
           What we don't know about your operation
         </h1>
         <p className="bureau-hero-tagline">
-          Most security tools brag about what they collect. This page is
-          everything Pluck Studio refuses to know about your operation,
-          by program, by design. Each card lists what stays out of
-          Studio's reach (load-bearing) and the necessary trust-tradeoff
-          (what we do see). The phrase-ID schema is the proof — if
-          Studio knew it, it would be in the URL.
+          Most security tools brag about what they collect; here's what
+          we refuse to know. This page is everything Pluck Studio
+          refuses to see / store / log about your operation, by program,
+          by design. Each card lists what stays out of Studio's reach
+          (load-bearing) and the necessary trust-tradeoff (what we do
+          see). The phrase-ID schema is the proof — if Studio knew it,
+          it would be in the URL.
         </p>
       </section>
 

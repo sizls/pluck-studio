@@ -238,17 +238,18 @@ export default function RunsPage(): ReactNode {
       <section>
         <h2 style={SectionHeadingStyle}>Privacy posture</h2>
         <p>
-          Receipts are public by default — phrase IDs disclose the
-          probed target via the URL slug. Read{" "}
-          <a href="/privacy">/privacy</a> before submitting your first
-          activation, and{" "}
+          What we refuse to know about your operation. The phrase-ID
+          schema is the proof — read{" "}
           <a
             href="/what-we-dont-know"
             title="Per-program negative-knowledge disclosure"
           >
             /what-we-dont-know
           </a>{" "}
-          for the per-program list of what Studio refuses to know.
+          for the per-program list. Receipts are public by default —
+          phrase IDs disclose the probed target via the URL slug; read{" "}
+          <a href="/privacy">/privacy</a> before submitting your first
+          activation.
         </p>
       </section>
     </>

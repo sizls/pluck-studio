@@ -63,7 +63,8 @@ export default function PrivacyPage(): ReactNode {
       <section>
         <h2 style={SectionHeadingStyle}>What we refuse to know</h2>
         <p>
-          The inversion. For the per-program list of what Studio
+          The phrase-ID schema is the proof — if Studio knew it, it
+          would be in the URL. For the per-program list of what Studio
           explicitly does not see / store / log about your operation,
           read{" "}
           <a
@@ -72,8 +73,7 @@ export default function PrivacyPage(): ReactNode {
           >
             /what-we-dont-know
           </a>
-          . The phrase-ID schema is the proof — if Studio knew it, it
-          would be in the URL.
+          .
         </p>
       </section>
 
