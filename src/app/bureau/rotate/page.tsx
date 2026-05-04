@@ -45,6 +45,24 @@ export default function RotateIndexPage(): ReactNode {
           notifications; press kits regenerate citing the compromise
           window.
         </p>
+        <p style={{ marginTop: 16 }}>
+          <a
+            href="/bureau/rotate/run"
+            data-testid="run-cta"
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 14,
+              background: "var(--bureau-fg)",
+              color: "var(--bureau-bg)",
+              textDecoration: "none",
+              borderRadius: 4,
+            }}
+          >
+            Rotate a key →
+          </a>
+        </p>
       </section>
 
       <section style={CalloutStyle}>

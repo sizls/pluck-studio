@@ -119,6 +119,18 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     runPath: "/bureau/sbom-ai/run",
     landingPath: "/bureau/sbom-ai",
   },
+  {
+    slug: "rotate",
+    name: "ROTATE",
+    actionVerb: "Rotate a key",
+    summary:
+      "Signing-key compromise response. Publishes KeyRevocation/v1 signed by the old key + ReWitnessReport/v1 signed by the new key annotating prior cassettes. Trust invalidation, NOT crypto-shred.",
+    outputShape:
+      "verdict (rotated / old-key-already-revoked / 4 named failure modes) + count of re-witnessed prior cassettes",
+    predicateUri: "https://pluck.run/KeyRevocation/v1",
+    runPath: "/bureau/rotate/run",
+    landingPath: "/bureau/rotate",
+  },
 ];
 
 /**
@@ -156,12 +168,5 @@ export const COMING_SOON_PROGRAMS: ReadonlyArray<ComingSoonProgram> = [
     reason:
       "Continuous insider-leak detection — long-running monitor, not a one-shot run.",
     landingPath: "/bureau/mole",
-  },
-  {
-    slug: "rotate",
-    name: "ROTATE",
-    reason:
-      "Operator key-rotation ceremony — single-shot but interactive (passkey re-auth required); fits activation pattern with care.",
-    landingPath: "/bureau/rotate",
   },
 ];

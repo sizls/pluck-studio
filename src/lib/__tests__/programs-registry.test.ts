@@ -16,7 +16,7 @@ import {
 } from "../programs/registry.js";
 
 describe("ACTIVE_PROGRAMS", () => {
-  it("includes the active programs (DRAGNET, OATH, FINGERPRINT, CUSTODY, WHISTLE, BOUNTY, SBOM-AI)", () => {
+  it("includes the 8 active programs (DRAGNET → ROTATE)", () => {
     const slugs = ACTIVE_PROGRAMS.map((p) => p.slug);
     expect(slugs).toEqual(
       expect.arrayContaining([
@@ -27,6 +27,7 @@ describe("ACTIVE_PROGRAMS", () => {
         "whistle",
         "bounty",
         "sbom-ai",
+        "rotate",
       ]),
     );
   });
