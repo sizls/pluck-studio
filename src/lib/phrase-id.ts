@@ -373,6 +373,14 @@ export interface ParsedPhraseId {
 }
 
 /**
+ * Parse a phrase ID into its 4-part components.
+ *
+ * NOTE: Unparseable queries are still echoed back via the search page's
+ * input `defaultValue` — operators pasting secrets / emails into the
+ * URL bar will see them reflected. This is intended (URL bar IS the
+ * search interface) but worth being aware of when extending the
+ * search UX.
+ *
  * Decompose a phrase ID into its (scope, adjective, noun, serial) parts.
  *
  * Accepts only the 4-part scoped form as `valid` — that's the

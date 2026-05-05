@@ -70,4 +70,24 @@ test.describe("/search — phrase-ID auto-stitch", () => {
     await page.getByTestId("search-cross-link").getByRole("link").click();
     await expect(page.getByTestId("search-page")).toBeVisible();
   });
+
+  test("emits a robots noindex meta tag (search must not be indexed)", async ({
+    page,
+  }) => {
+    // /search?q=<anything> echoes user input; a search engine indexing
+    // arbitrary queries would create a permanent searchable record of
+    // those queries. Lock the noindex contract here so a future change
+    // to metadata.robots can't silently regress.
+    const res = await page.goto(
+      `/search?q=${encodeURIComponent(KNOWN_QUERY)}`,
+    );
+    expect(res?.status()).toBe(200);
+    const robotsContent = await page
+      .locator('meta[name="robots"]')
+      .first()
+      .getAttribute("content");
+    expect(robotsContent).toBeTruthy();
+    expect(robotsContent?.toLowerCase()).toContain("noindex");
+    expect(robotsContent?.toLowerCase()).toContain("nofollow");
+  });
 });

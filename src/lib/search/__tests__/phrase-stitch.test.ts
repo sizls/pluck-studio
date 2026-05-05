@@ -55,8 +55,12 @@ describe("searchPhraseId — known stub-era phrase ID", () => {
     const programSlugs = new Set(
       result.relatedByScope.map((r) => r.programSlug),
     );
-    // openai vendor receipts span 6 vendor-bearing programs
-    expect(programSlugs.size).toBeGreaterThanOrEqual(2);
+    // openai vendor receipts span exactly 6 vendor-bearing programs.
+    // Locking the EXACT set so a future contributor accidentally
+    // narrowing vendor-preview to fewer programs trips this test.
+    expect(programSlugs).toEqual(
+      new Set(["custody", "dragnet", "fingerprint", "mole", "nuclei", "oath"]),
+    );
     // Every related receipt MUST share the openai scope
     for (const r of result.relatedByScope) {
       expect(r.phraseId.startsWith("openai-")).toBe(true);

@@ -40,9 +40,30 @@ import { VERDICT_COLORS, formatRelative } from "../vendor/_ui.js";
 const PAGE_DESCRIPTION =
   "Phrase-ID Auto-Stitch Search — paste any phrase ID, see every related receipt across all 11 Bureau programs.";
 
+// Force dynamic rendering so Next.js never statically caches /search.
+// Search query strings echo arbitrary user input (emails, secrets pasted
+// into the URL bar) into the rendered HTML — caching at the CDN or
+// build layer would leak that input across users. With
+// `dynamic = "force-dynamic"` the framework defaults Cache-Control to
+// `private, no-store`-equivalent behavior on the response.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Search — Pluck Studio",
   description: PAGE_DESCRIPTION,
+  // Refuse search-engine indexing. /search?q=<anything> must NOT become
+  // a permanent searchable record of arbitrary queries. `index: false`
+  // emits a `<meta name="robots" content="noindex, nofollow">` into the
+  // response head; `googleBot` mirrors it explicitly so Google honors it
+  // even when crawled via the dedicated bot.
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
   openGraph: {
     title: "Search — Pluck Studio",
     description: PAGE_DESCRIPTION,
