@@ -15,6 +15,7 @@ import {
   moleRunReceiptModule,
 } from "../../../../../lib/mole/run-receipt-module";
 import { V1RunStatusBanner } from "../../../../../components/bureau-ui/V1RunStatusBanner.js";
+import { PhraseSigil } from "../../../../../components/bureau-ui/PhraseSigil.js";
 import { isPhraseId } from "../../../../../lib/phrase-id";
 
 const SectionHeadingStyle = {
@@ -162,7 +163,12 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             {status ?? "seal pending"}
           </span>
         </p>
-        <p style={SectionHeadingStyle}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+          {isPhrase ? (
+            <PhraseSigil phraseId={id} programAccent="#b8941f" size={96} />
+          ) : null}
+          <div style={{ minWidth: 0 }}>
+            <p style={SectionHeadingStyle}>
           {isPhrase ? "Phrase ID — your permanent receipt URL" : "Run ID"}
         </p>
         <p style={RunIdStyle} data-testid="run-id">{id}</p>
@@ -194,6 +200,8 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             </span>
           ) : null}
         </p>
+          </div>
+        </div>
         {isPending ? (
           <p style={{ marginTop: 16, fontStyle: "italic", color: "var(--bureau-fg-dim)" }} data-testid="pending-banner">
             Stub seal — <code>pluck-api /v1/mole/seal</code> isn't yet wired.

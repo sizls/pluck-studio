@@ -40,11 +40,11 @@ Captured by the AE Review Loop. Game changers that pass the "FUCK YES, build tha
 
 ### Top 4 Ranked
 
-1. **Phrase Crest** — procedural SVG sigil per phrase ID
-   - Why: every receipt URL gets its own coat of arms (`midnight-raven`'s sigil = animal silhouette + adjective gradient + serial number).
-   - Compound: massive — renders into og:image, X cards, MCP citation, Discord embed, leaderboard avatar, MP4 burn-in.
-   - Buildable in: 1 day (needs ~80 SVG animal silhouettes — single-path, MIT-licensed).
-   - Status: deferred to R3 — pairs with #2 below for a coordinated "brand asset" drop.
+1. **Phrase Crest** — procedural SVG sigil per phrase ID **(SHIPPED R2)**
+   - Why: every receipt URL gets its own coat of arms — adjective-hashed HSL fill + noun-hashed shape (one of 10 hand-built primitives) + serial-number badge + program-accent border.
+   - Compound: massive — renders into /search results (64px), /vendor receipt rows (40px), every receipt-page header (96px). OG cards + RSS embeds + MP4 burn-ins follow as later phases when next/og + dynamic SVG plumbing matures.
+   - Buildable in: shipped in 1 round. No external silhouette assets — all 10 shapes hand-built from SVG primitives, no font loads (system mono only), pure-deterministic generator at `src/lib/sigil/phrase-sigil.ts`.
+   - Status: shipped. `<PhraseSigil>` exported from `@sizls/pluck-bureau-ui`; deterministic SVG output snapshotted for byte-stability lock.
 
 2. **Dynamic OG Card with Live Contradict-Count** — `/runs/{phrase}/opengraph-image` returns 1200×630 PNG **(SHIPPED R2)**
    - Why: every paste of a receipt URL into Slack/X/Discord/iMessage now auto-unfurls into self-marketing. Vendor name + cycle status + brand chrome.

@@ -24,6 +24,7 @@
 import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 
+import { PhraseSigil } from "../../components/bureau-ui/PhraseSigil.js";
 import {
   PHRASE_ID_PREFIX_CONVENTIONS,
   type PhraseIdPrefixConvention,
@@ -247,6 +248,10 @@ function ResultTile({
   const tileStyle: CSSProperties = {
     ...ResultTileStyle,
     borderLeft: `3px solid ${result.programAccent}`,
+    display: "grid",
+    gridTemplateColumns: "auto 1fr",
+    gap: 14,
+    alignItems: "start",
   };
 
   return (
@@ -256,18 +261,25 @@ function ResultTile({
       data-testid={testid}
       data-program-slug={result.programSlug}
     >
-      <div style={ResultTopRowStyle}>
-        <span
-          aria-hidden="true"
-          style={ResultDotStyle(VERDICT_COLORS[result.verdictColor])}
-        />
-        <span style={ResultProgramStyle}>{result.programName}</span>
+      <PhraseSigil
+        phraseId={result.phraseId}
+        programAccent={result.programAccent}
+        size={64}
+      />
+      <div>
+        <div style={ResultTopRowStyle}>
+          <span
+            aria-hidden="true"
+            style={ResultDotStyle(VERDICT_COLORS[result.verdictColor])}
+          />
+          <span style={ResultProgramStyle}>{result.programName}</span>
+        </div>
+        <div style={ResultPhraseStyle}>{result.phraseId}</div>
+        <p style={ResultSummaryStyle}>{result.summary}</p>
+        <p style={ResultMetaStyle}>
+          {formatRelative(result.capturedAt, PREVIEW_NOW)}
+        </p>
       </div>
-      <div style={ResultPhraseStyle}>{result.phraseId}</div>
-      <p style={ResultSummaryStyle}>{result.summary}</p>
-      <p style={ResultMetaStyle}>
-        {formatRelative(result.capturedAt, PREVIEW_NOW)}
-      </p>
     </a>
   );
 }

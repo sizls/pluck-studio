@@ -21,6 +21,7 @@ import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 import { notFound } from "next/navigation";
 
+import { PhraseSigil } from "../../../components/bureau-ui/PhraseSigil";
 import {
   ACTIVE_PROGRAMS,
   VENDOR_BEARING_PROGRAMS,
@@ -186,7 +187,7 @@ const RECEIPT_TIME_CLASS = "vendor-receipt-time";
 const RESPONSIVE_RECEIPT_CSS = `
 .${RECEIPT_ROW_CLASS} {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: auto auto auto 1fr auto;
   align-items: center;
   gap: 12px;
   padding: 10px 0;
@@ -212,15 +213,16 @@ const RESPONSIVE_RECEIPT_CSS = `
 }
 @media (max-width: 720px) {
   .${RECEIPT_ROW_CLASS} {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto auto 1fr;
     grid-template-areas:
-      "dot phrase"
-      "dot summary"
-      "dot time";
+      "dot sigil phrase"
+      "dot sigil summary"
+      "dot sigil time";
     column-gap: 12px;
     row-gap: 4px;
   }
   .${RECEIPT_ROW_CLASS} > [data-slot="dot"] { grid-area: dot; align-self: start; margin-top: 6px; }
+  .${RECEIPT_ROW_CLASS} > [data-slot="sigil"] { grid-area: sigil; align-self: start; }
   .${RECEIPT_ROW_CLASS} > [data-slot="phrase"] { grid-area: phrase; }
   .${RECEIPT_ROW_CLASS} > [data-slot="summary"] { grid-area: summary; white-space: normal; word-break: break-word; }
   .${RECEIPT_ROW_CLASS} > [data-slot="time"] { grid-area: time; }
@@ -280,6 +282,13 @@ function ReceiptRow({
     >
       <span data-slot="dot">
         <VerdictDot verdict={receipt.verdict} />
+      </span>
+      <span data-slot="sigil">
+        <PhraseSigil
+          phraseId={receipt.phraseId}
+          programAccent={PROGRAM_ACCENT[programSlug]}
+          size={40}
+        />
       </span>
       <a
         data-slot="phrase"

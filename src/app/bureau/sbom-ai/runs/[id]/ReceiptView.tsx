@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { V1RunStatusBanner } from "../../../../../components/bureau-ui/V1RunStatusBanner.js";
+import { PhraseSigil } from "../../../../../components/bureau-ui/PhraseSigil.js";
 import { isPhraseId } from "../../../../../lib/phrase-id";
 import {
   PREDICATE_URI_BY_KIND,
@@ -163,7 +164,12 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             {status ?? "publish pending"}
           </span>
         </p>
-        <p style={SectionHeadingStyle}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+          {isPhrase ? (
+            <PhraseSigil phraseId={id} programAccent="#3a7aa3" size={96} />
+          ) : null}
+          <div style={{ minWidth: 0 }}>
+            <p style={SectionHeadingStyle}>
           {isPhrase ? "Phrase ID — your permanent receipt URL" : "Run ID"}
         </p>
         <p style={RunIdStyle} data-testid="run-id">{id}</p>
@@ -195,6 +201,8 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             </span>
           ) : null}
         </p>
+          </div>
+        </div>
         {isPending ? (
           <p style={{ marginTop: 16, fontStyle: "italic", color: "var(--bureau-fg-dim)" }} data-testid="pending-banner">
             Stub publish — <code>pluck-api /v1/sbom-ai/publish</code> isn't yet wired.
