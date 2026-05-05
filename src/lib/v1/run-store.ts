@@ -45,6 +45,7 @@ import {
   type RunRecord,
   type RunSpec,
   type RunSpecPipeline,
+  type RunStatus,
 } from "./run-spec";
 
 const TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -410,6 +411,17 @@ export interface ListRunsFilter {
   readonly limit?: number;
   /** runId of the last item from a previous page; pagination starts AFTER it. */
   readonly cursor?: string;
+  /**
+   * Filter by run status. Pass a single `RunStatus` to match exactly one
+   * status, or an array of `RunStatus` to match any of several (logical
+   * OR). Omit to include runs of any status (default — keeps the GET-list
+   * contract backward compatible).
+   *
+   * Common shapes:
+   *   - `status: "cancelled"`             — only cancelled runs
+   *   - `status: ["pending", "running"]`  — exclude cancelled/anchored/failed
+   */
+  readonly status?: RunStatus | ReadonlyArray<RunStatus>;
 }
 
 export interface ListRunsResult {
@@ -446,6 +458,10 @@ export function listRuns(
   evictExpired(now);
 
   const limit = clampLimit(filter.limit);
+  // Normalize `status` filter to a Set for O(1) membership; undefined
+  // means "all statuses" (default — backward-compat with the original
+  // listRuns contract).
+  const statusSet = normalizeStatusFilter(filter.status);
 
   // Build the filtered + sorted candidate list. Iterate the entire Map
   // (bounded by MAX_ENTRIES = 10K — acceptable for the stub; the Supabase
@@ -460,6 +476,9 @@ export function listRuns(
       if (!Number.isFinite(created) || created <= filter.since) {
         continue;
       }
+    }
+    if (statusSet !== null && !statusSet.has(record.status)) {
+      continue;
     }
     matched.push(record);
   }
@@ -498,6 +517,25 @@ export function listRuns(
       : null;
 
   return { runs: page, nextCursor, totalCount };
+}
+
+/**
+ * Normalize the `status` filter argument into a Set. Returns `null` when
+ * no filter is supplied (caller treats as "match all"). Empty arrays
+ * become a Set with no members — they match nothing, which is the
+ * intuitive read of "I supplied an empty allowlist".
+ */
+function normalizeStatusFilter(
+  raw: RunStatus | ReadonlyArray<RunStatus> | undefined,
+): Set<RunStatus> | null {
+  if (raw === undefined) {
+    return null;
+  }
+  if (typeof raw === "string") {
+    return new Set([raw]);
+  }
+
+  return new Set(raw);
 }
 
 function clampLimit(raw: number | undefined): number {

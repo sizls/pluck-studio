@@ -202,6 +202,7 @@ vector.
 | `since` | ISO-8601 | Only runs created strictly AFTER this timestamp. Unparseable values return 400. |
 | `limit` | integer | Page size. Clamped to `[1, 100]`; default `20`. |
 | `cursor` | string ≤128 chars | Opaque pagination cursor — pass back the `nextCursor` from a prior response to fetch the next page. |
+| `status` | `RunStatus` or CSV | Filter by status. Single value (`?status=cancelled`) matches one status; comma-separated (`?status=pending,running`) matches any. Allowed: `pending`, `running`, `anchored`, `failed`, `cancelled`. Unknown values return 400. Omit to include runs of any status (default — backward-compat). |
 
 ### Response shape
 
@@ -239,6 +240,14 @@ curl -sS 'http://localhost:3030/api/v1/runs?pipeline=bureau:dragnet&since=2026-0
 
 # Next page — pass the previous nextCursor.
 curl -sS 'http://localhost:3030/api/v1/runs?limit=20&cursor=openai-swift-falcon-3742' \
+  -H 'sec-fetch-site: same-origin'
+
+# Active runs only — exclude cancelled/anchored/failed.
+curl -sS 'http://localhost:3030/api/v1/runs?status=pending,running' \
+  -H 'sec-fetch-site: same-origin'
+
+# Combined filters — DRAGNET cancellations only.
+curl -sS 'http://localhost:3030/api/v1/runs?pipeline=bureau:dragnet&status=cancelled' \
   -H 'sec-fetch-site: same-origin'
 ```
 

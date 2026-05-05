@@ -43,6 +43,8 @@ import {
   bureauSlugOf,
   isBureauPipeline,
   isFuturePipeline,
+  isRunStatus,
+  type RunStatus,
   validateRunSpec,
 } from "../../../../lib/v1/run-spec";
 
@@ -170,6 +172,12 @@ export async function POST(req: Request): Promise<Response> {
 //   ?limit=N                 — page size, default 20, max 100
 //   ?cursor=<runId>          — opaque pagination cursor (the runId of the
 //                              last item from a previous page)
+//   ?status=<RunStatus>      — filter by status. Single value
+//                              (`?status=cancelled`) matches one status;
+//                              comma-separated (`?status=pending,running`)
+//                              matches any of several. Unknown values
+//                              return 400. Omit to include all statuses
+//                              (default — backward compatible).
 //
 // Response shape:
 //   { runs: RedactedRunRecord[], nextCursor: string | null, totalCount: number }
@@ -188,6 +196,7 @@ interface ParsedQuery {
   since?: number;
   limit?: number;
   cursor?: string;
+  status?: RunStatus[];
 }
 
 interface ParsedQueryErr {
@@ -242,6 +251,45 @@ function parseListQuery(url: URL): ParsedQuery | ParsedQueryErr {
     out.cursor = cursor;
   }
 
+  // ?status=<RunStatus> or ?status=<csv>. We split on comma so a caller
+  // can write `?status=pending,running` to exclude cancelled+anchored+failed
+  // in one round trip. Whitespace around commas is stripped so the
+  // affordance is forgiving (`?status=pending, running` works too).
+  // Empty parts ("pending,,running") and duplicates are tolerated and
+  // de-duped via the Set the store builds. Unknown statuses return 400
+  // with the exact value echoed so the caller's debugger surfaces the
+  // typo immediately.
+  const status = url.searchParams.get("status");
+  if (status !== null) {
+    if (status.length === 0) {
+      return {
+        ok: false,
+        error: "`status` must be a non-empty RunStatus or comma-separated list.",
+      };
+    }
+    const parts = status
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (parts.length === 0) {
+      return {
+        ok: false,
+        error: "`status` must be a non-empty RunStatus or comma-separated list.",
+      };
+    }
+    const accepted: RunStatus[] = [];
+    for (const part of parts) {
+      if (!isRunStatus(part)) {
+        return {
+          ok: false,
+          error: `Unknown status \`${part}\`. Filter must be one of: pending, running, anchored, failed, cancelled.`,
+        };
+      }
+      accepted.push(part);
+    }
+    out.status = accepted;
+  }
+
   return out;
 }
 
@@ -269,6 +317,7 @@ export async function GET(req: Request): Promise<Response> {
     ...(parsed.since !== undefined ? { since: parsed.since } : {}),
     ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
     ...(parsed.cursor !== undefined ? { cursor: parsed.cursor } : {}),
+    ...(parsed.status !== undefined ? { status: parsed.status } : {}),
   });
 
   // Per-pipeline GET-side redaction applied to EACH list item — same

@@ -372,6 +372,110 @@ describe("run-store — listRuns", () => {
     ]);
   });
 
+  describe("status filter", () => {
+    it("returns all runs when no status filter is supplied (backward-compat)", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
+      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      // Cancel one of the two so we have a mix of statuses.
+      cancelRun(a.record.runId, t0 + 2000);
+
+      const result = listRuns({}, t0 + 3000);
+      expect(result.runs.length).toBe(2);
+      expect(result.totalCount).toBe(2);
+      const statuses = result.runs.map((r) => r.status).sort();
+      expect(statuses).toEqual(["cancelled", "pending"]);
+      // Sanity — both ids round-trip.
+      const ids = new Set(result.runs.map((r) => r.runId));
+      expect(ids.has(a.record.runId)).toBe(true);
+      expect(ids.has(b.record.runId)).toBe(true);
+    });
+
+    it("filters to a single status (status='pending') — only pending runs returned", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
+      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      cancelRun(a.record.runId, t0 + 2000);
+
+      const result = listRuns({ status: "pending" }, t0 + 3000);
+      expect(result.runs.map((r) => r.runId)).toEqual([b.record.runId]);
+      expect(result.totalCount).toBe(1);
+    });
+
+    it("filters to a single status (status='cancelled') — only cancelled runs returned", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
+      createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      cancelRun(a.record.runId, t0 + 2000);
+
+      const result = listRuns({ status: "cancelled" }, t0 + 3000);
+      expect(result.runs.map((r) => r.runId)).toEqual([a.record.runId]);
+      expect(result.totalCount).toBe(1);
+      expect(result.runs[0]?.status).toBe("cancelled");
+    });
+
+    it("filters to multiple statuses via array (status=['cancelled','anchored'])", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
+      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      const c = createRun({ ...dragnetSpec, idempotencyKey: "c" }, t0 + 2000);
+      // a → cancelled. b → anchored (poke through the live ref). c → pending.
+      cancelRun(a.record.runId, t0 + 3000);
+      // getRun applies TTL eviction relative to `now` — pass an explicit
+      // `now` close to the create time so the test's t0 (Jan 2026) doesn't
+      // collide with wall-clock-based eviction.
+      const liveB = getRun(b.record.runId, t0 + 3500) as RunRecord;
+      (liveB as { status: RunRecord["status"] }).status = "anchored";
+
+      const result = listRuns(
+        { status: ["cancelled", "anchored"] },
+        t0 + 4000,
+      );
+      expect(result.totalCount).toBe(2);
+      const ids = new Set(result.runs.map((r) => r.runId));
+      expect(ids.has(a.record.runId)).toBe(true);
+      expect(ids.has(b.record.runId)).toBe(true);
+      expect(ids.has(c.record.runId)).toBe(false);
+    });
+
+    it("composes with `pipeline` filter (status=cancelled + pipeline=bureau:oath)", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      const dnet = createRun({ ...dragnetSpec, idempotencyKey: "dn" }, t0);
+      const oath = createRun({ ...oathSpec, idempotencyKey: "o1" }, t0 + 1000);
+      cancelRun(dnet.record.runId, t0 + 2000);
+      cancelRun(oath.record.runId, t0 + 2500);
+
+      const result = listRuns(
+        { pipeline: "bureau:oath", status: "cancelled" },
+        t0 + 3000,
+      );
+      expect(result.runs.map((r) => r.runId)).toEqual([oath.record.runId]);
+      expect(result.totalCount).toBe(1);
+    });
+
+    it("returns empty when no runs match the status filter", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
+      createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+
+      // Both are pending; filter for cancelled → empty.
+      const result = listRuns({ status: "cancelled" }, t0 + 2000);
+      expect(result.runs).toEqual([]);
+      expect(result.totalCount).toBe(0);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it("empty array means 'allowlist nothing' → empty result", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
+      createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+
+      const result = listRuns({ status: [] }, t0 + 2000);
+      expect(result.runs).toEqual([]);
+      expect(result.totalCount).toBe(0);
+    });
+  });
+
   // STUB-coupled — TTL eviction is in-memory implementation behaviour.
   describe.skipIf(!STUB_ONLY)("excludes TTL-evicted runs from the list", () => {
     it("does not return runs older than the TTL", () => {

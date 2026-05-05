@@ -19,6 +19,7 @@ import {
   fingerprintRunReceiptModule,
   formatCassetteHash,
 } from "../../../../../lib/fingerprint/run-receipt-module";
+import { V1RunStatusBanner } from "../../../../../components/bureau-ui/V1RunStatusBanner.js";
 import { isPhraseId } from "../../../../../lib/phrase-id";
 
 const SectionHeadingStyle = {
@@ -170,6 +171,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
 
   return (
     <>
+      <V1RunStatusBanner id={id} />
       <section className="bureau-hero">
         <h1 className="bureau-hero-title">FINGERPRINT scan</h1>
         <p className="bureau-hero-tagline">

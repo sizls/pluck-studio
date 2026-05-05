@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { V1RunStatusBanner } from "../../../../../components/bureau-ui/V1RunStatusBanner.js";
 import { isPhraseId } from "../../../../../lib/phrase-id";
 import {
   PREDICATE_URI_BY_KIND,
@@ -154,6 +155,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
 
   return (
     <>
+      <V1RunStatusBanner id={id} />
       <section className="bureau-hero">
         <h1 className="bureau-hero-title">SBOM-AI provenance</h1>
         <p className="bureau-hero-tagline">

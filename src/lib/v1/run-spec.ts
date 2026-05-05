@@ -84,12 +84,21 @@ export interface RunSpec {
   idempotencyKey?: string;
 }
 
-export type RunStatus =
-  | "pending"
-  | "running"
-  | "anchored"
-  | "failed"
-  | "cancelled";
+export const RUN_STATUSES = [
+  "pending",
+  "running",
+  "anchored",
+  "failed",
+  "cancelled",
+] as const;
+export type RunStatus = (typeof RUN_STATUSES)[number];
+
+const RUN_STATUS_SET: ReadonlySet<string> = new Set(RUN_STATUSES);
+
+export function isRunStatus(s: string): s is RunStatus {
+  return RUN_STATUS_SET.has(s);
+}
+
 export type VerdictColor = "green" | "amber" | "red" | "gray";
 
 export interface RunRecord {

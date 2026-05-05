@@ -1200,6 +1200,154 @@ describe("GET /api/v1/runs — list endpoint", () => {
     expect(JSON.stringify(body)).not.toContain("zeus");
   });
 
+  describe("status filter", () => {
+    it("returns all runs (including cancelled) when ?status is omitted", async () => {
+      const a = await postBody(validBody({ idempotencyKey: "a" }));
+      await postBody(validBody({ idempotencyKey: "b" }));
+      // Cancel `a` so we have a mix.
+      const del = await DELETE(deleteReq(a.runId), {
+        params: Promise.resolve({ id: a.runId }),
+      });
+      expect(del.status).toBe(200);
+
+      const res = await LIST(listReq());
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as ListBody;
+      expect(body.totalCount).toBe(2);
+      const statuses = body.runs.map((r) => r.status).sort();
+      expect(statuses).toEqual(["cancelled", "pending"]);
+    });
+
+    it("?status=pending returns only pending runs", async () => {
+      const a = await postBody(validBody({ idempotencyKey: "a" }));
+      const b = await postBody(validBody({ idempotencyKey: "b" }));
+      await DELETE(deleteReq(a.runId), {
+        params: Promise.resolve({ id: a.runId }),
+      });
+
+      const res = await LIST(listReq("?status=pending"));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as ListBody;
+      expect(body.totalCount).toBe(1);
+      expect(body.runs[0]?.runId).toBe(b.runId);
+      expect(body.runs[0]?.status).toBe("pending");
+    });
+
+    it("?status=cancelled returns only cancelled runs", async () => {
+      const a = await postBody(validBody({ idempotencyKey: "a" }));
+      await postBody(validBody({ idempotencyKey: "b" }));
+      await DELETE(deleteReq(a.runId), {
+        params: Promise.resolve({ id: a.runId }),
+      });
+
+      const res = await LIST(listReq("?status=cancelled"));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as ListBody;
+      expect(body.totalCount).toBe(1);
+      expect(body.runs[0]?.runId).toBe(a.runId);
+      expect(body.runs[0]?.status).toBe("cancelled");
+    });
+
+    it("?status=cancelled,anchored returns both via comma-separated CSV", async () => {
+      const a = await postBody(validBody({ idempotencyKey: "a" }));
+      const b = await postBody(validBody({ idempotencyKey: "b" }));
+      await postBody(validBody({ idempotencyKey: "c" }));
+      // a → cancelled.
+      await DELETE(deleteReq(a.runId), {
+        params: Promise.resolve({ id: a.runId }),
+      });
+      // b → anchored (poke through the live ref).
+      const liveB = getRun(b.runId) as RunRecord;
+      (liveB as { status: RunRecord["status"] }).status = "anchored";
+
+      const res = await LIST(listReq("?status=cancelled,anchored"));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as ListBody;
+      expect(body.totalCount).toBe(2);
+      const ids = new Set(body.runs.map((r) => r.runId));
+      expect(ids.has(a.runId)).toBe(true);
+      expect(ids.has(b.runId)).toBe(true);
+    });
+
+    it("?status=pending,running excludes cancelled+anchored+failed", async () => {
+      const a = await postBody(validBody({ idempotencyKey: "a" }));
+      const b = await postBody(validBody({ idempotencyKey: "b" }));
+      const c = await postBody(validBody({ idempotencyKey: "c" }));
+      // a → cancelled. b → running. c stays pending.
+      await DELETE(deleteReq(a.runId), {
+        params: Promise.resolve({ id: a.runId }),
+      });
+      const liveB = getRun(b.runId) as RunRecord;
+      (liveB as { status: RunRecord["status"] }).status = "running";
+
+      const res = await LIST(listReq("?status=pending,running"));
+      const body = (await res.json()) as ListBody;
+      expect(body.totalCount).toBe(2);
+      const ids = new Set(body.runs.map((r) => r.runId));
+      expect(ids.has(b.runId)).toBe(true);
+      expect(ids.has(c.runId)).toBe(true);
+      expect(ids.has(a.runId)).toBe(false);
+    });
+
+    it("400s on an unknown status value", async () => {
+      const res = await LIST(listReq("?status=invalid-status"));
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toMatch(/Unknown status/);
+      expect(body.error).toMatch(/invalid-status/);
+    });
+
+    it("400s when ?status mixes a valid + invalid token", async () => {
+      const res = await LIST(listReq("?status=pending,bogus"));
+      expect(res.status).toBe(400);
+    });
+
+    it("400s on an empty status value (?status=)", async () => {
+      const res = await LIST(listReq("?status="));
+      expect(res.status).toBe(400);
+    });
+
+    it("composes with ?pipeline — DRAGNET cancellations only", async () => {
+      const a = await postBody(validBody({ idempotencyKey: "a" }));
+      const oath = await postBody({
+        pipeline: "bureau:oath",
+        payload: { vendorDomain: "openai.com", authorizationAcknowledged: true },
+        idempotencyKey: "o-cancel",
+      });
+      // Cancel BOTH runs.
+      await DELETE(deleteReq(a.runId), {
+        params: Promise.resolve({ id: a.runId }),
+      });
+      await DELETE(deleteReq(oath.runId), {
+        params: Promise.resolve({ id: oath.runId }),
+      });
+
+      const res = await LIST(
+        listReq("?pipeline=bureau:dragnet&status=cancelled"),
+      );
+      const body = (await res.json()) as ListBody;
+      expect(body.totalCount).toBe(1);
+      expect(body.runs[0]?.runId).toBe(a.runId);
+      expect(body.runs[0]?.status).toBe("cancelled");
+    });
+
+    it("tolerates whitespace around CSV commas (?status=pending, running)", async () => {
+      const a = await postBody(validBody({ idempotencyKey: "a" }));
+      await DELETE(deleteReq(a.runId), {
+        params: Promise.resolve({ id: a.runId }),
+      });
+      await postBody(validBody({ idempotencyKey: "b" }));
+
+      const res = await LIST(
+        listReq(`?status=${encodeURIComponent("pending, running")}`),
+      );
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as ListBody;
+      expect(body.totalCount).toBe(1);
+      expect(body.runs[0]?.status).toBe("pending");
+    });
+  });
+
   it("PRIVACY: ROTATE operatorNote is REDACTED in the list payload", async () => {
     await postBody({
       pipeline: "bureau:rotate",

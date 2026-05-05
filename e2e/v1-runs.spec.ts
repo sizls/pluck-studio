@@ -71,4 +71,62 @@ test.describe("/v1/runs unified surface — DRAGNET wedge", () => {
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("via-v1-indicator")).toHaveCount(0);
   });
+
+  test("DELETE /v1/runs/[id] surfaces a v1-cancelled-banner on the receipt page", async ({
+    page,
+    context,
+    request,
+  }) => {
+    await context.addCookies([
+      {
+        name: "sb-test-auth-token",
+        value: "test-jwt",
+        domain: "localhost",
+        path: "/",
+        httpOnly: true,
+        sameSite: "Lax",
+      },
+    ]);
+
+    // 1. POST a fresh DRAGNET run via /v1/runs to seed the store.
+    const post = await request.post("/api/v1/runs", {
+      headers: {
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        // Dev-mode Bearer affordance — same gate as the auth cookie.
+        authorization: "Bearer dev-test-jwt",
+      },
+      data: {
+        pipeline: "bureau:dragnet",
+        payload: {
+          targetUrl: "https://api.openai.com/v1/chat/completions",
+          probePackId: "canon-honesty",
+          cadence: "once",
+          authorizationAcknowledged: true,
+        },
+      },
+    });
+    expect(post.ok()).toBe(true);
+    const { runId } = (await post.json()) as { runId: string };
+
+    // 2. DELETE → cancels the run; the v1 record's status flips.
+    const del = await request.delete(`/api/v1/runs/${runId}`, {
+      headers: {
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        authorization: "Bearer dev-test-jwt",
+      },
+    });
+    expect(del.ok()).toBe(true);
+    const delBody = (await del.json()) as { status: string };
+    expect(delBody.status).toBe("cancelled");
+
+    // 3. Visit the receipt page — banner must surface.
+    await page.goto(`/bureau/dragnet/runs/${runId}`);
+    await expect(page.getByTestId("run-id")).toBeVisible();
+    await expect(page.getByTestId("v1-cancelled-banner")).toBeVisible();
+    await expect(page.getByTestId("v1-cancelled-banner")).toContainText(
+      "This run was cancelled",
+    );
+  });
 });
