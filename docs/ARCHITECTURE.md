@@ -236,6 +236,7 @@ src/lib/v1/run-store.ts → createRun(spec)
 | `GET` | `/api/v1/runs` | Paginated list with filters (`pipeline`, `since`, `status`, `cursor`, `limit`). Public read; CSRF + rate-limit still apply. |
 | `GET` | `/api/v1/runs/[id]` | Single record by phraseId. Public read (the phraseId IS the share credential). Payload runs through `redactPayloadForGet` — § 5. |
 | `DELETE` | `/api/v1/runs/[id]` | Cancel a pending or running run. **Auth-gated** (state-modifying). Idempotent on already-cancelled. Echoes the cancelled record (also redacted). |
+| `GET` | `/api/v1/runs/[id]/events` | Server-Sent Events stream — emits a `state` event on connect, on every transition, and a `heartbeat` every 30s. Same gates as GET-by-id (public read; CSRF + rate-limit). Auto-closes on terminal status (2s grace) and after 5min. Honors `Last-Event-ID` reconnect. Per-pipeline payload redaction applied to EVERY emitted state event — defense-in-depth at the SSE boundary. |
 
 ### Layer responsibilities
 
@@ -243,9 +244,9 @@ src/lib/v1/run-store.ts → createRun(spec)
 |---|---|
 | `src/lib/v1/run-spec.ts` | TypeScript types (`RunSpec`, `RunRecord`, `RunStatus`, `BureauPipeline`), the `BUREAU_PIPELINES` array, and `validateRunSpec` (envelope shape — rejects unknown top-level keys, `idempotencyKey` length cap, etc.). Persistence-agnostic. |
 | `src/lib/v1/pipeline-validators.ts` | Per-pipeline payload contracts. One function per program (`validateDragnetPayload`, `validateNucleiPayload`, …) and a `PIPELINE_VALIDATORS` map keyed by `BureauPipeline`. **Single source of truth** between `/v1/runs` and the legacy aliases. Belt-and-suspenders runtime check at module load throws if `BUREAU_PIPELINES` ever drifts from the map. |
-| `src/lib/v1/run-store.ts` | In-memory stub with idempotency cache, 24h TTL eviction, 10K-entry FIFO cap, cursor pagination, status filtering, and per-program `runIdForBureau` scoping. **Public API**: `createRun`, `getRun`, `listRuns`, `cancelRun`. **Internal**: `idempotencyHashOf`, `canonicalJson`, `__INTERNAL_TTL_MS`, `__INTERNAL_MAX_ENTRIES` (gated behind `PLUCK_REAL_BACKEND` env in tests). |
-| `src/lib/v1/redact.ts` | Per-pipeline GET-side payload redaction. `PAYLOAD_REDACTORS` map keyed by `BureauPipeline`. WHISTLE strips `bundleUrl`+`manualRedactPhrase`; ROTATE strips `operatorNote`; the other 9 pass through. The store record is untouched (idempotency must remain stable); redaction happens at the GET boundary only. |
-| `src/app/api/v1/runs/route.ts` + `[id]/route.ts` | Security gates (CSRF / rate-limit / auth) + delegation. Zero business logic — they call `validateRunSpec`, `PIPELINE_VALIDATORS[…]`, `createRun`/`getRun`/`listRuns`/`cancelRun`, and `redactPayloadForGet`. Replaceable as a unit when pluck-api lands. |
+| `src/lib/v1/run-store.ts` | In-memory stub with idempotency cache, 24h TTL eviction, 10K-entry FIFO cap, cursor pagination, status filtering, per-program `runIdForBureau` scoping, and an in-memory pub/sub layer that feeds the SSE route. **Public API**: `createRun`, `getRun`, `listRuns`, `cancelRun`, `subscribeToRun`. **Internal**: `idempotencyHashOf`, `canonicalJson`, `__INTERNAL_TTL_MS`, `__INTERNAL_MAX_ENTRIES`, `__INTERNAL_SUBSCRIBERS_PER_RUN_CAP` (gated behind `PLUCK_REAL_BACKEND` env in tests). |
+| `src/lib/v1/redact.ts` | Per-pipeline GET-side payload redaction. `PAYLOAD_REDACTORS` map keyed by `BureauPipeline`. WHISTLE strips `bundleUrl`+`manualRedactPhrase`; ROTATE strips `operatorNote`; the other 9 pass through. The store record is untouched (idempotency must remain stable); redaction happens at the GET / SSE boundary only. |
+| `src/app/api/v1/runs/route.ts` + `[id]/route.ts` + `[id]/events/route.ts` | Security gates (CSRF / rate-limit / auth) + delegation. Zero business logic — they call `validateRunSpec`, `PIPELINE_VALIDATORS[…]`, `createRun`/`getRun`/`listRuns`/`cancelRun`/`subscribeToRun`, and `redactPayloadForGet`. The events route additionally manages the SSE stream lifecycle (heartbeat, terminal-state close, 5min cap). Replaceable as a unit when pluck-api lands. |
 | `src/lib/security/request-guards.ts` | `isAuthed`, `isSameSiteRequest`, `rateLimitOk`, `isPrivateOrLocalHost`. Shared by `/v1/runs` and the 11 legacy aliases. |
 
 ---
@@ -663,7 +664,8 @@ contract was designed for replacement from day one.
   replays return `reused: true`) run against either backend.
 - **Public API stays stable.** `createRun(spec) → CreateRunResult`,
   `getRun(id) → RunRecord | null`, `listRuns(filter) →
-  ListRunsResult`, `cancelRun(id) → CancelResult`. Every caller in the
+  ListRunsResult`, `cancelRun(id) → CancelResult`,
+  `subscribeToRun(id, cb) → unsubscribe`. Every caller in the
   codebase binds against this surface — no caller reaches into the
   underlying `Map`.
 - **Per-pipeline validators are persistence-agnostic.** They take a
@@ -695,7 +697,14 @@ contract was designed for replacement from day one.
 5. **Realtime:** Supabase Realtime channel `runs:id=eq.<runId>` pushes
    status changes to the client. The `@directive-run/query`
    integration on each receipt page replaces in-memory facts with the
-   Realtime feed. The render code does not change.
+   Realtime feed. The render code does not change. The stub-era
+   in-memory pub/sub (`subscribeToRun` in `run-store.ts`, today
+   feeding `GET /api/v1/runs/[id]/events`) maps directly onto a
+   `runs:id=eq.<runId>` channel subscription — same callback shape,
+   same per-run scope. The SSE route's HTTP contract (event types,
+   `Last-Event-ID` semantics, terminal-state auto-close, heartbeat
+   cadence) is a thin shim over the channel and stays stable across
+   the swap.
 
 **The HTTP contract from `docs/V1_API.md` does not change across the
 swap.** `RunSpec`, `RunRecord`, the curl examples, the status codes,

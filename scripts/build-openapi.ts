@@ -339,6 +339,9 @@ const paths = {
         ...errRefs("400", "403", "404", "429"),
       },
     },
+    // GET /api/v1/runs/{id}/events documented below as a sibling path —
+    // OpenAPI Path Templates can't share a parent with a child path so
+    // it lives at its own key.
     delete: {
       tags: [TAG_RUNS],
       summary: "Cancel a pending or running run",
@@ -354,6 +357,49 @@ const paths = {
           alreadyCancelled: false,
         }),
         ...errRefs("400", "401", "403", "404", "409", "429"),
+      },
+    },
+  },
+  "/api/v1/runs/{id}/events": {
+    get: {
+      tags: [TAG_RUNS],
+      summary: "Server-Sent Events stream of run progress (public, redacted)",
+      operationId: "streamRunEvents",
+      description:
+        "Long-lived `text/event-stream` connection. Emits an initial `state` event with the current redacted RunRecord on connect, a fresh `state` event on every status transition, and a `heartbeat` event every 30 seconds. Auto-closes after a 2s grace window when the run reaches a terminal status (`anchored` | `failed` | `cancelled`) and after a hard 5-minute lifetime cap. Honors the standard `Last-Event-ID` request header on reconnect — the server resumes its id counter from `Last-Event-ID + 1`. Same security posture as `GET /api/v1/runs/{id}`: same-site (CSRF) + rate-limit gates, NO auth gate (the phraseId in the URL is the share credential). Per-pipeline GET-side redaction applies to EVERY emitted state event — defense-in-depth at the SSE boundary. NOTE: OpenAPI has no first-class SSE schema; consumers should use the platform `EventSource` API (or equivalent).",
+      security: [],
+      parameters: [
+        { ...idParam, description: "phraseId of the run to stream." },
+        {
+          name: "Last-Event-ID",
+          in: "header",
+          required: false,
+          schema: { type: "string" },
+          description:
+            "Standard SSE reconnect header. Server resumes its event-id counter from `Last-Event-ID + 1`. Non-numeric values fall back to `1`.",
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "SSE stream. Each message is `id: <n>\\nevent: <state|heartbeat|error>\\ndata: <json>\\n\\n`. The `state` event's `data` is a redacted RunRecord; the `heartbeat` event's `data` is `{ ts: <unix-ms> }`.",
+          headers: {
+            "Content-Type": {
+              schema: { type: "string", const: "text/event-stream; charset=utf-8" },
+            },
+            "Cache-Control": {
+              schema: { type: "string", const: "no-store, no-transform" },
+            },
+          },
+          content: {
+            "text/event-stream": {
+              schema: { type: "string" },
+              example:
+                "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"bureau:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/bureau/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n",
+            },
+          },
+        },
+        ...errRefs("400", "403", "404", "429"),
       },
     },
   },

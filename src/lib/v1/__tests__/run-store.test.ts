@@ -20,15 +20,18 @@ const STUB_ONLY = process.env.PLUCK_REAL_BACKEND !== "1";
 
 import {
   __idempotencyCount,
+  __INTERNAL_SUBSCRIBERS_PER_RUN_CAP,
   __INTERNAL_TTL_MS,
   __resetForTests,
   __runCount,
+  __subscriberCount,
   cancelRun,
   canonicalJson,
   createRun,
   getRun,
   idempotencyHashOf,
   listRuns,
+  subscribeToRun,
 } from "../run-store.js";
 import type { RunRecord, RunSpec } from "../run-spec.js";
 
@@ -607,6 +610,142 @@ describe("run-store — cancelRun", () => {
       const result = cancelRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000);
       expect(result.kind).toBe("not-found");
     });
+  });
+});
+
+describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
+  it("subscribe → publish (createRun) → unsubscribe roundtrip", () => {
+    const received: RunRecord[] = [];
+    // Pre-create the run so we can subscribe BEFORE the next mutation.
+    const { record } = createRun({
+      ...validBureauSpec,
+      idempotencyKey: "pre",
+    });
+    const unsub = subscribeToRun(record.runId, (r) => received.push(r));
+
+    // cancelRun is the only state-changing helper today; trigger it to
+    // exercise the publish path.
+    cancelRun(record.runId);
+    expect(received.length).toBe(1);
+    expect(received[0]?.runId).toBe(record.runId);
+    expect(received[0]?.status).toBe("cancelled");
+
+    unsub();
+    // After unsubscribe, no further events. Re-cancelling is the
+    // idempotent no-publish branch — but even a publishing transition
+    // should not reach our handler now.
+    cancelRun(record.runId);
+    expect(received.length).toBe(1);
+  });
+
+  it("createRun publishes the freshly-minted record to subscribers attached BEFORE create", () => {
+    // Subscribe against a runId we'll create in a moment — exercises
+    // the createRun → publish path. We can't easily pre-know the runId
+    // (phrase IDs are stochastic), but we CAN observe via the global
+    // subscriber map by attaching to a known idempotent run.
+    //
+    // Simpler: createRun a first run, then subscribe to its id, then
+    // re-run createRun with the same idempotency key. The second
+    // call returns the existing record (`reused: true`) and does NOT
+    // publish — that's the contract. Use cancelRun afterward to
+    // observe a real transition.
+    const { record } = createRun({
+      ...validBureauSpec,
+      idempotencyKey: "k-pub",
+    });
+    const seen: RunRecord[] = [];
+    subscribeToRun(record.runId, (r) => seen.push(r));
+
+    // Idempotent replay does not publish.
+    const replay = createRun({
+      ...validBureauSpec,
+      idempotencyKey: "k-pub",
+    });
+    expect(replay.reused).toBe(true);
+    expect(seen.length).toBe(0);
+
+    // A real transition does publish.
+    cancelRun(record.runId);
+    expect(seen.length).toBe(1);
+  });
+
+  it("multi-subscriber broadcast — every subscriber sees the same event", () => {
+    const { record } = createRun(validBureauSpec);
+    const a: RunRecord[] = [];
+    const b: RunRecord[] = [];
+    const c: RunRecord[] = [];
+    subscribeToRun(record.runId, (r) => a.push(r));
+    subscribeToRun(record.runId, (r) => b.push(r));
+    subscribeToRun(record.runId, (r) => c.push(r));
+
+    cancelRun(record.runId);
+    expect(a.length).toBe(1);
+    expect(b.length).toBe(1);
+    expect(c.length).toBe(1);
+    expect(a[0]?.status).toBe("cancelled");
+    expect(b[0]?.status).toBe("cancelled");
+    expect(c[0]?.status).toBe("cancelled");
+  });
+
+  it("unsubscribing the last subscriber removes the runId from the map", () => {
+    const { record } = createRun(validBureauSpec);
+    const unsub = subscribeToRun(record.runId, () => {});
+    expect(__subscriberCount(record.runId)).toBe(1);
+    unsub();
+    expect(__subscriberCount(record.runId)).toBe(0);
+    // Calling unsubscribe a second time is a no-op (idempotent).
+    unsub();
+    expect(__subscriberCount(record.runId)).toBe(0);
+  });
+
+  it("subscriber-count cap is enforced (throws past the per-run cap)", () => {
+    const { record } = createRun(validBureauSpec);
+    const unsubs: Array<() => void> = [];
+    for (let i = 0; i < __INTERNAL_SUBSCRIBERS_PER_RUN_CAP; i++) {
+      unsubs.push(subscribeToRun(record.runId, () => {}));
+    }
+    expect(__subscriberCount(record.runId)).toBe(
+      __INTERNAL_SUBSCRIBERS_PER_RUN_CAP,
+    );
+    expect(() => subscribeToRun(record.runId, () => {})).toThrow(
+      /subscriber cap/,
+    );
+    // Cleanup so the FIFO bookkeeping in other tests stays clean.
+    for (const u of unsubs) {
+      u();
+    }
+    expect(__subscriberCount(record.runId)).toBe(0);
+  });
+
+  it("cancelRun does NOT publish on the idempotent already-cancelled branch", () => {
+    const { record } = createRun(validBureauSpec);
+    cancelRun(record.runId);
+    const seen: RunRecord[] = [];
+    subscribeToRun(record.runId, (r) => seen.push(r));
+
+    // Already cancelled — second cancel is a no-op for transitions,
+    // and MUST NOT fire a duplicate `state` event over SSE.
+    const result = cancelRun(record.runId);
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      throw new Error("unreachable");
+    }
+    expect(result.alreadyCancelled).toBe(true);
+    expect(seen.length).toBe(0);
+  });
+
+  it("a throwing subscriber is dropped and does not impact siblings", () => {
+    const { record } = createRun(validBureauSpec);
+    const sibling: RunRecord[] = [];
+    subscribeToRun(record.runId, () => {
+      throw new Error("boom");
+    });
+    subscribeToRun(record.runId, (r) => sibling.push(r));
+
+    cancelRun(record.runId);
+    expect(sibling.length).toBe(1);
+    // Throwing subscriber removed; only the working sibling remains.
+    expect(__subscriberCount(record.runId)).toBe(1);
   });
 });
 

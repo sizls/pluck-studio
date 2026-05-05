@@ -347,6 +347,115 @@ link doesn't 404 on the recipient.
 
 ---
 
+## `GET /api/v1/runs/[id]/events` — Server-Sent Events stream
+
+Long-lived `text/event-stream` connection that emits a fresh `state`
+event on every status transition. Closes the read+streaming surface of
+the v1 contract: POST creates, GET-by-id snapshots, DELETE cancels,
+**this endpoint streams progress in real time**.
+
+### Auth model
+
+Same as `GET /api/v1/runs/[id]`: same-site (CSRF) + rate-limit gates,
+**no auth gate**. The phraseId in the URL is the share credential — a
+dashboard, a tweet, or a notification can subscribe without a Supabase
+session. Browser EventSource clients open the connection automatically.
+
+### Event types
+
+| Event | When | `data` shape |
+|---|---|---|
+| `state` | On connect (initial snapshot) and on every status transition | Redacted RunRecord (same shape as `GET /api/v1/runs/[id]`) |
+| `heartbeat` | Every 30 seconds, for liveness | `{ "ts": <unix-ms> }` |
+| `error` | Per-run subscriber cap reached (rare) | `{ "code": "subscriber-cap-reached" }` |
+
+The `state` event's payload runs through the same per-pipeline
+redactor as `GET /api/v1/runs/[id]` — defense-in-depth at the SSE
+boundary. WHISTLE.bundleUrl, ROTATE.operatorNote, etc. NEVER appear
+in any emitted event (initial OR subsequent transitions).
+
+### Auto-close behavior
+
+- **Terminal status:** the stream emits the final `state` event for
+  `anchored` / `failed` / `cancelled` and closes after a 2-second
+  grace window so the last event reaches the client.
+- **Hard lifetime cap:** 5 minutes. Clients that need longer streams
+  reconnect via the standard `Last-Event-ID` mechanism.
+- **Client disconnect:** closes the subscription immediately — the
+  per-run subscriber Set drops the entry; if it was the last
+  subscriber, the entry is removed from the runId map.
+
+### `Last-Event-ID` reconnect semantics
+
+Browsers and well-behaved EventSource implementations send the
+last-seen event id back on auto-reconnect. The server resumes its
+local id counter from `Last-Event-ID + 1` so the next event carries a
+strictly-increasing id. **The stub does NOT replay missed events** —
+the in-memory store has no event log. The client should re-sync the
+canonical state from `GET /api/v1/runs/[id]` after a reconnect if it
+needs catch-up. The Supabase swap replaces this with channel-replay
+semantics; the request/response shape stays stable.
+
+### EventSource example (browser)
+
+```javascript
+const es = new EventSource(
+  "/api/v1/runs/openai-swift-falcon-3742/events",
+);
+
+es.addEventListener("state", (ev) => {
+  const record = JSON.parse(ev.data);
+  console.log(record.status, record.verdict);
+  // Terminal status arrives just before the server closes the stream.
+  if (["anchored", "failed", "cancelled"].includes(record.status)) {
+    es.close();
+  }
+});
+
+es.addEventListener("heartbeat", () => {
+  // Optional — useful for `Last-Event-ID` reconnect debugging.
+});
+
+es.onerror = () => {
+  // Browser auto-reconnects with `Last-Event-ID` on transient drops.
+  // Re-sync from GET /api/v1/runs/[id] after a long disconnect.
+};
+```
+
+### curl example
+
+```bash
+# Subscribe — initial state event arrives immediately, then heartbeats
+# every 30s, then a final state event on cancel/anchor/fail.
+curl -N \
+  -H "sec-fetch-site: same-origin" \
+  https://studio.pluck.run/api/v1/runs/openai-swift-falcon-3742/events
+# id: 1
+# event: state
+# data: {"runId":"openai-swift-falcon-3742","status":"pending",…}
+#
+# id: 2
+# event: heartbeat
+# data: {"ts":1746381660000}
+#
+# (cancelled out-of-band by another client)
+# id: 3
+# event: state
+# data: {…,"status":"cancelled"}
+# (server closes after 2s grace window)
+
+# Reconnect with Last-Event-ID — server resumes counter from 4.
+curl -N \
+  -H "sec-fetch-site: same-origin" \
+  -H "Last-Event-ID: 3" \
+  https://studio.pluck.run/api/v1/runs/openai-swift-falcon-3742/events
+# id: 4
+# event: state
+# data: {…}
+```
+
+---
+
 ## Machine-readable spec — `/openapi.json`
 
 The /v1/runs surface is published as an auto-generated OpenAPI 3.1
@@ -819,6 +928,12 @@ to its `/api/bureau/<slug>/run` route. New client code should target
 through the deprecated aliases until the runner GA + RFC 8594
 sunset.
 
+**v1 read+streaming surface is structurally complete:** POST creates
++ GET-list + GET-by-id + DELETE-cancel + SSE-events. The remaining
+work to graduate `/v1/runs` from stub to GA is the backend swap
+(Supabase + DSSE + Rekor + Realtime — see "Backend swap plan" below);
+the HTTP contract is frozen.
+
 The legacy `POST /api/bureau/<slug>/run` routes stay alive as
 deprecated aliases throughout. Internally, the migrated routes
 delegate to `lib/v1/run-store` so old callers and new callers see the
@@ -862,14 +977,18 @@ plan in `~/.claude/plans/mighty-gliding-swan.md`.
 
 ## Future surfaces tracked
 
-The following endpoints are documented as planned API surface but have
-**no current implementation**. They land alongside the real-backend
-swap so SDKs can be generated against the planned union today.
+All previously-tracked future surfaces have shipped. The v1 contract
+is structurally complete:
 
 | Endpoint | Purpose | Status |
 |---|---|---|
-| `GET /v1/runs/:id/events` | Server-Sent Events stream of run progress | Planned — no impl |
+| `POST /v1/runs` | Create a run | Shipped |
+| `GET /v1/runs` | Paginated list | Shipped |
+| `GET /v1/runs/:id` | Single record by phraseId | Shipped |
+| `DELETE /v1/runs/:id` | Cancel a pending or running run | Shipped |
+| `GET /v1/runs/:id/events` | Server-Sent Events stream of run progress | Shipped |
 
-Until each ships, the only run-discovery primitive is the `runId` /
-`phraseId` returned by `POST /v1/runs` — bookmark-and-share is the
-intended UX for the wedge.
+The runId / phraseId returned by `POST /v1/runs` remains the share
+credential — bookmark-and-share is still the intended UX for the
+wedge. SSE adds real-time progress on top, without changing the
+share-link primitive.

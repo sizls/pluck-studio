@@ -66,6 +66,7 @@ describe("OpenAPI document — endpoint coverage", () => {
     ["/api/v1/runs", "get"],
     ["/api/v1/runs/{id}", "get"],
     ["/api/v1/runs/{id}", "delete"],
+    ["/api/v1/runs/{id}/events", "get"],
   ])("documents %s %s", (path, verb) => {
     expect(doc().paths[path]?.[verb]).toBeDefined();
   });
@@ -83,6 +84,12 @@ describe("OpenAPI document — endpoint coverage", () => {
   it("GET endpoints declare NO auth (public read by phraseId)", () => {
     expect(doc().paths["/api/v1/runs"]?.get?.security).toEqual([]);
     expect(doc().paths["/api/v1/runs/{id}"]?.get?.security).toEqual([]);
+    expect(doc().paths["/api/v1/runs/{id}/events"]?.get?.security).toEqual([]);
+  });
+
+  it("SSE endpoint documents 200/400/403/404/429", () => {
+    const r = doc().paths["/api/v1/runs/{id}/events"]?.get?.responses ?? {};
+    for (const c of ["200", "400", "403", "404", "429"]) expect(r[c]).toBeDefined();
   });
 });
 

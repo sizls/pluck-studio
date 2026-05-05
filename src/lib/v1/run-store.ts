@@ -62,6 +62,10 @@ declare global {
   var __pluckStudioV1RunStore: Map<string, RunRecord> | undefined;
   // eslint-disable-next-line no-var
   var __pluckStudioV1IdempotencyIndex: Map<string, string> | undefined;
+  // eslint-disable-next-line no-var
+  var __pluckStudioV1RunSubscribers:
+    | Map<string, Set<RunSubscriber>>
+    | undefined;
 }
 
 const runs: Map<string, RunRecord> = (globalThis.__pluckStudioV1RunStore ??=
@@ -69,6 +73,118 @@ const runs: Map<string, RunRecord> = (globalThis.__pluckStudioV1RunStore ??=
 /** idempotencyHash → runId. Same canonical request returns the same run. */
 const idempotency: Map<string, string> =
   (globalThis.__pluckStudioV1IdempotencyIndex ??= new Map<string, string>());
+
+// ---------------------------------------------------------------------------
+// Pub/sub — feeds the SSE endpoint at GET /api/v1/runs/[id]/events
+// ---------------------------------------------------------------------------
+//
+// Tiny in-memory broadcast: subscribers register a callback against a
+// runId; any state-mutating helper (`createRun`, `cancelRun` on an actual
+// transition) publishes the post-transition record to every subscriber.
+// This is the stub-era stand-in for Supabase Realtime channels (see
+// docs/ARCHITECTURE.md § 11). The Supabase swap maps a `subscribeToRun`
+// call to a `runs:id=eq.<runId>` channel subscription with the same
+// public signature, so SSE-route callers do not change.
+//
+// PROPERTIES:
+//   - hoisted on globalThis so Next.js HMR doesn't drop subscribers
+//     between a SSE connect and the next state change
+//   - per-run hard cap on subscriber count (memory protection — caps
+//     unbounded fan-out when a runId trends or is scripted)
+//   - publish errors in one subscriber don't impact others (callbacks
+//     are isolated; throwing callers get logged in dev via
+//     `console.warn` and dropped)
+// ---------------------------------------------------------------------------
+
+export type RunSubscriber = (record: RunRecord) => void;
+
+const SUBSCRIBERS_PER_RUN_CAP = 100;
+
+const subscribers: Map<string, Set<RunSubscriber>> = (globalThis.__pluckStudioV1RunSubscribers ??=
+  new Map<string, Set<RunSubscriber>>());
+
+/**
+ * Subscribe to state transitions on a specific run. The callback is
+ * invoked with the post-transition `RunRecord` whenever the run is
+ * created or its status changes.
+ *
+ * Returns an `unsubscribe` thunk; call it to remove the subscription.
+ * Idempotent — calling unsubscribe twice is safe.
+ *
+ * Subscriber count is hard-capped at {@link SUBSCRIBERS_PER_RUN_CAP}
+ * per runId. Attempts past the cap are rejected with a thrown Error
+ * so the caller (the SSE route) can return a 503 instead of silently
+ * dropping events.
+ */
+export function subscribeToRun(
+  runId: string,
+  cb: RunSubscriber,
+): () => void {
+  let set = subscribers.get(runId);
+  if (set === undefined) {
+    set = new Set();
+    subscribers.set(runId, set);
+  }
+  if (set.size >= SUBSCRIBERS_PER_RUN_CAP) {
+    throw new Error(
+      `[run-store] subscriber cap (${SUBSCRIBERS_PER_RUN_CAP}) reached for runId=${runId}`,
+    );
+  }
+  set.add(cb);
+
+  return () => {
+    const live = subscribers.get(runId);
+    if (live === undefined) {
+      return;
+    }
+    live.delete(cb);
+    if (live.size === 0) {
+      subscribers.delete(runId);
+    }
+  };
+}
+
+/**
+ * Internal — broadcast a record to every subscriber on the runId.
+ * Subscriber callbacks are isolated: a throwing callback is dropped
+ * (logged once in dev) and its handle removed; siblings still receive
+ * the record.
+ */
+function publish(runId: string, record: RunRecord): void {
+  const set = subscribers.get(runId);
+  if (set === undefined || set.size === 0) {
+    return;
+  }
+  // Snapshot before iterating — a callback that unsubscribes itself is
+  // a normal pattern (the SSE route does this on terminal status), and
+  // mutating the Set under iteration is undefined behaviour.
+  const snapshot = Array.from(set);
+  for (const cb of snapshot) {
+    try {
+      cb(record);
+    } catch (err) {
+      // Drop the broken subscriber so subsequent publishes don't keep
+      // exercising it; surface the error in dev so the SSE-route author
+      // can fix it.
+      set.delete(cb);
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn("[run-store] subscriber threw, removing:", err);
+      }
+    }
+  }
+  if (set.size === 0) {
+    subscribers.delete(runId);
+  }
+}
+
+/** @internal — for tests inspecting subscriber bookkeeping. */
+export function __subscriberCount(runId: string): number {
+  return subscribers.get(runId)?.size ?? 0;
+}
+
+/** @internal — stub-only cap constant. Not part of the public API. */
+export const __INTERNAL_SUBSCRIBERS_PER_RUN_CAP = SUBSCRIBERS_PER_RUN_CAP;
 
 /**
  * Compute the canonical idempotency hash for a RunSpec. We hash a
@@ -370,6 +486,12 @@ export function createRun(spec: RunSpec, now: number = Date.now()): CreateRunRes
     idempotency.set(idHash, runId);
   }
 
+  // Broadcast the freshly-minted record. Listeners (e.g. SSE) usually
+  // attach AFTER createRun returns the runId, so this rarely has any
+  // subscribers at create-time — but the contract is "every state
+  // transition publishes" and createRun is the pending→exists transition.
+  publish(runId, record);
+
   return { record, reused: false };
 }
 
@@ -620,6 +742,12 @@ export function cancelRun(
   };
   runs.set(runId, updated);
 
+  // Broadcast the transition. NOTE: the idempotent already-cancelled
+  // branch above does NOT publish — there is no transition, so SSE
+  // subscribers should not see a duplicate `state` event for the same
+  // status.
+  publish(runId, updated);
+
   return { kind: "ok", record: updated, alreadyCancelled: false };
 }
 
@@ -627,6 +755,7 @@ export function cancelRun(
 export function __resetForTests(): void {
   runs.clear();
   idempotency.clear();
+  subscribers.clear();
 }
 
 /** @internal — for tests inspecting cardinality. */
