@@ -1,5 +1,16 @@
 "use client";
 
+// ---------------------------------------------------------------------------
+// BOUNTY Run form — Wave-3 migration to /v1/runs
+// ---------------------------------------------------------------------------
+//
+// PRIVACY INVARIANT: this form NEVER posts an auth token. HackerOne /
+// Bugcrowd credentials stay LOCAL — Studio reads operator-stored
+// credentials at dispatch time. The shared validator
+// (validateBountyPayload) backstops by REJECTING any payload key
+// resembling an auth token.
+// ---------------------------------------------------------------------------
+
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
 import { useRouter } from "next/navigation";
@@ -32,9 +43,27 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/bounty/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors the legacy synthesized key.
+ */
+function idempotencyKeyFor(
+  target: string,
+  program: string,
+  sourceRekorUuid: string,
+): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `bounty:${target}:${program}:${sourceRekorUuid}:${minuteBucket}`;
 }
 
 const TARGET_OPTIONS: ReadonlyArray<{
@@ -133,16 +162,35 @@ export function BountyRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/bounty/run", {
+      const normalizedTarget = target ?? "hackerone";
+      const normalizedProgram = (program ?? "").trim().toLowerCase();
+      const normalizedVendor = (vendor ?? "").trim().toLowerCase();
+      const normalizedModel = (model ?? "").trim().toLowerCase();
+      const normalizedSource = (sourceRekorUuid ?? "").trim().toLowerCase();
+
+      // PRIVACY: payload contains ONLY the canonical activation fields.
+      // No auth token is ever forwarded — Studio reads operator-stored
+      // credentials at dispatch time. The shared validator REJECTS any
+      // payload key resembling an auth token (Bearer-style header,
+      // *_TOKEN env var name, etc.).
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          sourceRekorUuid: (sourceRekorUuid ?? "").trim(),
-          target,
-          program: (program ?? "").trim().toLowerCase(),
-          vendor: (vendor ?? "").trim().toLowerCase(),
-          model: (model ?? "").trim().toLowerCase(),
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:bounty",
+          payload: {
+            sourceRekorUuid: normalizedSource,
+            target: normalizedTarget,
+            program: normalizedProgram,
+            vendor: normalizedVendor,
+            model: normalizedModel,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(
+            normalizedTarget,
+            normalizedProgram,
+            normalizedSource,
+          ),
         }),
       });
       const body = (await res.json()) as RunResponse;
@@ -151,7 +199,7 @@ export function BountyRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `File failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -159,10 +207,10 @@ export function BountyRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
-      router.push(`/bureau/bounty/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/bounty/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

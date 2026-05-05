@@ -1,5 +1,16 @@
 "use client";
 
+// ---------------------------------------------------------------------------
+// ROTATE Run form — Wave-3 migration to /v1/runs
+// ---------------------------------------------------------------------------
+//
+// PRIVACY INVARIANT: this form NEVER posts private-key material. Only the
+// PUBLIC SPKI fingerprints (sha256 of the public key) cross the wire. The
+// operator's runner signs the revocation server-side with operator-held
+// HSM keys. The shared validator (validateRotatePayload) backstops by
+// REJECTING any payload key resembling private-key material.
+// ---------------------------------------------------------------------------
+
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
 import { useRouter } from "next/navigation";
@@ -32,9 +43,27 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/rotate/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors the legacy synthesized key.
+ */
+function idempotencyKeyFor(
+  reason: string,
+  oldKey: string,
+  newKey: string,
+): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `rotate:${reason}:${oldKey}:${newKey}:${minuteBucket}`;
 }
 
 const REASON_OPTIONS: ReadonlyArray<{
@@ -133,15 +162,27 @@ export function RotateRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/rotate/run", {
+      const normalizedReason = reason ?? "compromised";
+      const trimmedNote = (operatorNote ?? "").trim();
+
+      // PRIVACY: payload contains ONLY public SPKI fingerprints. No
+      // private-key material is ever forwarded — the runner signs
+      // revocations server-side with operator-held HSM keys. The
+      // shared validator REJECTS any payload key resembling private
+      // key material (defense-in-depth).
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          oldKeyFingerprint: oldKey,
-          newKeyFingerprint: newKey,
-          reason,
-          operatorNote: (operatorNote ?? "").trim(),
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:rotate",
+          payload: {
+            oldKeyFingerprint: oldKey,
+            newKeyFingerprint: newKey,
+            reason: normalizedReason,
+            operatorNote: trimmedNote.length > 0 ? trimmedNote : undefined,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(normalizedReason, oldKey, newKey),
         }),
       });
       const body = (await res.json()) as RunResponse;
@@ -150,7 +191,7 @@ export function RotateRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Rotate failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -158,10 +199,10 @@ export function RotateRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
-      router.push(`/bureau/rotate/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/rotate/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

@@ -1,22 +1,54 @@
 // ---------------------------------------------------------------------------
-// POST /api/bureau/tripwire/run — TRIPWIRE configure endpoint (Phase-2 stub)
+// POST /api/bureau/tripwire/run — TRIPWIRE configure endpoint (DEPRECATED ALIAS)
 // ---------------------------------------------------------------------------
 //
-// First *configuration* program through the pattern. Receipt
-// represents one active deployment, not a one-shot run.
+// !! DEPRECATED — clients should POST to /api/v1/runs with
+//    { pipeline: "bureau:tripwire", payload: { ...this body... } }. !!
+//
+// Wave-3 migration: this route stays alive as a deprecated alias so callers
+// that haven't migrated keep working, but it now validates via the shared
+// `validateTripwirePayload` and dual-writes into the v1 store so legacy
+// + /v1/runs callers converge on the same phraseId for the same payload.
+//
+// Day-1 contract preserved:
+//   1. Auth check by Supabase JWT cookie presence.
+//   2. CSRF defence — same-origin enforced.
+//   3. machineId slug grammar + policySource enum + https-only
+//      customPolicyUrl (when policySource = "custom") + private-IP block
+//      + ToS / authorization assertion.
+//   4. On success: { runId, phraseId, machineId, policySource, notarize,
+//      status:"configuration pending", deprecated: true,
+//      replacement: "/api/v1/runs" } + RFC 8594 Deprecation/Sunset/Link
+//      headers. runId === phraseId — single primitive, identical on
+//      idempotent retries.
+//
+// SECURITY: customPolicyUrl is validated at submission. The runner
+// (Phase 2.5) that ACTUALLY fetches the URL must re-validate scheme +
+// re-resolve hostname + reject redirects + cap timeout/size + parse
+// untrusted JSON (no eval). See the SECURITY block in the validator
+// for the full runner contract.
+//
+// Idempotency contract: legacy TRIPWIRE callers double-clicking within
+// ~60s dedupe to the SAME phraseId as a /v1/runs caller posting the
+// same body — we synthesize the same minute-bucketed key the RunForm
+// uses (`tripwire:<machineId>:<policySource>:<minute>`) before delegating.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 
-import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import {
   isAuthed,
-  isPrivateOrLocalHost,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
-import { isValidMachineId } from "../../../../../lib/tripwire/run-form-module";
+import { validateTripwirePayload } from "../../../../../lib/v1/pipeline-validators";
+import { createRun } from "../../../../../lib/v1/run-store";
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecation: "true",
+  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
+  Link: '</api/v1/runs>; rel="successor-version"',
+};
 
 interface TripwireRequestBody {
   machineId?: string;
@@ -26,21 +58,24 @@ interface TripwireRequestBody {
   authorizationAcknowledged?: boolean;
 }
 
-const VALID_POLICY_SOURCES = new Set(["default", "custom"]);
-const ALLOWED_SCHEMES = new Set(["https:"]);
+/**
+ * Synthesize the same minute-bucketed idempotency key the TRIPWIRE
+ * RunForm sends to /v1/runs. Format:
+ *   `tripwire:<machineId>:<policySource>:<minute-bucket>`
+ *
+ * Legacy double-click + /v1/runs double-click with the same payload land
+ * on the SAME stored run record.
+ */
+function synthesizeIdempotencyKey(
+  machineId: string,
+  policySource: string,
+  now: number = Date.now(),
+): string {
+  const minuteBucket = Math.floor(now / 60_000);
 
-// SECURITY: customPolicyUrl is validated at submission (HTTPS + private-IP block)
-// but the runner (Phase 2.5) will FETCH the URL at evaluation time. Runner
-// contract REQUIRED:
-//   1. Re-validate scheme = https at fetch time
-//   2. Re-resolve hostname; reject if any resolved address falls in
-//      RFC1918 / link-local / loopback / IPv6 ULA ranges (TOCTOU defence
-//      against DNS rebinding)
-//   3. Disallow redirects (or re-validate every redirect target the same way)
-//   4. Cap fetch timeout + body size
-//   5. Treat fetched policy as untrusted JSON (parse with Zod, no eval)
-// Persist canonicalised parsed.href; do NOT persist raw user input.
-// See AE R1 finding S2. Runner adopters must reference this comment.
+  return `tripwire:${machineId}:${policySource}:${minuteBucket}`;
+}
+
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
     return NextResponse.json(
@@ -72,82 +107,55 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const machineId = body.machineId?.trim().toLowerCase() ?? "";
-  const policySource = body.policySource?.trim() ?? "";
-  const customPolicyUrl = body.customPolicyUrl?.trim() ?? "";
+
+  // Single source of truth — the same validator /v1/runs uses. Keeps the
+  // two surfaces from drifting.
+  const result = validateTripwirePayload(body);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
+
+  // After validation passes, normalize for the response shape + dedupe key.
+  const machineId = (body.machineId ?? "").trim().toLowerCase();
+  const policySource = (body.policySource ?? "").trim();
+  const customPolicyUrl = (body.customPolicyUrl ?? "").trim();
   const notarize = body.notarize === true;
 
-  if (!isValidMachineId(machineId)) {
-    return NextResponse.json(
-      {
-        error:
-          "Machine ID must be a short lowercase slug (e.g. 'alice-mbp'); ≤ 48 chars, no spaces, no leading/trailing hyphen.",
-      },
-      { status: 400 },
-    );
-  }
-  if (!VALID_POLICY_SOURCES.has(policySource)) {
-    return NextResponse.json(
-      { error: "Policy source must be 'default' or 'custom'" },
-      { status: 400 },
-    );
-  }
-  if (policySource === "custom") {
-    if (!customPolicyUrl) {
-      return NextResponse.json(
-        { error: "Custom policy URL is required when policy source = custom" },
-        { status: 400 },
-      );
-    }
-    let parsed: URL;
-    try {
-      parsed = new URL(customPolicyUrl);
-    } catch {
-      return NextResponse.json(
-        { error: "Custom policy URL must be a valid URL (include https://)" },
-        { status: 400 },
-      );
-    }
-    if (!ALLOWED_SCHEMES.has(parsed.protocol)) {
-      return NextResponse.json(
-        { error: "Custom policy URL must use https://" },
-        { status: 400 },
-      );
-    }
-    if (isPrivateOrLocalHost(parsed.hostname)) {
-      return NextResponse.json(
-        {
-          error:
-            "Custom policy URL cannot point at localhost, private, or link-local addresses.",
-        },
-        { status: 400 },
-      );
-    }
-  }
-  if (body.authorizationAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge that you are authorized to deploy a tripwire on this machine.",
-      },
-      { status: 400 },
-    );
-  }
-  const runId = randomUUID();
-  // Phrase prefix is the machine ID — each machine's deployment has
-  // its own permanent receipt URL like alice-mbp-amber-otter-3742.
-  const phraseId = generateScopedPhraseId(`https://${machineId}.example`);
+  // Delegate persistence to the unified /v1/runs store so the receipt
+  // page can read this run back via GET /api/v1/runs/[id]. The store
+  // assigns the canonical machine-id-scoped phraseId — that becomes
+  // the user-facing runId.
+  //
+  // customPolicyUrl is omitted from the payload when empty (default
+  // policy) so canonicalJson skips it and legacy + /v1/runs hash
+  // identically.
+  const { record } = createRun({
+    pipeline: "bureau:tripwire",
+    payload: {
+      machineId,
+      policySource,
+      customPolicyUrl:
+        policySource === "custom" && customPolicyUrl.length > 0
+          ? customPolicyUrl
+          : undefined,
+      notarize,
+      authorizationAcknowledged: body.authorizationAcknowledged,
+    },
+    idempotencyKey: synthesizeIdempotencyKey(machineId, policySource),
+  });
 
   return NextResponse.json(
     {
-      runId,
-      phraseId,
+      runId: record.runId,
+      phraseId: record.runId,
       machineId,
       policySource,
       notarize,
       status: "configuration pending",
-      note: "stub configure — pluck-api /v1/tripwire/configure not yet wired; see plan",
+      deprecated: true,
+      replacement: "/api/v1/runs",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:tripwire",
     },
-    { status: 200 },
+    { status: 200, headers: DEPRECATION_HEADERS },
   );
 }

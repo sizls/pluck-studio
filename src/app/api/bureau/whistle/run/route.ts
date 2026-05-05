@@ -1,29 +1,56 @@
 // ---------------------------------------------------------------------------
-// POST /api/bureau/whistle/run — WHISTLE submit endpoint (Phase-5 stub)
+// POST /api/bureau/whistle/run — WHISTLE submit endpoint (DEPRECATED ALIAS)
 // ---------------------------------------------------------------------------
 //
-// First *capture* program through the activation pattern. Operator
-// submits a tip-bundle URL + category + routing partner; Studio
-// fetches, redacts, routes, anchors. The receipt is the operator's
-// proof of submission; verifying the truth of the tip is downstream.
+// !! DEPRECATED — clients should POST to /api/v1/runs with
+//    { pipeline: "bureau:whistle", payload: { ...this body... } }. !!
 //
-// V2-A scope:
-//   - URL-fetched bundle only (paste-JSON deferred)
-//   - Single routing partner per submission
-//   - Both anonymityCaveatAcknowledged AND authorizationAcknowledged
-//     required (heavier legal posture than verify programs)
+// Wave-3 migration: this route stays alive as a deprecated alias so callers
+// that haven't migrated keep working, but it now validates via the shared
+// `validateWhistlePayload` and dual-writes into the v1 store so legacy
+// + /v1/runs callers converge on the same phraseId for the same payload.
+//
+// Day-1 contract preserved:
+//   1. Auth check by Supabase JWT cookie presence.
+//   2. CSRF defence — same-origin enforced.
+//   3. PRIVACY INVARIANT: the receipt URL prefix is the routing-partner
+//      slug, NOT the source. The bundleUrl participates in the canonical
+//      hash (idempotency) but is NEVER echoed in the response body. The
+//      shared validator REJECTS any payload key resembling
+//      source-identifying material (sourceName, sourceEmail, sourceIp,
+//      etc.).
+//   4. https-only bundleUrl + private-IP block + category enum +
+//      routingPartner enum + manualRedactPhrase length cap + BOTH
+//      anonymity-caveat AND authorization acks.
+//   5. On success: { runId, phraseId, category, routingPartner,
+//      status:"submission pending", deprecated: true,
+//      replacement: "/api/v1/runs" } + RFC 8594 Deprecation/Sunset/Link
+//      headers. NOTE: bundleUrl is intentionally NOT echoed —
+//      anonymity-by-default. runId === phraseId — single primitive,
+//      identical on idempotent retries.
+//
+// Idempotency contract: legacy WHISTLE callers double-clicking within
+// ~60s dedupe to the SAME phraseId as a /v1/runs caller posting the
+// same body — we synthesize the same minute-bucketed key the RunForm
+// uses (`whistle:<routingPartner>:<category>:<bundleUrl>:<minute>`)
+// before delegating.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 
-import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import {
   isAuthed,
-  isPrivateOrLocalHost,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { validateWhistlePayload } from "../../../../../lib/v1/pipeline-validators";
+import { createRun } from "../../../../../lib/v1/run-store";
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecation: "true",
+  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
+  Link: '</api/v1/runs>; rel="successor-version"',
+};
 
 interface WhistleRequestBody {
   bundleUrl?: string;
@@ -34,21 +61,24 @@ interface WhistleRequestBody {
   authorizationAcknowledged?: boolean;
 }
 
-const ALLOWED_BUNDLE_SCHEMES = new Set(["https:"]);
-const VALID_CATEGORIES = new Set([
-  "training-data",
-  "policy-violation",
-  "safety-incident",
-]);
-const VALID_ROUTING_PARTNERS = new Set([
-  "propublica",
-  "bellingcat",
-  "404media",
-  "eff-press",
-]);
-// Sanity bound on the manual-redact phrase — long phrases mean the
-// scrub regex grows unboundedly, slowing the redactor on big bundles.
-const MAX_REDACT_PHRASE_LENGTH = 256;
+/**
+ * Synthesize the same minute-bucketed idempotency key the WHISTLE
+ * RunForm sends to /v1/runs. Format:
+ *   `whistle:<routingPartner>:<category>:<bundleUrl>:<minute-bucket>`
+ *
+ * Legacy double-click + /v1/runs double-click with the same payload land
+ * on the SAME stored run record.
+ */
+function synthesizeIdempotencyKey(
+  routingPartner: string,
+  category: string,
+  bundleUrl: string,
+  now: number = Date.now(),
+): string {
+  const minuteBucket = Math.floor(now / 60_000);
+
+  return `whistle:${routingPartner}:${category}:${bundleUrl}:${minuteBucket}`;
+}
 
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
@@ -81,100 +111,59 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const bundleUrl = body.bundleUrl?.trim();
-  const category = body.category?.trim();
-  const routingPartner = body.routingPartner?.trim();
-  const manualRedactPhrase = body.manualRedactPhrase?.trim() ?? "";
 
-  if (!bundleUrl) {
-    return NextResponse.json(
-      { error: "Bundle URL is required (https:// only)" },
-      { status: 400 },
-    );
+  // Single source of truth — the same validator /v1/runs uses. Keeps the
+  // two surfaces from drifting. Validator also enforces the privacy
+  // invariant (rejects any source-identifying payload key).
+  const result = validateWhistlePayload(body);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
-  if (!category || !VALID_CATEGORIES.has(category)) {
-    return NextResponse.json(
-      {
-        error:
-          "Category must be one of 'training-data', 'policy-violation', 'safety-incident'",
-      },
-      { status: 400 },
-    );
-  }
-  if (!routingPartner || !VALID_ROUTING_PARTNERS.has(routingPartner)) {
-    return NextResponse.json(
-      {
-        error:
-          "Routing partner must be one of 'propublica', 'bellingcat', '404media', 'eff-press'",
-      },
-      { status: 400 },
-    );
-  }
-  if (manualRedactPhrase.length > MAX_REDACT_PHRASE_LENGTH) {
-    return NextResponse.json(
-      {
-        error: `Manual redact phrase must be ≤ ${MAX_REDACT_PHRASE_LENGTH} characters.`,
-      },
-      { status: 400 },
-    );
-  }
-  if (body.anonymityCaveatAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge that anonymity is best-effort, NOT absolute, before submitting.",
-      },
-      { status: 400 },
-    );
-  }
-  if (body.authorizationAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge that you are authorized to submit this bundle.",
-      },
-      { status: 400 },
-    );
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(bundleUrl);
-  } catch {
-    return NextResponse.json(
-      { error: "Bundle URL must be a valid URL (include https://)" },
-      { status: 400 },
-    );
-  }
-  if (!ALLOWED_BUNDLE_SCHEMES.has(parsed.protocol)) {
-    return NextResponse.json(
-      { error: "Bundle URL must use https://" },
-      { status: 400 },
-    );
-  }
-  if (isPrivateOrLocalHost(parsed.hostname)) {
-    return NextResponse.json(
-      {
-        error:
-          "Bundle URL cannot point at localhost, private, or link-local addresses.",
-      },
-      { status: 400 },
-    );
-  }
-  const runId = randomUUID();
-  // For WHISTLE the phrase ID prefix is the routing-partner slug,
-  // NOT the bundle source — anonymity-by-default. The vendor or
-  // source identity stays inside the bundle body, never in the URL.
-  const phraseId = generateScopedPhraseId(`https://${routingPartner}.example`);
 
+  // After validation passes, normalize for the response shape + dedupe key.
+  const bundleUrl = (body.bundleUrl ?? "").trim();
+  const category = (body.category ?? "").trim();
+  const routingPartner = (body.routingPartner ?? "").trim();
+  const manualRedactPhraseRaw = (body.manualRedactPhrase ?? "").trim();
+
+  // Delegate persistence to the unified /v1/runs store so the receipt
+  // page can read this run back via GET /api/v1/runs/[id]. The store
+  // assigns the canonical routing-partner-scoped phraseId — that
+  // becomes the user-facing runId. The phrase prefix is the routing
+  // partner, NEVER the bundle source — anonymity-by-default.
+  const { record } = createRun({
+    pipeline: "bureau:whistle",
+    payload: {
+      bundleUrl,
+      category,
+      routingPartner,
+      manualRedactPhrase:
+        manualRedactPhraseRaw.length > 0 ? manualRedactPhraseRaw : undefined,
+      anonymityCaveatAcknowledged: body.anonymityCaveatAcknowledged,
+      authorizationAcknowledged: body.authorizationAcknowledged,
+    },
+    idempotencyKey: synthesizeIdempotencyKey(
+      routingPartner,
+      category,
+      bundleUrl,
+    ),
+  });
+
+  // Privacy invariant: NEVER echo `bundleUrl` here — anonymity-by-default.
+  // The bundleUrl participates in the canonical hash (idempotency) but
+  // does not surface in the receipt or the response. Same posture as the
+  // legacy route's pre-migration response.
   return NextResponse.json(
     {
-      runId,
-      phraseId,
+      runId: record.runId,
+      phraseId: record.runId,
       category,
       routingPartner,
       status: "submission pending",
-      note: "stub submit — pluck-api /v1/whistle/submit not yet wired; see plan",
+      deprecated: true,
+      replacement: "/api/v1/runs",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:whistle",
     },
-    { status: 200 },
+    { status: 200, headers: DEPRECATION_HEADERS },
   );
 }

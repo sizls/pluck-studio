@@ -489,22 +489,204 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   });
 });
 
-describe("POST /api/v1/runs — bureau pipelines without targetUrl", () => {
-  it("accepts bureau:whistle with a passthrough payload (slug-prefixed runId)", async () => {
-    // WHISTLE is still a stub validator — accepts any object. CUSTODY,
-    // which previously stood in for this test, is now a real validator
-    // that rejects payloads missing bundleUrl. WHISTLE preserves the
-    // "slug-prefixed runId fallback" coverage.
+describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE/TRIPWIRE/WHISTLE)", () => {
+  it("BOUNTY — accepts a fully-formed payload + assigns target-scoped runId", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:whistle",
-        payload: { incidentTitle: "test-incident" },
+        pipeline: "bureau:bounty",
+        payload: {
+          sourceRekorUuid: "a".repeat(64),
+          target: "hackerone",
+          program: "openai",
+          vendor: "openai",
+          model: "gpt-4o",
+          authorizationAcknowledged: true,
+        },
       }),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
-    expect(body.runId).toMatch(/^whistle-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.runId).toMatch(/^hackerone-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/bounty/runs/${body.runId}`);
+  });
+
+  it("BOUNTY — PRIVACY INVARIANT: rejects payloads carrying Bearer token", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:bounty",
+        payload: {
+          sourceRekorUuid: "a".repeat(64),
+          target: "hackerone",
+          program: "openai",
+          vendor: "openai",
+          model: "gpt-4o",
+          Bearer: "tok_abc",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/auth-token-shaped/i);
+  });
+
+  it("SBOM-AI — accepts a fully-formed payload + assigns kind-scoped runId", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:sbom-ai",
+        payload: {
+          artifactUrl: "https://example.com/pack.json",
+          artifactKind: "probe-pack",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    // probe-pack → "probepack" via vendorSlugFromUrl normalization (slug
+    // strips non-alphanum). Three-segment match guards against a future
+    // slug-shape change.
+    expect(body.runId).toMatch(/^[a-z]+-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/sbom-ai/runs/${body.runId}`);
+  });
+
+  it("SBOM-AI — rejects http:// artifactUrl", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:sbom-ai",
+        payload: {
+          artifactUrl: "http://example.com/pack.json",
+          artifactKind: "probe-pack",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("ROTATE — accepts a fully-formed payload + assigns reason-scoped runId", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:rotate",
+        payload: {
+          oldKeyFingerprint: "a".repeat(64),
+          newKeyFingerprint: "b".repeat(64),
+          reason: "compromised",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    expect(body.runId).toMatch(/^compromised-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/rotate/runs/${body.runId}`);
+  });
+
+  it("ROTATE — PRIVACY INVARIANT: rejects payloads carrying privateKey", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:rotate",
+        payload: {
+          oldKeyFingerprint: "a".repeat(64),
+          newKeyFingerprint: "b".repeat(64),
+          reason: "compromised",
+          privateKey: "-----BEGIN PRIVATE KEY-----...",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/never accepts private-key material/i);
+  });
+
+  it("TRIPWIRE — accepts a fully-formed payload + assigns machine-scoped runId", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:tripwire",
+        payload: {
+          machineId: "alice-mbp",
+          policySource: "default",
+          notarize: false,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    expect(body.runId).toMatch(/^alicembp-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/tripwire/runs/${body.runId}`);
+  });
+
+  it("TRIPWIRE — rejects custom policySource without customPolicyUrl", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:tripwire",
+        payload: {
+          machineId: "alice-mbp",
+          policySource: "custom",
+          notarize: false,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("WHISTLE — accepts a fully-formed payload + assigns partner-scoped runId", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://example.com/tip.json",
+          category: "training-data",
+          routingPartner: "propublica",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    expect(body.runId).toMatch(/^propublica-[a-z]+-[a-z]+-\d{4}$/);
     expect(body.receiptUrl).toBe(`/bureau/whistle/runs/${body.runId}`);
+  });
+
+  it("WHISTLE — PRIVACY INVARIANT: rejects payloads carrying sourceName", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://example.com/tip.json",
+          category: "training-data",
+          routingPartner: "propublica",
+          sourceName: "Jane Doe",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/source-identifying/i);
+  });
+
+  it("WHISTLE — phrase prefix is the routing partner not the bundle host", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://anonymous-source-host.example/bundle.json",
+          category: "policy-violation",
+          routingPartner: "bellingcat",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    expect(body.runId).toMatch(/^bellingcat-[a-z]+-[a-z]+-\d{4}$/);
   });
 });
 

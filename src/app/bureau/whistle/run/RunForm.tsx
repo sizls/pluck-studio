@@ -1,7 +1,15 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// WHISTLE Run form — first capture-pattern program through activation
+// WHISTLE Run form — Wave-3 migration to /v1/runs
+// ---------------------------------------------------------------------------
+//
+// PRIVACY INVARIANT: this form NEVER posts source-identifying material.
+// The receipt URL prefix is the routing-partner slug — NOT the source.
+// The bundleUrl participates in the canonical hash (idempotency dedupe)
+// but is intentionally NOT echoed in the receipt. The shared validator
+// (validateWhistlePayload) backstops by REJECTING any payload key
+// resembling source-identifying material (sourceName, sourceEmail, etc.).
 // ---------------------------------------------------------------------------
 
 import { createSystem } from "@directive-run/core";
@@ -37,9 +45,27 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/whistle/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors the legacy synthesized key.
+ */
+function idempotencyKeyFor(
+  routingPartner: string,
+  category: string,
+  bundleUrl: string,
+): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `whistle:${routingPartner}:${category}:${bundleUrl}:${minuteBucket}`;
 }
 
 const CATEGORY_OPTIONS: ReadonlyArray<{
@@ -166,16 +192,34 @@ export function WhistleRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/whistle/run", {
+      const normalizedBundleUrl = (bundleUrl ?? "").trim();
+      const normalizedCategory = category ?? "training-data";
+      const normalizedPartner = routingPartner ?? "propublica";
+      const trimmedRedact = (manualRedactPhrase ?? "").trim();
+
+      // PRIVACY: payload contains the canonical activation fields only.
+      // The receipt page never echoes bundleUrl back; it lives in the
+      // canonical hash for idempotency dedupe. The shared validator
+      // REJECTS any payload key resembling source-identifying material.
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          bundleUrl: bundleUrl?.trim(),
-          category,
-          routingPartner,
-          manualRedactPhrase: manualRedactPhrase ?? "",
-          anonymityCaveatAcknowledged: anonAck,
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:whistle",
+          payload: {
+            bundleUrl: normalizedBundleUrl,
+            category: normalizedCategory,
+            routingPartner: normalizedPartner,
+            manualRedactPhrase:
+              trimmedRedact.length > 0 ? trimmedRedact : undefined,
+            anonymityCaveatAcknowledged: anonAck,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(
+            normalizedPartner,
+            normalizedCategory,
+            normalizedBundleUrl,
+          ),
         }),
       });
 
@@ -186,7 +230,7 @@ export function WhistleRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Submit failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -194,11 +238,11 @@ export function WhistleRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
 
-      router.push(`/bureau/whistle/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/whistle/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

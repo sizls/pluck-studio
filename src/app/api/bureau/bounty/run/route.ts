@@ -1,26 +1,52 @@
 // ---------------------------------------------------------------------------
-// POST /api/bureau/bounty/run — BOUNTY file endpoint (Phase-6 stub)
+// POST /api/bureau/bounty/run — BOUNTY file endpoint (DEPRECATED ALIAS)
 // ---------------------------------------------------------------------------
 //
-// Auth tokens (HackerOne / Bugcrowd) NEVER appear in the request body
-// or the response. Per the BOUNTY landing's "auth tokens stay LOCAL"
-// posture — Studio's hosted mode reads operator-stored credentials at
-// dispatch time, the form/route never touches them.
+// !! DEPRECATED — clients should POST to /api/v1/runs with
+//    { pipeline: "bureau:bounty", payload: { ...this body... } }. !!
+//
+// Wave-3 migration: this route stays alive as a deprecated alias so callers
+// that haven't migrated keep working, but it now validates via the shared
+// `validateBountyPayload` and dual-writes into the v1 store so legacy
+// + /v1/runs callers converge on the same phraseId for the same payload.
+//
+// Day-1 contract preserved:
+//   1. Auth check by Supabase JWT cookie presence.
+//   2. CSRF defence — same-origin enforced.
+//   3. Per the BOUNTY landing's "auth tokens stay LOCAL" posture: tokens
+//      NEVER appear in the request body or the response. The shared
+//      validator REJECTS any payload key resembling an auth token —
+//      defense-in-depth in case a misbuilt client tries to forward one.
+//   4. Source-Rekor UUID hex grammar + target enum + program / vendor /
+//      model slug grammar + ToS / authorization assertion.
+//   5. On success: { runId, phraseId, target, program, vendor, model,
+//      sourceRekorUuid, status:"filing pending", deprecated: true,
+//      replacement: "/api/v1/runs" } + RFC 8594 Deprecation/Sunset/Link
+//      headers. runId === phraseId — single primitive, identical on
+//      idempotent retries.
+//
+// Idempotency contract: legacy BOUNTY callers double-clicking within
+// ~60s dedupe to the SAME phraseId as a /v1/runs caller posting the
+// same body — we synthesize the same minute-bucketed key the RunForm
+// uses (`bounty:<target>:<program>:<sourceRekorUuid>:<minute>`) before
+// delegating.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 
-import {
-  isValidProgramSlug,
-  isValidRekorUuid,
-} from "../../../../../lib/bounty/run-form-module";
-import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import {
   isAuthed,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { validateBountyPayload } from "../../../../../lib/v1/pipeline-validators";
+import { createRun } from "../../../../../lib/v1/run-store";
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecation: "true",
+  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
+  Link: '</api/v1/runs>; rel="successor-version"',
+};
 
 interface BountyRequestBody {
   sourceRekorUuid?: string;
@@ -31,10 +57,24 @@ interface BountyRequestBody {
   authorizationAcknowledged?: boolean;
 }
 
-const VALID_TARGETS = new Set(["hackerone", "bugcrowd"]);
+/**
+ * Synthesize the same minute-bucketed idempotency key the BOUNTY RunForm
+ * sends to /v1/runs. Format:
+ *   `bounty:<target>:<program>:<sourceRekorUuid>:<minute-bucket>`
+ *
+ * Legacy double-click + /v1/runs double-click with the same payload land
+ * on the SAME stored run record.
+ */
+function synthesizeIdempotencyKey(
+  target: string,
+  program: string,
+  sourceRekorUuid: string,
+  now: number = Date.now(),
+): string {
+  const minuteBucket = Math.floor(now / 60_000);
 
-const VENDOR_SLUG_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
-const MODEL_SLUG_PATTERN = /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/;
+  return `bounty:${target}:${program}:${sourceRekorUuid}:${minuteBucket}`;
+}
 
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
@@ -67,84 +107,53 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const sourceRekorUuid = body.sourceRekorUuid?.trim().toLowerCase() ?? "";
-  const target = body.target?.trim().toLowerCase() ?? "";
-  const program = body.program?.trim().toLowerCase() ?? "";
-  const vendor = body.vendor?.trim().toLowerCase() ?? "";
-  const model = body.model?.trim().toLowerCase() ?? "";
 
-  if (!sourceRekorUuid) {
-    return NextResponse.json(
-      { error: "Source Rekor UUID is required" },
-      { status: 400 },
-    );
+  // Single source of truth — the same validator /v1/runs uses. Keeps the
+  // two surfaces from drifting. Validator also enforces the privacy
+  // invariant (rejects any auth-token-shaped payload key).
+  const result = validateBountyPayload(body);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
-  if (!isValidRekorUuid(sourceRekorUuid)) {
-    return NextResponse.json(
-      { error: "Source Rekor UUID must be 64–80 hex characters" },
-      { status: 400 },
-    );
-  }
-  if (!VALID_TARGETS.has(target)) {
-    return NextResponse.json(
-      { error: "Target must be 'hackerone' or 'bugcrowd'" },
-      { status: 400 },
-    );
-  }
-  if (!program) {
-    return NextResponse.json(
-      { error: "Program slug is required (e.g. 'openai')" },
-      { status: 400 },
-    );
-  }
-  if (!isValidProgramSlug(program)) {
-    return NextResponse.json(
-      {
-        error:
-          "Program must be a short lowercase slug (e.g. 'openai'); no dots, no slashes.",
-      },
-      { status: 400 },
-    );
-  }
-  if (!vendor || !VENDOR_SLUG_PATTERN.test(vendor)) {
-    return NextResponse.json(
-      { error: "Vendor must be a short lowercase slug (e.g. 'openai')" },
-      { status: 400 },
-    );
-  }
-  if (!model || !MODEL_SLUG_PATTERN.test(model) || model.length > 64) {
-    return NextResponse.json(
-      { error: "Model must be a slug like 'gpt-4o' or 'claude-3-5-sonnet'" },
-      { status: 400 },
-    );
-  }
-  if (body.authorizationAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge that you are authorized to file this bounty before submitting.",
-      },
-      { status: 400 },
-    );
-  }
-  const runId = randomUUID();
-  // Phrase ID prefix is the platform target — the URL self-discloses
-  // *which platform was filed against*, not the source operator or
-  // the affected vendor (vendor is in the receipt body).
-  const phraseId = generateScopedPhraseId(`https://${target}.example`);
+
+  // After validation passes, normalize for the response shape + dedupe key.
+  const sourceRekorUuid = (body.sourceRekorUuid ?? "").trim().toLowerCase();
+  const target = (body.target ?? "").trim().toLowerCase();
+  const program = (body.program ?? "").trim().toLowerCase();
+  const vendor = (body.vendor ?? "").trim().toLowerCase();
+  const model = (body.model ?? "").trim().toLowerCase();
+
+  // Delegate persistence to the unified /v1/runs store so the receipt
+  // page can read this run back via GET /api/v1/runs/[id]. The store
+  // assigns the canonical target-scoped phraseId — that becomes the
+  // user-facing runId.
+  const { record } = createRun({
+    pipeline: "bureau:bounty",
+    payload: {
+      sourceRekorUuid,
+      target,
+      program,
+      vendor,
+      model,
+      authorizationAcknowledged: body.authorizationAcknowledged,
+    },
+    idempotencyKey: synthesizeIdempotencyKey(target, program, sourceRekorUuid),
+  });
 
   return NextResponse.json(
     {
-      runId,
-      phraseId,
+      runId: record.runId,
+      phraseId: record.runId,
       target,
       program,
       vendor,
       model,
       sourceRekorUuid,
       status: "filing pending",
-      note: "stub file — pluck-api /v1/bounty/file not yet wired; see plan",
+      deprecated: true,
+      replacement: "/api/v1/runs",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:bounty",
     },
-    { status: 200 },
+    { status: 200, headers: DEPRECATION_HEADERS },
   );
 }

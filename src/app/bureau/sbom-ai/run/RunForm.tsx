@@ -1,5 +1,9 @@
 "use client";
 
+// ---------------------------------------------------------------------------
+// SBOM-AI Run form — Wave-3 migration to /v1/runs
+// ---------------------------------------------------------------------------
+
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
 import { useRouter } from "next/navigation";
@@ -31,9 +35,28 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/sbom-ai/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors the legacy synthesized key.
+ */
+function idempotencyKeyFor(
+  artifactKind: string,
+  artifactUrl: string,
+  expectedSha256: string,
+): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+  const hashSuffix = expectedSha256.length > 0 ? expectedSha256 : "none";
+
+  return `sbom-ai:${artifactKind}:${artifactUrl}:${hashSuffix}:${minuteBucket}`;
 }
 
 const KIND_OPTIONS: ReadonlyArray<{
@@ -137,14 +160,27 @@ export function SbomAiRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/sbom-ai/run", {
+      const normalizedArtifactUrl = (artifactUrl ?? "").trim();
+      const normalizedKind = artifactKind ?? "probe-pack";
+      const normalizedHash = trimmedHash.toLowerCase();
+
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          artifactUrl: (artifactUrl ?? "").trim(),
-          artifactKind,
-          expectedSha256: trimmedHash.length > 0 ? trimmedHash : undefined,
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:sbom-ai",
+          payload: {
+            artifactUrl: normalizedArtifactUrl,
+            artifactKind: normalizedKind,
+            expectedSha256:
+              normalizedHash.length > 0 ? normalizedHash : undefined,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(
+            normalizedKind,
+            normalizedArtifactUrl,
+            normalizedHash,
+          ),
         }),
       });
       const body = (await res.json()) as RunResponse;
@@ -153,7 +189,7 @@ export function SbomAiRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Publish failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -161,10 +197,10 @@ export function SbomAiRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
-      router.push(`/bureau/sbom-ai/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/sbom-ai/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

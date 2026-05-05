@@ -78,6 +78,42 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
     system.facts.id = id;
   }, [system, id]);
 
+  // /v1/runs migration probe — once a runId is in the unified store,
+  // tag the receipt as "via /v1/runs" so it's obvious which path the
+  // page used. Gated behind dev builds OR an explicit `?debug=1` query
+  // param to avoid burning a network round-trip on every receipt
+  // render in production. The probe response carries only the run
+  // record; auth tokens never appear in /v1/runs.
+  const [viaV1, setViaV1] = useState(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") {
+      const hasDebug =
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("debug") === "1";
+      if (!hasDebug) {
+        return;
+      }
+    }
+    let cancelled = false;
+    fetch(`/api/v1/runs/${encodeURIComponent(id)}`, {
+      headers: { "content-type": "application/json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((record) => {
+        if (cancelled || record === null) {
+          return;
+        }
+        setViaV1(true);
+      })
+      .catch(() => {
+        // Network or 404 — fall back to the legacy stub. No-op.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
   const status = useFact(system, "status");
   const verdict = useFact(system, "verdict");
   const verdictDetail = useFact(system, "verdictDetail");
@@ -167,6 +203,21 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
         {isPending ? (
           <p style={{ marginTop: 16, fontStyle: "italic", color: "var(--bureau-fg-dim)" }} data-testid="pending-banner">
             Stub file — <code>pluck-api /v1/bounty/file</code> isn't yet wired, so this URL stays here until the runner lands.
+          </p>
+        ) : null}
+
+        {viaV1 ? (
+          <p
+            style={{
+              marginTop: 8,
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 11,
+              color: "var(--bureau-fg-dim)",
+              opacity: 0.7,
+            }}
+            data-testid="via-v1-indicator"
+          >
+            via <code>/v1/runs</code>
           </p>
         ) : null}
       </section>

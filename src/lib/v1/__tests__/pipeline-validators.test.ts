@@ -15,12 +15,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   PIPELINE_VALIDATORS,
+  validateBountyPayload,
   validateCustodyPayload,
   validateDragnetPayload,
   validateFingerprintPayload,
   validateMolePayload,
   validateNucleiPayload,
   validateOathPayload,
+  validateRotatePayload,
+  validateSbomAiPayload,
+  validateTripwirePayload,
+  validateWhistlePayload,
 } from "../pipeline-validators.js";
 import { BUREAU_PIPELINES } from "../run-spec.js";
 
@@ -167,18 +172,25 @@ describe("PIPELINE_VALIDATORS registry", () => {
     expect(PIPELINE_VALIDATORS["bureau:dragnet"]).toBe(validateDragnetPayload);
   });
 
-  it("stub validators accept any non-array object", () => {
-    // DRAGNET/NUCLEI/OATH/FINGERPRINT/CUSTODY/MOLE are no longer stubs
-    // — they do real grammar checking. The remaining stubs (whistle,
-    // bounty, sbom-ai, rotate, tripwire) still passthrough for now.
-    expect(PIPELINE_VALIDATORS["bureau:whistle"]({})).toEqual({ ok: true });
-    expect(PIPELINE_VALIDATORS["bureau:bounty"]({})).toEqual({ ok: true });
+  it("all 11 validators reject arrays + primitives", () => {
+    // After Wave 3, ALL Bureau validators are real — none are stubs.
+    // Every validator MUST reject non-object payloads as the first
+    // gate. Loop through the registry to lock the contract.
+    for (const p of BUREAU_PIPELINES) {
+      expect(PIPELINE_VALIDATORS[p]([]).ok).toBe(false);
+      expect(PIPELINE_VALIDATORS[p]("hi").ok).toBe(false);
+      expect(PIPELINE_VALIDATORS[p](null).ok).toBe(false);
+    }
   });
 
-  it("stub validators reject arrays + primitives", () => {
-    expect(PIPELINE_VALIDATORS["bureau:whistle"]([]).ok).toBe(false);
-    expect(PIPELINE_VALIDATORS["bureau:whistle"]("hi").ok).toBe(false);
-    expect(PIPELINE_VALIDATORS["bureau:whistle"](null).ok).toBe(false);
+  it("Wave-3 validators are the exported real functions (single source of truth)", () => {
+    expect(PIPELINE_VALIDATORS["bureau:bounty"]).toBe(validateBountyPayload);
+    expect(PIPELINE_VALIDATORS["bureau:sbom-ai"]).toBe(validateSbomAiPayload);
+    expect(PIPELINE_VALIDATORS["bureau:rotate"]).toBe(validateRotatePayload);
+    expect(PIPELINE_VALIDATORS["bureau:tripwire"]).toBe(
+      validateTripwirePayload,
+    );
+    expect(PIPELINE_VALIDATORS["bureau:whistle"]).toBe(validateWhistlePayload);
   });
 
   it("NUCLEI entry IS the exported validateNucleiPayload (single source of truth)", () => {
@@ -750,6 +762,511 @@ describe("validateMolePayload", () => {
     ).toBe(false);
     expect(
       validateMolePayload({ ...validMole, canaryContent: undefined }).ok,
+    ).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Wave 3 — BOUNTY / SBOM-AI / ROTATE / TRIPWIRE / WHISTLE validator parity
+// ---------------------------------------------------------------------------
+
+const validBounty = {
+  sourceRekorUuid: "a".repeat(64),
+  target: "hackerone" as const,
+  program: "openai",
+  vendor: "openai",
+  model: "gpt-4o",
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateBountyPayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateBountyPayload(validBounty)).toEqual({ ok: true });
+  });
+
+  it("rejects non-objects", () => {
+    expect(validateBountyPayload(null).ok).toBe(false);
+    expect(validateBountyPayload([]).ok).toBe(false);
+  });
+
+  it("rejects missing source uuid", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, sourceRekorUuid: "" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects malformed source uuid", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, sourceRekorUuid: "not-hex" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects unknown target", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, target: "intigriti" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects program with dots", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, program: "openai.com" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects oversized model slug", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, model: "a".repeat(65) }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects missing auth-ack", () => {
+    expect(
+      validateBountyPayload({
+        ...validBounty,
+        authorizationAcknowledged: false,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with Bearer key", () => {
+    const r = validateBountyPayload({ ...validBounty, Bearer: "tok_abc" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/auth-token-shaped/i);
+    }
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with H1_TOKEN", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, H1_TOKEN: "tok_abc" }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with BUGCROWD_TOKEN", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, BUGCROWD_TOKEN: "tok_abc" }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with API_KEY", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, API_KEY: "tok_abc" }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with authorization", () => {
+    expect(
+      validateBountyPayload({ ...validBounty, authorization: "Bearer x" }).ok,
+    ).toBe(false);
+  });
+});
+
+const validSbomAi = {
+  artifactUrl: "https://example.com/pack.json",
+  artifactKind: "probe-pack" as const,
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateSbomAiPayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateSbomAiPayload(validSbomAi)).toEqual({ ok: true });
+  });
+
+  it("rejects missing artifactUrl", () => {
+    expect(
+      validateSbomAiPayload({ ...validSbomAi, artifactUrl: "" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects http://", () => {
+    expect(
+      validateSbomAiPayload({
+        ...validSbomAi,
+        artifactUrl: "http://example.com/x",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects localhost host", () => {
+    expect(
+      validateSbomAiPayload({
+        ...validSbomAi,
+        artifactUrl: "https://localhost/x",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects link-local host", () => {
+    expect(
+      validateSbomAiPayload({
+        ...validSbomAi,
+        artifactUrl: "https://169.254.169.254/x",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects unknown artifactKind", () => {
+    expect(
+      validateSbomAiPayload({ ...validSbomAi, artifactKind: "made-up" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects malformed expectedSha256", () => {
+    expect(
+      validateSbomAiPayload({ ...validSbomAi, expectedSha256: "not-hex" }).ok,
+    ).toBe(false);
+  });
+
+  it("accepts well-formed expectedSha256", () => {
+    expect(
+      validateSbomAiPayload({
+        ...validSbomAi,
+        expectedSha256: "a".repeat(64),
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it("rejects missing auth-ack", () => {
+    expect(
+      validateSbomAiPayload({
+        ...validSbomAi,
+        authorizationAcknowledged: false,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("accepts each canonical artifactKind", () => {
+    for (const kind of ["probe-pack", "model-card", "mcp-server"]) {
+      expect(
+        validateSbomAiPayload({ ...validSbomAi, artifactKind: kind }),
+      ).toEqual({ ok: true });
+    }
+  });
+});
+
+const validRotate = {
+  oldKeyFingerprint: "a".repeat(64),
+  newKeyFingerprint: "b".repeat(64),
+  reason: "compromised" as const,
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateRotatePayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateRotatePayload(validRotate)).toEqual({ ok: true });
+  });
+
+  it("rejects missing/malformed old fingerprint", () => {
+    expect(
+      validateRotatePayload({ ...validRotate, oldKeyFingerprint: "" }).ok,
+    ).toBe(false);
+    expect(
+      validateRotatePayload({ ...validRotate, oldKeyFingerprint: "not-hex" })
+        .ok,
+    ).toBe(false);
+  });
+
+  it("rejects missing/malformed new fingerprint", () => {
+    expect(
+      validateRotatePayload({ ...validRotate, newKeyFingerprint: "" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects old === new (no-op rotation)", () => {
+    expect(
+      validateRotatePayload({
+        ...validRotate,
+        newKeyFingerprint: "a".repeat(64),
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects unknown reason", () => {
+    expect(
+      validateRotatePayload({ ...validRotate, reason: "made-up" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects oversized operator note", () => {
+    expect(
+      validateRotatePayload({
+        ...validRotate,
+        operatorNote: "x".repeat(513),
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects missing auth-ack", () => {
+    expect(
+      validateRotatePayload({
+        ...validRotate,
+        authorizationAcknowledged: false,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with privateKey", () => {
+    const r = validateRotatePayload({
+      ...validRotate,
+      privateKey: "-----BEGIN PRIVATE KEY-----...",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/never accepts private-key material/i);
+    }
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with private_key", () => {
+    expect(
+      validateRotatePayload({ ...validRotate, private_key: "secret" }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with secret-shaped key", () => {
+    expect(
+      validateRotatePayload({ ...validRotate, keySecret: "secret" }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with PEM-shaped key", () => {
+    expect(
+      validateRotatePayload({ ...validRotate, pem: "-----BEGIN..." }).ok,
+    ).toBe(false);
+  });
+
+  it("does NOT reject the legitimate keyFingerprint fields", () => {
+    // Sanity — old/new key FINGERPRINT (sha256 of public material) is
+    // explicitly allowed despite the "key" substring.
+    expect(validateRotatePayload(validRotate)).toEqual({ ok: true });
+  });
+});
+
+const validTripwire = {
+  machineId: "alice-mbp",
+  policySource: "default" as const,
+  notarize: false,
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateTripwirePayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateTripwirePayload(validTripwire)).toEqual({ ok: true });
+  });
+
+  it("rejects missing machineId", () => {
+    expect(
+      validateTripwirePayload({ ...validTripwire, machineId: "" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects machineId with spaces", () => {
+    expect(
+      validateTripwirePayload({ ...validTripwire, machineId: "alice mbp" })
+        .ok,
+    ).toBe(false);
+  });
+
+  it("rejects oversized machineId", () => {
+    expect(
+      validateTripwirePayload({
+        ...validTripwire,
+        machineId: "a".repeat(49),
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects unknown policySource", () => {
+    expect(
+      validateTripwirePayload({
+        ...validTripwire,
+        policySource: "made-up",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("custom policy without URL is rejected", () => {
+    expect(
+      validateTripwirePayload({
+        ...validTripwire,
+        policySource: "custom",
+        customPolicyUrl: "",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("custom policy http:// is rejected", () => {
+    expect(
+      validateTripwirePayload({
+        ...validTripwire,
+        policySource: "custom",
+        customPolicyUrl: "http://example.com/p.json",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("custom policy localhost is rejected", () => {
+    expect(
+      validateTripwirePayload({
+        ...validTripwire,
+        policySource: "custom",
+        customPolicyUrl: "https://localhost/p.json",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("custom policy link-local is rejected", () => {
+    expect(
+      validateTripwirePayload({
+        ...validTripwire,
+        policySource: "custom",
+        customPolicyUrl: "https://169.254.169.254/p.json",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("custom policy with valid public https URL is accepted", () => {
+    expect(
+      validateTripwirePayload({
+        ...validTripwire,
+        policySource: "custom",
+        customPolicyUrl: "https://example.com/p.json",
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it("rejects missing auth-ack", () => {
+    expect(
+      validateTripwirePayload({
+        ...validTripwire,
+        authorizationAcknowledged: false,
+      }).ok,
+    ).toBe(false);
+  });
+});
+
+const validWhistle = {
+  bundleUrl: "https://example.com/tip.json",
+  category: "training-data" as const,
+  routingPartner: "propublica" as const,
+  anonymityCaveatAcknowledged: true as const,
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateWhistlePayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateWhistlePayload(validWhistle)).toEqual({ ok: true });
+  });
+
+  it("rejects missing bundleUrl", () => {
+    expect(
+      validateWhistlePayload({ ...validWhistle, bundleUrl: "" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects http:// bundleUrl", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        bundleUrl: "http://example.com/tip.json",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects localhost bundleUrl", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        bundleUrl: "https://localhost/tip.json",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects unknown category", () => {
+    expect(
+      validateWhistlePayload({ ...validWhistle, category: "made-up" }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects unknown routing partner", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        routingPartner: "rando-news",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects oversized manualRedactPhrase", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        manualRedactPhrase: "x".repeat(257),
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects missing anonymity caveat ack", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        anonymityCaveatAcknowledged: false,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects missing authorization ack", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        authorizationAcknowledged: false,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with sourceName", () => {
+    const r = validateWhistlePayload({
+      ...validWhistle,
+      sourceName: "Jane Doe",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/source-identifying/i);
+    }
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with sourceEmail", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        sourceEmail: "x@y.com",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with sourceIp", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        sourceIp: "203.0.113.5",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with source_handle", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        source_handle: "@jane",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payload with reporterName", () => {
+    expect(
+      validateWhistlePayload({
+        ...validWhistle,
+        reporterName: "Alice",
+      }).ok,
     ).toBe(false);
   });
 });

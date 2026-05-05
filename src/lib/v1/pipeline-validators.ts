@@ -15,31 +15,37 @@
 // of truth for "is this DRAGNET payload acceptable" — no drift between
 // /v1/runs and /api/bureau/dragnet/run.
 //
-// Migration status:
-//   - bureau:dragnet — REAL validator (extracted from the legacy route).
-//   - bureau:nuclei  — REAL validator (M1 fix; cron grammar + license
-//     allowlist + author/pack/rekor + vendor-scope parsing). Both /v1/runs
-//     and the legacy /api/bureau/nuclei/run route share THIS function.
-//   - bureau:oath    — REAL validator (hostname grammar + private-IP block
-//     + hosting-origin https-only + auth-ack). Both /v1/runs and the legacy
-//     /api/bureau/oath/run route share THIS function.
-//   - bureau:fingerprint — REAL validator (vendor slug + hosted-mode
-//     allowlist + model slug + auth-ack). Both /v1/runs and the legacy
-//     /api/bureau/fingerprint/run route share THIS function.
-//   - bureau:custody — REAL validator (https-only bundleUrl + private-IP
-//     block + optional expectedVendor hostname + auth-ack). Both /v1/runs
-//     and the legacy /api/bureau/custody/run route share THIS function.
-//   - bureau:mole    — REAL validator (canaryId slug + https-only canaryUrl
-//     + private-IP block + fingerprint phrase bounds + auth-ack +
-//     privacy invariant: canaryBody / canaryContent are NEVER accepted).
-//     Both /v1/runs and the legacy /api/bureau/mole/run route share
-//     THIS function.
-//   - bureau:whistle / bounty / sbom-ai / rotate / tripwire — STUB
-//     validators (accept any object). These tighten as each program's
-//     RunForm migrates to /v1/runs. The registry exists so the plumbing
-//     is in place.
+// Migration status: ALL 11 Bureau pipelines now have REAL validators —
+// every legacy /api/bureau/<slug>/run alias delegates here, and /v1/runs
+// runs the same validator before persisting. One source of truth.
+//   - bureau:dragnet     — extracted Phase 3 wedge.
+//   - bureau:nuclei      — Wave 1 (cron grammar + license allowlist + …).
+//   - bureau:oath        — Wave 1 (hostname grammar + private-IP block + …).
+//   - bureau:fingerprint — Wave 2 (vendor slug + hosted-mode allowlist + …).
+//   - bureau:custody     — Wave 2 (https-only bundleUrl + …).
+//   - bureau:mole        — Wave 2 (canaryId slug + privacy invariant
+//                          rejecting canaryBody / canaryContent).
+//   - bureau:bounty      — Wave 3 (target enum + program slug + vendor/model
+//                          slug grammar + auth-ack + privacy invariant
+//                          rejecting any auth-token-shaped key).
+//   - bureau:sbom-ai     — Wave 3 (artifactKind enum + https-only artifactUrl
+//                          + private-IP block + optional expectedSha256).
+//   - bureau:rotate      — Wave 3 (SPKI fingerprint grammar + reason enum +
+//                          old !== new + privacy invariant rejecting any
+//                          private-key-shaped key).
+//   - bureau:tripwire    — Wave 3 (machineId slug + policySource enum +
+//                          https-only customPolicyUrl when policySource
+//                          = "custom" + private-IP block).
+//   - bureau:whistle     — Wave 3 (https-only bundleUrl + category +
+//                          routingPartner enums + anonymity caveat +
+//                          privacy invariant rejecting any source-
+//                          identifying key).
 // ---------------------------------------------------------------------------
 
+import {
+  isValidProgramSlug,
+  isValidRekorUuid as isValidBountyRekorUuid,
+} from "../bounty/run-form-module";
 import {
   SUPPORTED_VENDORS,
   isSupportedVendor,
@@ -60,7 +66,10 @@ import {
   validateCron,
 } from "../nuclei/run-form-module";
 import { normalizeVendorDomain } from "../oath/run-form-module";
+import { isValidSpkiFingerprint } from "../rotate/run-form-module";
+import { isValidSha256 } from "../sbom-ai/run-form-module";
 import { isPrivateOrLocalHost } from "../security/request-guards";
+import { isValidMachineId } from "../tripwire/run-form-module";
 
 import { type BureauPipeline, BUREAU_PIPELINES } from "./run-spec";
 
@@ -164,30 +173,580 @@ export function validateDragnetPayload(payload: unknown): ValidatorResult {
 }
 
 // ---------------------------------------------------------------------------
-// Stub validators for the 10 programs that haven't migrated to /v1/runs yet.
-// They accept any non-array object — same shape-check `validateRunSpec`
-// already enforced. When each program's RunForm migrates, swap the stub
-// for the real per-program validator (mirroring DRAGNET above).
+// BOUNTY — single source of truth for file-bounty payload rules.
+//
+// Mirrors the legacy /api/bureau/bounty/run route's body validation so
+// /v1/runs callers can't slip past program-specific rules (target enum,
+// program slug grammar, vendor/model slug grammar, auth-ack) by hitting
+// the unified surface directly.
+//
+// PRIVACY INVARIANT (defense-in-depth): the BOUNTY landing's "auth tokens
+// stay LOCAL" posture means HackerOne / Bugcrowd tokens NEVER cross the
+// form, the route, or the receipt. Studio reads operator-stored
+// credentials at dispatch time. This validator REJECTS any payload key
+// that looks like an auth token (Bearer-style header value, *_TOKEN env
+// variable name, etc.) — wire-layer backstop in case a misbuilt client
+// tries to "help" by forwarding a credential.
 // ---------------------------------------------------------------------------
 
-function passthroughObjectValidator(payload: unknown): ValidatorResult {
+const BOUNTY_VALID_TARGETS = new Set(["hackerone", "bugcrowd"]);
+const BOUNTY_VENDOR_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+const BOUNTY_MODEL_PATTERN = /^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/;
+// Reject any payload key that smells like an auth token. Match BOTH
+// header-style ("authorization", "bearer") AND env-var-style
+// ("H1_TOKEN", "BUGCROWD_TOKEN", "*_API_KEY"). Case-insensitive on the
+// canonical lowercase form so "BEARER" and "bearer" both fail.
+const BOUNTY_AUTH_TOKEN_KEY_PATTERN =
+  /^(authorization|bearer|.*[_-]?token|.*[_-]?api[_-]?key|.*[_-]?secret)$/i;
+
+export interface BountyPayload {
+  sourceRekorUuid: string;
+  target: "hackerone" | "bugcrowd";
+  program: string;
+  vendor: string;
+  model: string;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:bounty` file-bounty payload. Identical to the rules
+ * the legacy `/api/bureau/bounty/run` route enforces — both call sites
+ * share THIS function so the contract cannot drift.
+ */
+export function validateBountyPayload(payload: unknown): ValidatorResult {
   if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
     return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  // Privacy invariant — reject any key resembling an auth token. Wire-layer
+  // backstop on the BOUNTY "auth tokens stay LOCAL" posture: even though
+  // the receipt schema would never echo such a value, refusing it on the
+  // wire prevents a misbuilt client from leaking the token into a server
+  // log or a future receipt-extension.
+  for (const key of Object.keys(body)) {
+    if (BOUNTY_AUTH_TOKEN_KEY_PATTERN.test(key)) {
+      return {
+        ok: false,
+        error:
+          "BOUNTY never accepts auth-token-shaped fields on the wire — Studio reads operator-stored credentials at dispatch time. See the BOUNTY landing's 'auth tokens stay LOCAL' posture.",
+      };
+    }
+  }
+
+  const sourceRekorUuid =
+    typeof body.sourceRekorUuid === "string"
+      ? body.sourceRekorUuid.trim().toLowerCase()
+      : "";
+  const target =
+    typeof body.target === "string" ? body.target.trim().toLowerCase() : "";
+  const program =
+    typeof body.program === "string" ? body.program.trim().toLowerCase() : "";
+  const vendor =
+    typeof body.vendor === "string" ? body.vendor.trim().toLowerCase() : "";
+  const model =
+    typeof body.model === "string" ? body.model.trim().toLowerCase() : "";
+
+  if (!sourceRekorUuid) {
+    return { ok: false, error: "Source Rekor UUID is required" };
+  }
+  if (!isValidBountyRekorUuid(sourceRekorUuid)) {
+    return {
+      ok: false,
+      error: "Source Rekor UUID must be 64–80 hex characters",
+    };
+  }
+  if (!BOUNTY_VALID_TARGETS.has(target)) {
+    return { ok: false, error: "Target must be 'hackerone' or 'bugcrowd'" };
+  }
+  if (!program) {
+    return {
+      ok: false,
+      error: "Program slug is required (e.g. 'openai')",
+    };
+  }
+  if (!isValidProgramSlug(program)) {
+    return {
+      ok: false,
+      error:
+        "Program must be a short lowercase slug (e.g. 'openai'); no dots, no slashes.",
+    };
+  }
+  if (!vendor || !BOUNTY_VENDOR_PATTERN.test(vendor)) {
+    return {
+      ok: false,
+      error: "Vendor must be a short lowercase slug (e.g. 'openai')",
+    };
+  }
+  if (!model || !BOUNTY_MODEL_PATTERN.test(model) || model.length > 64) {
+    return {
+      ok: false,
+      error: "Model must be a slug like 'gpt-4o' or 'claude-3-5-sonnet'",
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to file this bounty before submitting.",
+    };
   }
 
   return { ok: true };
 }
 
-// TODO(bureau:whistle): tighten when WHISTLE RunForm migrates to /v1/runs.
-const validateWhistlePayload: PipelineValidator = passthroughObjectValidator;
-// TODO(bureau:bounty): tighten when BOUNTY RunForm migrates to /v1/runs.
-const validateBountyPayload: PipelineValidator = passthroughObjectValidator;
-// TODO(bureau:sbom-ai): tighten when SBOM-AI RunForm migrates to /v1/runs.
-const validateSbomAiPayload: PipelineValidator = passthroughObjectValidator;
-// TODO(bureau:rotate): tighten when ROTATE RunForm migrates to /v1/runs.
-const validateRotatePayload: PipelineValidator = passthroughObjectValidator;
-// TODO(bureau:tripwire): tighten when TRIPWIRE RunForm migrates to /v1/runs.
-const validateTripwirePayload: PipelineValidator = passthroughObjectValidator;
+// ---------------------------------------------------------------------------
+// SBOM-AI — single source of truth for publish-attestation payload rules.
+//
+// Mirrors the legacy /api/bureau/sbom-ai/run route's body validation so
+// /v1/runs callers can't slip past program-specific rules (artifactKind
+// enum, https-only artifactUrl, private-IP block, optional expectedSha256
+// grammar) by hitting the unified surface directly.
+// ---------------------------------------------------------------------------
+
+const SBOM_AI_VALID_KINDS = new Set(["probe-pack", "model-card", "mcp-server"]);
+const SBOM_AI_ALLOWED_SCHEMES = new Set(["https:"]);
+
+export interface SbomAiPayload {
+  artifactUrl: string;
+  artifactKind: "probe-pack" | "model-card" | "mcp-server";
+  /** Optional cross-check against Studio's computed hash. */
+  expectedSha256?: string;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:sbom-ai` publish-attestation payload. Identical to
+ * the rules the legacy `/api/bureau/sbom-ai/run` route enforces — both
+ * call sites share THIS function so the contract cannot drift.
+ */
+export function validateSbomAiPayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  const artifactUrl =
+    typeof body.artifactUrl === "string" ? body.artifactUrl.trim() : "";
+  const artifactKind =
+    typeof body.artifactKind === "string"
+      ? body.artifactKind.trim().toLowerCase()
+      : "";
+  const expectedSha256 =
+    typeof body.expectedSha256 === "string"
+      ? body.expectedSha256.trim().toLowerCase()
+      : "";
+
+  if (!artifactUrl) {
+    return {
+      ok: false,
+      error: "Artifact URL is required (https:// only)",
+    };
+  }
+  if (!SBOM_AI_VALID_KINDS.has(artifactKind)) {
+    return {
+      ok: false,
+      error:
+        "Artifact kind must be one of 'probe-pack', 'model-card', 'mcp-server'",
+    };
+  }
+  if (expectedSha256.length > 0 && !isValidSha256(expectedSha256)) {
+    return {
+      ok: false,
+      error: "Expected sha256 must be 64 hex characters when provided",
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to publish this artifact's provenance.",
+    };
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(artifactUrl);
+  } catch {
+    return {
+      ok: false,
+      error: "Artifact URL must be a valid URL (include https://)",
+    };
+  }
+  if (!SBOM_AI_ALLOWED_SCHEMES.has(parsed.protocol)) {
+    return { ok: false, error: "Artifact URL must use https://" };
+  }
+  if (isPrivateOrLocalHost(parsed.hostname)) {
+    return {
+      ok: false,
+      error:
+        "Artifact URL cannot point at localhost, private, or link-local addresses.",
+    };
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// ROTATE — single source of truth for key-rotation payload rules.
+//
+// Mirrors the legacy /api/bureau/rotate/run route's body validation so
+// /v1/runs callers can't slip past program-specific rules (SPKI grammar,
+// reason enum, old !== new, optional operator note bound, auth-ack)
+// by hitting the unified surface directly.
+//
+// PRIVACY INVARIANT (defense-in-depth): ROTATE only ever sees PUBLIC
+// SPKI fingerprints. Private-key material NEVER crosses Studio. This
+// validator REJECTS any payload key resembling private-key material —
+// wire-layer backstop in case a misbuilt client tries to "include the
+// old private key for revocation proof". The runner signs the
+// revocation server-side with operator-held HSM keys.
+// ---------------------------------------------------------------------------
+
+const ROTATE_VALID_REASONS = new Set(["compromised", "routine", "lost"]);
+const ROTATE_MAX_NOTE_LENGTH = 512;
+// Reject any payload key resembling private-key material. Spec calls
+// for /private[_-]?key|secret/i; we expand to also catch PEM/JWK
+// bundle field names ("priv", "p" alone, etc.) without false-positiving
+// on legitimate keys we DO accept (oldKeyFingerprint, newKeyFingerprint).
+const ROTATE_PRIVATE_MATERIAL_KEY_PATTERN =
+  /(private[_-]?key|secret|privkey|pem)/i;
+
+export interface RotatePayload {
+  oldKeyFingerprint: string;
+  newKeyFingerprint: string;
+  reason: "compromised" | "routine" | "lost";
+  operatorNote?: string;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:rotate` rotate-key payload. Identical to the rules
+ * the legacy `/api/bureau/rotate/run` route enforces — both call sites
+ * share THIS function so the contract cannot drift.
+ */
+export function validateRotatePayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  // Privacy invariant — reject any key resembling private key material.
+  // We DO accept oldKeyFingerprint / newKeyFingerprint (those are public
+  // SPKI hashes), but anything that looks like PEM/JWK content gets
+  // rejected before we even look at it.
+  for (const key of Object.keys(body)) {
+    if (ROTATE_PRIVATE_MATERIAL_KEY_PATTERN.test(key)) {
+      return {
+        ok: false,
+        error:
+          "ROTATE never accepts private-key material on the wire — Studio receives only public SPKI fingerprints. The operator's runner signs revocations with operator-held HSM keys.",
+      };
+    }
+  }
+
+  const oldKeyFingerprint =
+    typeof body.oldKeyFingerprint === "string"
+      ? body.oldKeyFingerprint.trim().toLowerCase()
+      : "";
+  const newKeyFingerprint =
+    typeof body.newKeyFingerprint === "string"
+      ? body.newKeyFingerprint.trim().toLowerCase()
+      : "";
+  const reason =
+    typeof body.reason === "string" ? body.reason.trim() : "";
+  const operatorNote =
+    typeof body.operatorNote === "string" ? body.operatorNote.trim() : "";
+
+  if (!oldKeyFingerprint || !isValidSpkiFingerprint(oldKeyFingerprint)) {
+    return {
+      ok: false,
+      error: "Old key fingerprint must be 64 hex characters",
+    };
+  }
+  if (!newKeyFingerprint || !isValidSpkiFingerprint(newKeyFingerprint)) {
+    return {
+      ok: false,
+      error: "New key fingerprint must be 64 hex characters",
+    };
+  }
+  if (oldKeyFingerprint === newKeyFingerprint) {
+    return {
+      ok: false,
+      error:
+        "Old and new key fingerprints must differ — rotating to the same key is a no-op.",
+    };
+  }
+  if (!ROTATE_VALID_REASONS.has(reason)) {
+    return {
+      ok: false,
+      error: "Reason must be 'compromised', 'routine', or 'lost'",
+    };
+  }
+  if (operatorNote.length > ROTATE_MAX_NOTE_LENGTH) {
+    return {
+      ok: false,
+      error: `Operator note must be ≤ ${ROTATE_MAX_NOTE_LENGTH} characters.`,
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to rotate this key before submitting.",
+    };
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// TRIPWIRE — single source of truth for configure-deployment payload rules.
+//
+// Mirrors the legacy /api/bureau/tripwire/run route's body validation so
+// /v1/runs callers can't slip past program-specific rules (machineId
+// slug grammar, policySource enum, https-only customPolicyUrl when
+// policySource = "custom", private-IP block, auth-ack) by hitting the
+// unified surface directly.
+//
+// SECURITY: customPolicyUrl is validated at submission. The Phase-2.5
+// runner that ACTUALLY fetches the URL must re-validate scheme +
+// re-resolve hostname + reject redirects + cap timeout/size + parse
+// untrusted JSON (no eval). See the SECURITY block in the legacy
+// route for the full runner contract.
+// ---------------------------------------------------------------------------
+
+const TRIPWIRE_VALID_POLICY_SOURCES = new Set(["default", "custom"]);
+const TRIPWIRE_ALLOWED_SCHEMES = new Set(["https:"]);
+
+export interface TripwirePayload {
+  machineId: string;
+  policySource: "default" | "custom";
+  customPolicyUrl?: string;
+  notarize: boolean;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:tripwire` configure-deployment payload. Identical
+ * to the rules the legacy `/api/bureau/tripwire/run` route enforces —
+ * both call sites share THIS function so the contract cannot drift.
+ */
+export function validateTripwirePayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  const machineId =
+    typeof body.machineId === "string"
+      ? body.machineId.trim().toLowerCase()
+      : "";
+  const policySource =
+    typeof body.policySource === "string" ? body.policySource.trim() : "";
+  const customPolicyUrl =
+    typeof body.customPolicyUrl === "string"
+      ? body.customPolicyUrl.trim()
+      : "";
+
+  if (!isValidMachineId(machineId)) {
+    return {
+      ok: false,
+      error:
+        "Machine ID must be a short lowercase slug (e.g. 'alice-mbp'); ≤ 48 chars, no spaces, no leading/trailing hyphen.",
+    };
+  }
+  if (!TRIPWIRE_VALID_POLICY_SOURCES.has(policySource)) {
+    return {
+      ok: false,
+      error: "Policy source must be 'default' or 'custom'",
+    };
+  }
+  if (policySource === "custom") {
+    if (!customPolicyUrl) {
+      return {
+        ok: false,
+        error: "Custom policy URL is required when policy source = custom",
+      };
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(customPolicyUrl);
+    } catch {
+      return {
+        ok: false,
+        error: "Custom policy URL must be a valid URL (include https://)",
+      };
+    }
+    if (!TRIPWIRE_ALLOWED_SCHEMES.has(parsed.protocol)) {
+      return { ok: false, error: "Custom policy URL must use https://" };
+    }
+    if (isPrivateOrLocalHost(parsed.hostname)) {
+      return {
+        ok: false,
+        error:
+          "Custom policy URL cannot point at localhost, private, or link-local addresses.",
+      };
+    }
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to deploy a tripwire on this machine.",
+    };
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// WHISTLE — single source of truth for submit-tip payload rules.
+//
+// Mirrors the legacy /api/bureau/whistle/run route's body validation so
+// /v1/runs callers can't slip past program-specific rules (https-only
+// bundleUrl, private-IP block, category enum, routingPartner enum,
+// manualRedactPhrase length cap, both ack flags) by hitting the unified
+// surface directly.
+//
+// PRIVACY INVARIANT (defense-in-depth): WHISTLE's load-bearing posture
+// is anonymity. The receipt URL prefix is the routing-partner slug, NOT
+// the source. The bundleUrl, while needed for canonical hashing
+// (idempotency), MUST NOT echo back into the response body — only the
+// category + routingPartner + status are operator-visible. This
+// validator REJECTS any payload key resembling source-identifying
+// metadata (sourceName, sourceEmail, sourceIp, etc.) — wire-layer
+// backstop in case a misbuilt client tries to "be helpful" by
+// forwarding identifying info.
+// ---------------------------------------------------------------------------
+
+const WHISTLE_ALLOWED_BUNDLE_SCHEMES = new Set(["https:"]);
+const WHISTLE_VALID_CATEGORIES = new Set([
+  "training-data",
+  "policy-violation",
+  "safety-incident",
+]);
+const WHISTLE_VALID_ROUTING_PARTNERS = new Set([
+  "propublica",
+  "bellingcat",
+  "404media",
+  "eff-press",
+]);
+const WHISTLE_MAX_REDACT_PHRASE_LENGTH = 256;
+// Reject any payload key resembling source-identifying material.
+// Anonymity-by-default — even an explicit "sourceName: null" indicates
+// a misbuilt client. Reject so the operator gets a hard error rather
+// than a quiet pass-through that might encourage future "let me set
+// sourceName=…" usage.
+const WHISTLE_SOURCE_KEY_PATTERN =
+  /(source[_-]?(name|email|ip|address|phone|handle|user|id|identity|contact)|reporter[_-]?(name|email|ip|id))/i;
+
+export interface WhistlePayload {
+  bundleUrl: string;
+  category: "training-data" | "policy-violation" | "safety-incident";
+  routingPartner: "propublica" | "bellingcat" | "404media" | "eff-press";
+  manualRedactPhrase?: string;
+  anonymityCaveatAcknowledged: true;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:whistle` submit-tip payload. Identical to the rules
+ * the legacy `/api/bureau/whistle/run` route enforces — both call sites
+ * share THIS function so the contract cannot drift.
+ */
+export function validateWhistlePayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  // Privacy invariant — reject any source-identifying key. The receipt
+  // schema already drops these at render; the validator backstops the
+  // wire so a misbuilt client can't accidentally leak identity into a
+  // server log or future receipt-extension.
+  for (const key of Object.keys(body)) {
+    if (WHISTLE_SOURCE_KEY_PATTERN.test(key)) {
+      return {
+        ok: false,
+        error:
+          "WHISTLE never accepts source-identifying fields on the wire — anonymity-by-default. Bundle the source's identity inside the encrypted bundle body if needed; never put it in the request payload.",
+      };
+    }
+  }
+
+  const bundleUrl =
+    typeof body.bundleUrl === "string" ? body.bundleUrl.trim() : "";
+  const category =
+    typeof body.category === "string" ? body.category.trim() : "";
+  const routingPartner =
+    typeof body.routingPartner === "string" ? body.routingPartner.trim() : "";
+  const manualRedactPhrase =
+    typeof body.manualRedactPhrase === "string"
+      ? body.manualRedactPhrase.trim()
+      : "";
+
+  if (!bundleUrl) {
+    return {
+      ok: false,
+      error: "Bundle URL is required (https:// only)",
+    };
+  }
+  if (!WHISTLE_VALID_CATEGORIES.has(category)) {
+    return {
+      ok: false,
+      error:
+        "Category must be one of 'training-data', 'policy-violation', 'safety-incident'",
+    };
+  }
+  if (!WHISTLE_VALID_ROUTING_PARTNERS.has(routingPartner)) {
+    return {
+      ok: false,
+      error:
+        "Routing partner must be one of 'propublica', 'bellingcat', '404media', 'eff-press'",
+    };
+  }
+  if (manualRedactPhrase.length > WHISTLE_MAX_REDACT_PHRASE_LENGTH) {
+    return {
+      ok: false,
+      error: `Manual redact phrase must be ≤ ${WHISTLE_MAX_REDACT_PHRASE_LENGTH} characters.`,
+    };
+  }
+  if (body.anonymityCaveatAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that anonymity is best-effort, NOT absolute, before submitting.",
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to submit this bundle.",
+    };
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(bundleUrl);
+  } catch {
+    return {
+      ok: false,
+      error: "Bundle URL must be a valid URL (include https://)",
+    };
+  }
+  if (!WHISTLE_ALLOWED_BUNDLE_SCHEMES.has(parsed.protocol)) {
+    return { ok: false, error: "Bundle URL must use https://" };
+  }
+  if (isPrivateOrLocalHost(parsed.hostname)) {
+    return {
+      ok: false,
+      error:
+        "Bundle URL cannot point at localhost, private, or link-local addresses.",
+    };
+  }
+
+  return { ok: true };
+}
 
 // ---------------------------------------------------------------------------
 // NUCLEI — single source of truth for publish payload rules.

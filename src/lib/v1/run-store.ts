@@ -217,6 +217,25 @@ function runIdForBureau(
   if (canaryId !== null) {
     return generateScopedPhraseId(`https://${canaryId}.example`);
   }
+  // BOUNTY carries `target` ("hackerone" | "bugcrowd") — phrase prefix is
+  // the target platform, NOT the source operator or affected vendor.
+  // Receipt URL self-discloses *which platform was filed against*; the
+  // affected vendor lives in the receipt body. Anchored on the legacy
+  // route's intent (see /api/bureau/bounty/run).
+  //
+  // ORDERING: BOUNTY's payload also carries `vendor` (the affected
+  // model's vendor) — we resolve `target` BEFORE `vendor` so BOUNTY
+  // scopes to the platform it was filed against, not the affected
+  // vendor. FINGERPRINT only carries `vendor`, so its branch still
+  // wins for that pipeline.
+  const target =
+    typeof payload.target === "string" && payload.target.length > 0
+      ? payload.target
+      : null;
+
+  if (target !== null) {
+    return generateScopedPhraseId(`https://${target}.example`);
+  }
   // FINGERPRINT carries `vendor` (slug like "openai") — receipt URL
   // self-discloses the scanned vendor. Promote to a URL for
   // generateScopedPhraseId so the phrase shape matches DRAGNET/OATH
@@ -229,6 +248,49 @@ function runIdForBureau(
   if (vendor !== null) {
     return generateScopedPhraseId(`https://${vendor}.example`);
   }
+  // SBOM-AI carries `artifactKind` ("probe-pack" | "model-card" |
+  // "mcp-server") — phrase prefix surfaces the artifact category in the
+  // URL itself.
+  const artifactKind =
+    typeof payload.artifactKind === "string" && payload.artifactKind.length > 0
+      ? payload.artifactKind
+      : null;
+
+  if (artifactKind !== null) {
+    return generateScopedPhraseId(`https://${artifactKind}.example`);
+  }
+  // ROTATE carries `reason` ("compromised" | "routine" | "lost") — the
+  // phrase prefix surfaces *why* the rotation happened. Social-pressure
+  // signal for compromised events.
+  const reason =
+    typeof payload.reason === "string" && payload.reason.length > 0
+      ? payload.reason
+      : null;
+
+  if (reason !== null) {
+    return generateScopedPhraseId(`https://${reason}.example`);
+  }
+  // TRIPWIRE carries `machineId` (operator slug like "alice-mbp") — each
+  // machine's deployment has its own permanent receipt URL.
+  const machineId =
+    typeof payload.machineId === "string" && payload.machineId.length > 0
+      ? payload.machineId
+      : null;
+
+  if (machineId !== null) {
+    return generateScopedPhraseId(`https://${machineId}.example`);
+  }
+  // WHISTLE carries `routingPartner` (newsroom slug). Phrase prefix is
+  // the routing partner — NEVER the bundle source. Anonymity-by-default.
+  const routingPartner =
+    typeof payload.routingPartner === "string" &&
+    payload.routingPartner.length > 0
+      ? payload.routingPartner
+      : null;
+
+  if (routingPartner !== null) {
+    return generateScopedPhraseId(`https://${routingPartner}.example`);
+  }
   // CUSTODY carries `bundleUrl` (when no expectedVendor is set) — fall
   // back to the bundle hostname for the phrase prefix so the receipt
   // URL still self-discloses the target. Note: CUSTODY's expectedVendor
@@ -236,6 +298,10 @@ function runIdForBureau(
   // vendorDomain-shaped scoping above (see CUSTODY field aliasing in
   // the legacy route's dual-write, where expectedVendor populates
   // vendorDomain at the store boundary).
+  //
+  // WHISTLE also carries `bundleUrl`, but its routingPartner branch
+  // above wins — anonymity wants the partner prefix, not the source
+  // hostname. Order matters here.
   const bundleUrl =
     typeof payload.bundleUrl === "string" && payload.bundleUrl.length > 0
       ? payload.bundleUrl

@@ -192,15 +192,18 @@ status. As each program migrates, its payload reference moves from
 | `bureau:fingerprint` | `src/lib/fingerprint/run-form-module.ts` | **Yes (Wave 2)** |
 | `bureau:custody` | `src/lib/custody/run-form-module.ts` | **Yes (Wave 2)** |
 | `bureau:mole` | `src/lib/mole/run-form-module.ts` | **Yes (Wave 2)** |
-| `bureau:whistle` | `src/lib/whistle/run-form-module.ts` | No (legacy) |
-| `bureau:bounty` | `src/lib/bounty/run-form-module.ts` | No (legacy) |
-| `bureau:sbom-ai` | `src/lib/sbom-ai/run-form-module.ts` | No (legacy) |
-| `bureau:rotate` | `src/lib/rotate/run-form-module.ts` | No (legacy) |
-| `bureau:tripwire` | `src/lib/tripwire/run-form-module.ts` | No (legacy) |
+| `bureau:bounty` | `src/lib/bounty/run-form-module.ts` | **Yes (Wave 3)** |
+| `bureau:sbom-ai` | `src/lib/sbom-ai/run-form-module.ts` | **Yes (Wave 3)** |
+| `bureau:rotate` | `src/lib/rotate/run-form-module.ts` | **Yes (Wave 3)** |
+| `bureau:tripwire` | `src/lib/tripwire/run-form-module.ts` | **Yes (Wave 3)** |
+| `bureau:whistle` | `src/lib/whistle/run-form-module.ts` | **Yes (Wave 3)** |
 
-**Migration progress:** 6/11 Bureau pipelines now POST to `/v1/runs`. The
-remaining 5 (whistle, bounty, sbom-ai, rotate, tripwire) keep working
-unchanged on `/api/bureau/<slug>/run` until each is migrated.
+**Migration progress:** 11/11 Bureau pipelines now POST to `/v1/runs` —
+the entire alpha-program surface is on the unified contract. Every
+legacy `/api/bureau/<slug>/run` route stays alive as a deprecated alias
+that delegates to the same shared validator and dual-writes into the
+v1 store, so legacy and v1 callers converge on the same `phraseId` for
+the same payload.
 
 ### `bureau:dragnet` payload
 
@@ -364,26 +367,223 @@ The legacy alias additionally echoes `runId === phraseId`,
 the canary body), `status: "seal pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
+### `bureau:bounty` payload
+
+```ts
+{
+  sourceRekorUuid: string;     // 64–80 hex chars (the source DRAGNET red dot,
+                               //   FINGERPRINT delta, or MOLE verdict that
+                               //   grounds the filing)
+  target: "hackerone" | "bugcrowd"; // platform to file against
+  program: string;             // platform-specific program slug ("openai")
+  vendor: string;              // affected vendor slug ("openai")
+  model: string;               // affected model slug ("gpt-4o")
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+> **Security note — auth tokens stay LOCAL.** HackerOne / Bugcrowd
+> credentials NEVER cross this surface. Studio reads operator-stored
+> tokens at dispatch time. The validator additionally rejects any
+> payload key that smells like an auth token (header-style
+> `authorization` / `bearer`, env-style `*_TOKEN` / `*_API_KEY` /
+> `*_SECRET`) — defense-in-depth backstop in case a misbuilt client
+> tries to forward a credential.
+
+The runId is **target-platform-scoped**
+(`hackerone-swift-falcon-3742`, `bugcrowd-…`) — the receipt URL
+self-discloses *which platform was filed against*; the affected vendor
+lives in the receipt body. Note: BOUNTY's payload also carries
+`vendor`, but the run-store's scoping resolves `target` first so the
+URL surfaces the platform.
+
+Idempotency key shape used by the RunForm + legacy alias:
+`bounty:<target>:<program>:<sourceRekorUuid>:<minute-bucket>`.
+
+**Response (200):** `{ runId, receiptUrl, status: "pending", reused }`.
+The legacy alias additionally echoes `runId === phraseId`, `target`,
+`program`, `vendor`, `model`, `sourceRekorUuid`, `status: "filing pending"`,
+`deprecated: true`, and `replacement: "/api/v1/runs"`.
+
+### `bureau:sbom-ai` payload
+
+```ts
+{
+  artifactUrl: string;         // HTTPS-only public URL of the artifact body
+  artifactKind: "probe-pack" | "model-card" | "mcp-server";
+  expectedSha256?: string;     // optional 64-hex cross-check; omitted when empty
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+The runId is **artifact-kind-scoped** — the receipt URL surfaces the
+artifact category in the URL itself
+(`probepack-…`, `modelcard-…`, `mcpserver-…`, with non-alphanumerics
+stripped per slug normalization).
+
+Idempotency key shape used by the RunForm + legacy alias:
+`sbom-ai:<artifactKind>:<artifactUrl>:<expectedSha256OrNone>:<minute-bucket>`,
+where `expectedSha256OrNone` is the literal string `"none"` when the
+operator omits the optional cross-check.
+
+**Response (200):** `{ runId, receiptUrl, status: "pending", reused }`.
+The legacy alias additionally echoes `runId === phraseId`,
+`artifactKind`, `artifactUrl`, `expectedSha256` (or null),
+`status: "publish pending"`, `deprecated: true`, and
+`replacement: "/api/v1/runs"`.
+
+### `bureau:rotate` payload
+
+```ts
+{
+  oldKeyFingerprint: string;   // 64-hex SPKI sha256 (PUBLIC key)
+  newKeyFingerprint: string;   // 64-hex SPKI sha256 (PUBLIC key); MUST != old
+  reason: "compromised" | "routine" | "lost";
+  operatorNote?: string;       // optional ≤512 char free-form context
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+> **Security note — private-key material NEVER on the wire.** ROTATE
+> only ever sees PUBLIC SPKI fingerprints. The operator's runner signs
+> revocations server-side with operator-held HSM keys. The validator
+> rejects any payload key resembling private-key material
+> (`privateKey`, `private_key`, `*secret`, `pem`, `privkey`, …) —
+> defense-in-depth backstop on the "Studio handles only public
+> material" posture.
+
+The runId is **reason-scoped** — the receipt URL surfaces *why* the
+rotation happened (`compromised-…`, `routine-…`, `lost-…`). This is a
+deliberate social-pressure signal: "compromised" rotations are
+visible from the URL alone.
+
+Idempotency key shape used by the RunForm + legacy alias:
+`rotate:<reason>:<oldKeyFingerprint>:<newKeyFingerprint>:<minute-bucket>`.
+
+**Response (200):** `{ runId, receiptUrl, status: "pending", reused }`.
+The legacy alias additionally echoes `runId === phraseId`,
+`oldKeyFingerprint`, `newKeyFingerprint`, `reason`,
+`status: "rotation pending"`, `deprecated: true`, and
+`replacement: "/api/v1/runs"`.
+
+### `bureau:tripwire` payload
+
+```ts
+{
+  machineId: string;           // operator slug (≤48 chars, e.g. "alice-mbp")
+  policySource: "default" | "custom";
+  customPolicyUrl?: string;    // required when policySource = "custom";
+                               //   HTTPS-only, no localhost / private IPs
+  notarize: boolean;           // whether non-green cassettes auto-publish to Rekor
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+The runId is **machine-id-scoped** — each machine's deployment has
+its own permanent receipt URL (`alicembp-swift-falcon-3742`, with
+non-alphanumerics stripped).
+
+Idempotency key shape used by the RunForm + legacy alias:
+`tripwire:<machineId>:<policySource>:<minute-bucket>`. Note: the
+`customPolicyUrl` is part of the canonical payload (so a
+default-policy run and a custom-policy run dedupe separately) but is
+NOT part of the idempotency key string itself.
+
+The Phase-2.5 runner that actually fetches `customPolicyUrl` MUST
+re-validate scheme + re-resolve hostname (TOCTOU) + reject redirects +
+cap timeout/size + parse untrusted JSON without `eval`. See the
+SECURITY block in `lib/v1/pipeline-validators.ts` for the full
+runner contract.
+
+**Response (200):** `{ runId, receiptUrl, status: "pending", reused }`.
+The legacy alias additionally echoes `runId === phraseId`,
+`machineId`, `policySource`, `notarize`,
+`status: "configuration pending"`, `deprecated: true`, and
+`replacement: "/api/v1/runs"`.
+
+### `bureau:whistle` payload
+
+```ts
+{
+  bundleUrl: string;           // HTTPS-only public URL — fetched server-side,
+                               //   NEVER echoed in the response
+  category: "training-data" | "policy-violation" | "safety-incident";
+  routingPartner: "propublica" | "bellingcat" | "404media" | "eff-press";
+  manualRedactPhrase?: string; // optional ≤256 char scrub phrase
+  anonymityCaveatAcknowledged: true; // must be literal true
+  authorizationAcknowledged: true;   // must be literal true
+}
+```
+
+> **Security note — anonymity-by-default.** WHISTLE's load-bearing
+> posture is operator anonymity. The receipt URL prefix is the
+> **routing-partner slug** (NEVER the source); the `bundleUrl`
+> participates in the canonical hash for idempotency dedupe but is
+> intentionally NOT echoed in the response body. The validator
+> additionally rejects any payload key resembling source-identifying
+> material (`sourceName`, `sourceEmail`, `sourceIp`, `sourceHandle`,
+> `reporterName`, `reporterEmail`, etc.) — defense-in-depth backstop
+> in case a misbuilt client tries to "be helpful" by forwarding
+> identifying info. Anonymity is best-effort, NOT absolute; both ack
+> checkboxes are required.
+
+The runId is **routing-partner-scoped** — the receipt URL self-
+discloses *which newsroom received the tip*, never the source
+(`propublica-…`, `bellingcat-…`, `404media-…`, `effpress-…` with
+non-alphanumerics stripped).
+
+Idempotency key shape used by the RunForm + legacy alias:
+`whistle:<routingPartner>:<category>:<bundleUrl>:<minute-bucket>`.
+The `bundleUrl` is part of the dedupe key so re-submitting the same
+bundle to the same partner within a minute collapses; submitting to
+a DIFFERENT partner produces a separate run record (each partner
+gets its own routing receipt).
+
+**Response (200):** `{ runId, receiptUrl, status: "pending", reused }`.
+The legacy alias additionally echoes `runId === phraseId`, `category`,
+`routingPartner`, `status: "submission pending"`, `deprecated: true`,
+and `replacement: "/api/v1/runs"`. **Note:** `bundleUrl` is
+intentionally NOT echoed.
+
 ---
 
 ## Migration runway
 
+**Status: 11/11 Bureau pipelines migrated — full alpha surface on the
+unified contract.**
+
 DRAGNET was the **wedge migration** — the first program to POST to the
 unified surface. NUCLEI and OATH followed in Wave 1; FINGERPRINT,
-CUSTODY, and MOLE in Wave 2 (this commit). The remaining 5 programs
-keep working unchanged on `/api/bureau/<slug>/run` until each is
-migrated.
+CUSTODY, and MOLE in Wave 2; BOUNTY, SBOM-AI, ROTATE, TRIPWIRE, and
+WHISTLE in Wave 3 (this commit). All 11 alpha-program legacy routes
+now stay alive as deprecated aliases that delegate to the shared
+validator and dual-write into the v1 store.
 
 1. **DRAGNET** (shipped in Phase 3 wedge).
-2. **NUCLEI + OATH** (Wave 1). Both now POST to `/v1/runs`; the legacy
-   aliases dual-write into the v1 store so legacy + /v1/runs callers
-   converge on the same `phraseId` for the same payload.
-3. **FINGERPRINT + CUSTODY + MOLE** (Wave 2 — this commit). Same
-   delegated-validator + dual-write pattern. MOLE additionally enforces
-   the canary-body privacy invariant on the wire.
-4. **WHISTLE + BOUNTY + SBOM-AI + ROTATE + TRIPWIRE** — final batch.
-   Migrate together once the per-pipeline verdict-color mapping is
-   written.
+2. **NUCLEI + OATH** (Wave 1). Both POST to `/v1/runs`; legacy aliases
+   dual-write so legacy + /v1/runs callers converge on the same
+   `phraseId` for the same payload.
+3. **FINGERPRINT + CUSTODY + MOLE** (Wave 2). Same pattern. MOLE
+   additionally enforces the canary-body privacy invariant on the
+   wire.
+4. **BOUNTY + SBOM-AI + ROTATE + TRIPWIRE + WHISTLE** (Wave 3 — this
+   commit). Same delegated-validator + dual-write pattern. Three of
+   the five carry hard-locked privacy invariants at the validator
+   boundary:
+   - **BOUNTY** rejects any auth-token-shaped payload key
+     (`authorization`, `bearer`, `*_TOKEN`, `*_API_KEY`, `*_SECRET`).
+   - **ROTATE** rejects any private-key-material-shaped payload key
+     (`privateKey`, `private_key`, `*secret`, `pem`, `privkey`).
+   - **WHISTLE** rejects any source-identifying payload key (`sourceName`,
+     `sourceEmail`, `sourceIp`, `*_handle`, `reporterName`, …) AND
+     intentionally drops `bundleUrl` from the response (anonymity-
+     by-default).
+
+**100% migration complete** — no Bureau pipeline still posts directly
+to its `/api/bureau/<slug>/run` route. New client code should target
+`/v1/runs`; existing legacy callers continue to work unchanged
+through the deprecated aliases until the runner GA + RFC 8594
+sunset.
 
 The legacy `POST /api/bureau/<slug>/run` routes stay alive as
 deprecated aliases throughout. Internally, the migrated routes

@@ -1,5 +1,9 @@
 "use client";
 
+// ---------------------------------------------------------------------------
+// TRIPWIRE Run form — Wave-3 migration to /v1/runs
+// ---------------------------------------------------------------------------
+
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
 import { useRouter } from "next/navigation";
@@ -31,9 +35,23 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/tripwire/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors the legacy synthesized key.
+ */
+function idempotencyKeyFor(machineId: string, policySource: string): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `tripwire:${machineId}:${policySource}:${minuteBucket}`;
 }
 
 const POLICY_OPTIONS: ReadonlyArray<{
@@ -131,17 +149,25 @@ export function TripwireRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/tripwire/run", {
+      const normalizedSource = policySource ?? "default";
+      const trimmedCustomUrl = (customPolicyUrl ?? "").trim();
+
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          machineId: id,
-          policySource,
-          customPolicyUrl: policySource === "custom"
-            ? (customPolicyUrl ?? "").trim()
-            : undefined,
-          notarize,
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:tripwire",
+          payload: {
+            machineId: id,
+            policySource: normalizedSource,
+            customPolicyUrl:
+              normalizedSource === "custom" && trimmedCustomUrl.length > 0
+                ? trimmedCustomUrl
+                : undefined,
+            notarize,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(id, normalizedSource),
         }),
       });
       const body = (await res.json()) as RunResponse;
@@ -150,7 +176,7 @@ export function TripwireRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Configure failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -158,10 +184,10 @@ export function TripwireRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
-      router.push(`/bureau/tripwire/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/tripwire/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";
