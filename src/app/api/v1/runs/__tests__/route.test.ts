@@ -395,6 +395,98 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
     );
     expect(res.status).toBe(400);
   });
+
+  it("accepts a fully-formed OATH payload (real validator)", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:oath",
+        payload: {
+          vendorDomain: "openai.com",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    // Vendor-scoped phrase ID — OATH carries `vendorDomain`, so the
+    // run-store derives `generateScopedPhraseId("https://openai.com")`.
+    expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/oath/runs/${body.runId}`);
+  });
+
+  it("rejects OATH payload missing vendorDomain", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:oath",
+        payload: { authorizationAcknowledged: true },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/Vendor domain is required/);
+  });
+
+  it("rejects OATH payload pointing at localhost (private-IP block)", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:oath",
+        payload: {
+          vendorDomain: "localhost",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects OATH payload missing authorizationAcknowledged", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:oath",
+        payload: { vendorDomain: "openai.com" },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/authorized to fetch/);
+  });
+
+  it("rejects OATH payload with http:// hostingOrigin", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:oath",
+        payload: {
+          vendorDomain: "openai.com",
+          hostingOrigin: "http://openai.com",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("accepts a fully-formed NUCLEI payload (real validator) — author-scoped phrase ID", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:nuclei",
+        payload: {
+          author: "alice",
+          packName: "canon-honesty@0.1",
+          sbomRekorUuid: "a".repeat(64),
+          vendorScope: "openai/gpt-4o",
+          license: "MIT",
+          recommendedInterval: "0 */4 * * *",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    // Author-scoped phrase ID — the run-store derives
+    // `generateScopedPhraseId("https://alice.example")` for NUCLEI.
+    expect(body.runId).toMatch(/^alice-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/nuclei/runs/${body.runId}`);
+  });
 });
 
 describe("POST /api/v1/runs — bureau pipelines without targetUrl", () => {

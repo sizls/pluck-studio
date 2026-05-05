@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetRateLimit } from "../../../../../../lib/rate-limit.js";
+import { __resetForTests } from "../../../../../../lib/v1/run-store.js";
 import { POST } from "../route.js";
+import { POST as POST_V1 } from "../../../../v1/runs/route.js";
 
 interface SuccessBody {
   runId: string;
@@ -46,6 +48,7 @@ function valid(overrides: Record<string, unknown> = {}): unknown {
 
 beforeEach(() => {
   resetRateLimit();
+  __resetForTests();
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -142,7 +145,10 @@ describe("POST /api/bureau/nuclei/run — success", () => {
     const r = await POST(buildRequest(valid()));
     expect(r.status).toBe(200);
     const b = (await r.json()) as SuccessBody;
-    expect(b.runId).toMatch(/^[0-9a-f-]{36}$/);
+    // Post-migration: runId === phraseId (mirrors DRAGNET M5 unification).
+    // Both are the canonical author-scoped phrase-id-shaped primitive.
+    expect(b.runId).toBe(b.phraseId);
+    expect(b.runId).toMatch(/^alice-[a-z]+-[a-z]+-\d{4}$/);
     expect(b.phraseId).toMatch(/^alice-[a-z]+-[a-z]+-\d{4}$/);
     expect(b.author).toBe("alice");
     expect(b.packName).toBe("canon-honesty@0.1");
@@ -171,5 +177,64 @@ describe("POST /api/bureau/nuclei/run — success", () => {
     const b = (await r.json()) as SuccessBody;
     expect(b.pendingVerdict).toBe("published");
     expect(b.pendingTrustTier).toBe("verified");
+  });
+});
+
+describe("POST /api/bureau/nuclei/run — RFC 8594 deprecation signaling", () => {
+  it("emits Deprecation, Sunset, and Link successor-version headers", async () => {
+    const res = await POST(buildRequest(valid()));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Deprecation")).toBe("true");
+    const sunset = res.headers.get("Sunset");
+    expect(sunset).not.toBeNull();
+    expect(Number.isFinite(Date.parse(sunset ?? ""))).toBe(true);
+    expect(res.headers.get("Link")).toMatch(
+      /<\/api\/v1\/runs>;\s*rel="successor-version"/,
+    );
+  });
+
+  it("includes deprecated: true + replacement in the response body", async () => {
+    const res = await POST(buildRequest(valid()));
+    const b = (await res.json()) as SuccessBody & {
+      deprecated?: boolean;
+      replacement?: string;
+    };
+    expect(b.deprecated).toBe(true);
+    expect(b.replacement).toBe("/api/v1/runs");
+  });
+});
+
+describe("POST /api/bureau/nuclei/run — idempotency dedupe", () => {
+  it("two same-payload posts within the minute bucket return the SAME phraseId (no ghost runs)", async () => {
+    const r1 = (await (await POST(buildRequest(valid()))).json()) as SuccessBody;
+    const r2 = (await (await POST(buildRequest(valid()))).json()) as SuccessBody;
+    expect(r2.phraseId).toBe(r1.phraseId);
+  });
+
+  it("legacy callers + /v1/runs callers with the same payload converge on the SAME phraseId", async () => {
+    // Cross-route dedupe — proves the synthesized key matches what the
+    // RunForm sends to /v1/runs.
+    const legacy = (await (
+      await POST(buildRequest(valid()))
+    ).json()) as SuccessBody;
+
+    const minuteBucket = Math.floor(Date.now() / 60_000);
+    const v1Body = {
+      pipeline: "bureau:nuclei",
+      payload: valid(),
+      idempotencyKey: `nuclei:alice:canon-honesty@0.1:${"a".repeat(64)}:${minuteBucket}`,
+    };
+    const v1 = (await (
+      await POST_V1(
+        new Request("http://localhost:3030/api/v1/runs", {
+          method: "POST",
+          headers: HEADERS,
+          body: JSON.stringify(v1Body),
+        }),
+      )
+    ).json()) as { runId: string; reused: boolean };
+
+    expect(v1.runId).toBe(legacy.phraseId);
+    expect(v1.reused).toBe(true);
   });
 });

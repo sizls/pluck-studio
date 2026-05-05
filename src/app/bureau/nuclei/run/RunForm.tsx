@@ -35,9 +35,28 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/nuclei/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. We bucket
+ * by minute so a double-click within ~60s collapses to the same runId,
+ * but a deliberate "publish again" 2 minutes later is a fresh run.
+ * Mirrors DRAGNET's pattern.
+ */
+function idempotencyKeyFor(
+  author: string,
+  packName: string,
+  sbomRekorUuid: string,
+): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `nuclei:${author}:${packName}:${sbomRekorUuid}:${minuteBucket}`;
 }
 
 const LICENSE_OPTIONS = ALLOWED_LICENSES.map((l) => ({
@@ -165,17 +184,32 @@ export function NucleiRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/nuclei/run", {
+      const trimmedAuthor = (author ?? "").trim().toLowerCase();
+      const trimmedPackName = (packName ?? "").trim();
+      const trimmedSbom = (sbomRekorUuid ?? "").trim().toLowerCase();
+      // NUCLEI is the third program migrated to the unified /v1/runs
+      // surface (mirrors the DRAGNET wedge). The legacy
+      // /api/bureau/nuclei/run route stays alive as a deprecated alias
+      // for callers that haven't migrated; new client code POSTs here.
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          author: (author ?? "").trim().toLowerCase(),
-          packName: (packName ?? "").trim(),
-          sbomRekorUuid: (sbomRekorUuid ?? "").trim().toLowerCase(),
-          vendorScope: (vendorScope ?? "").trim(),
-          license: (license ?? "").trim(),
-          recommendedInterval: (recommendedInterval ?? "").trim(),
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:nuclei",
+          payload: {
+            author: trimmedAuthor,
+            packName: trimmedPackName,
+            sbomRekorUuid: trimmedSbom,
+            vendorScope: (vendorScope ?? "").trim(),
+            license: (license ?? "").trim(),
+            recommendedInterval: (recommendedInterval ?? "").trim(),
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(
+            trimmedAuthor,
+            trimmedPackName,
+            trimmedSbom,
+          ),
         }),
       });
       const body = (await res.json()) as RunResponse;
@@ -184,7 +218,7 @@ export function NucleiRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Publish failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -192,10 +226,10 @@ export function NucleiRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
-      router.push(`/bureau/nuclei/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/nuclei/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

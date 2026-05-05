@@ -41,9 +41,23 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/oath/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors DRAGNET's pattern.
+ */
+function idempotencyKeyFor(vendorDomain: string, hostingOrigin: string): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `oath:${vendorDomain}:${hostingOrigin}:${minuteBucket}`;
 }
 
 // Same regex as the server route (kept in sync — drift here means an
@@ -150,17 +164,33 @@ export function OathRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/oath/run", {
+      // Server normalizes URL→hostname too, but doing it client-side
+      // makes the redirect URL + idempotency key self-consistent.
+      const normalizedDomain = normalizeVendorDomain(vendorDomain ?? "");
+      const explicitOrigin = (hostingOrigin ?? "").trim();
+      const effectiveOriginForKey =
+        explicitOrigin.length > 0
+          ? explicitOrigin
+          : `https://${normalizedDomain}`;
+      // OATH is the third program migrated to the unified /v1/runs
+      // surface (mirrors the DRAGNET wedge). The legacy
+      // /api/bureau/oath/run route stays alive as a deprecated alias
+      // for callers that haven't migrated; new client code POSTs here.
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          // Server normalizes URL→hostname too, but doing it client-side
-          // makes the redirect URL self-consistent on success.
-          vendorDomain: normalizeVendorDomain(vendorDomain ?? ""),
-          hostingOrigin: hostingOrigin && hostingOrigin.length > 0
-            ? hostingOrigin
-            : undefined,
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:oath",
+          payload: {
+            vendorDomain: normalizedDomain,
+            hostingOrigin:
+              explicitOrigin.length > 0 ? explicitOrigin : undefined,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(
+            normalizedDomain,
+            effectiveOriginForKey,
+          ),
         }),
       });
 
@@ -171,7 +201,7 @@ export function OathRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Verify failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -179,11 +209,11 @@ export function OathRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
 
-      router.push(`/bureau/oath/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/oath/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

@@ -20,10 +20,13 @@
 //   - bureau:nuclei  — REAL validator (M1 fix; cron grammar + license
 //     allowlist + author/pack/rekor + vendor-scope parsing). Both /v1/runs
 //     and the legacy /api/bureau/nuclei/run route share THIS function.
-//   - bureau:oath / fingerprint / custody / whistle / bounty / sbom-ai /
-//     rotate / tripwire / mole — STUB validators (accept any object).
-//     These tighten as each program's RunForm migrates to /v1/runs. The
-//     registry exists so the plumbing is in place.
+//   - bureau:oath    — REAL validator (hostname grammar + private-IP block
+//     + hosting-origin https-only + auth-ack). Both /v1/runs and the legacy
+//     /api/bureau/oath/run route share THIS function.
+//   - bureau:fingerprint / custody / whistle / bounty / sbom-ai / rotate /
+//     tripwire / mole — STUB validators (accept any object). These tighten
+//     as each program's RunForm migrates to /v1/runs. The registry exists
+//     so the plumbing is in place.
 // ---------------------------------------------------------------------------
 
 import {
@@ -34,6 +37,7 @@ import {
   parseVendorScope,
   validateCron,
 } from "../nuclei/run-form-module";
+import { normalizeVendorDomain } from "../oath/run-form-module";
 import { isPrivateOrLocalHost } from "../security/request-guards";
 
 import { type BureauPipeline, BUREAU_PIPELINES } from "./run-spec";
@@ -152,8 +156,6 @@ function passthroughObjectValidator(payload: unknown): ValidatorResult {
   return { ok: true };
 }
 
-// TODO(bureau:oath): tighten when OATH RunForm migrates to /v1/runs.
-const validateOathPayload: PipelineValidator = passthroughObjectValidator;
 // TODO(bureau:fingerprint): tighten when FINGERPRINT RunForm migrates to /v1/runs.
 const validateFingerprintPayload: PipelineValidator = passthroughObjectValidator;
 // TODO(bureau:custody): tighten when CUSTODY RunForm migrates to /v1/runs.
@@ -286,6 +288,113 @@ export function validateNucleiPayload(payload: unknown): ValidatorResult {
 
 // TODO(bureau:mole): tighten when MOLE RunForm migrates to /v1/runs.
 const validateMolePayload: PipelineValidator = passthroughObjectValidator;
+
+// ---------------------------------------------------------------------------
+// OATH — single source of truth for verify payload rules.
+//
+// Mirrors the legacy /api/bureau/oath/run route's body validation so /v1/runs
+// callers can't slip past program-specific rules (hostname grammar, hosting
+// origin scheme, private-IP block, auth-ack) by hitting the unified surface
+// directly.
+// ---------------------------------------------------------------------------
+
+const OATH_HOSTNAME_PATTERN =
+  /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+const OATH_ALLOWED_ORIGIN_SCHEMES = new Set(["https:"]);
+
+function isValidOathVendorDomain(s: string): boolean {
+  // Bare hostname, no scheme, no path. Requires at least one dot
+  // (TLD-bearing). Rejects IPs (no dots in the right pattern) + any
+  // private/local hosts the operator might paste by mistake.
+  const lowered = s.toLowerCase();
+  if (!OATH_HOSTNAME_PATTERN.test(lowered)) {
+    return false;
+  }
+  if (isPrivateOrLocalHost(lowered)) {
+    return false;
+  }
+
+  return true;
+}
+
+export interface OathPayload {
+  vendorDomain: string;
+  hostingOrigin?: string;
+  /** Back-compat alias for hostingOrigin. */
+  expectedOrigin?: string;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:oath` verify payload. Identical to the rules the
+ * legacy `/api/bureau/oath/run` route enforces — both call sites share
+ * THIS function so the contract cannot drift.
+ */
+export function validateOathPayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  const rawVendorDomain =
+    typeof body.vendorDomain === "string" ? body.vendorDomain : "";
+  const vendorDomain = normalizeVendorDomain(rawVendorDomain);
+  // hostingOrigin is canonical; expectedOrigin is the legacy alias.
+  const rawHostingOrigin =
+    typeof body.hostingOrigin === "string"
+      ? body.hostingOrigin
+      : typeof body.expectedOrigin === "string"
+        ? body.expectedOrigin
+        : "";
+  const hostingOrigin = rawHostingOrigin.trim();
+
+  if (!vendorDomain) {
+    return {
+      ok: false,
+      error: "Vendor domain is required (e.g. 'openai.com')",
+    };
+  }
+  if (!isValidOathVendorDomain(vendorDomain)) {
+    return {
+      ok: false,
+      error:
+        "Vendor domain must be a public hostname (e.g. 'openai.com'); no IPs, no localhost, no scheme, no path.",
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to fetch this vendor's oath before running.",
+    };
+  }
+  if (hostingOrigin.length > 0) {
+    let parsed: URL;
+    try {
+      parsed = new URL(hostingOrigin);
+    } catch {
+      return {
+        ok: false,
+        error: "Hosting origin must be a valid URL (include https://)",
+      };
+    }
+    if (!OATH_ALLOWED_ORIGIN_SCHEMES.has(parsed.protocol)) {
+      return {
+        ok: false,
+        error: "Hosting origin must use https:// (per OATH wire spec)",
+      };
+    }
+    if (isPrivateOrLocalHost(parsed.hostname)) {
+      return {
+        ok: false,
+        error:
+          "Hosting origin cannot point at localhost, private, or link-local addresses.",
+      };
+    }
+  }
+
+  return { ok: true };
+}
 
 // ---------------------------------------------------------------------------
 // Registry — one entry per Bureau pipeline. Compile-time exhaustiveness

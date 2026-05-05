@@ -17,6 +17,7 @@ import {
   PIPELINE_VALIDATORS,
   validateDragnetPayload,
   validateNucleiPayload,
+  validateOathPayload,
 } from "../pipeline-validators.js";
 import { BUREAU_PIPELINES } from "../run-spec.js";
 
@@ -164,22 +165,24 @@ describe("PIPELINE_VALIDATORS registry", () => {
   });
 
   it("stub validators accept any non-array object", () => {
-    expect(PIPELINE_VALIDATORS["bureau:oath"]({ anything: 1 })).toEqual({
-      ok: true,
-    });
-    // NUCLEI is no longer a stub — it does real grammar checking. See the
-    // dedicated NUCLEI describe block below.
+    // OATH and NUCLEI are no longer stubs — they do real grammar
+    // checking. See the dedicated describe blocks below.
     expect(PIPELINE_VALIDATORS["bureau:mole"]({})).toEqual({ ok: true });
+    expect(PIPELINE_VALIDATORS["bureau:fingerprint"]({})).toEqual({ ok: true });
   });
 
   it("stub validators reject arrays + primitives", () => {
-    expect(PIPELINE_VALIDATORS["bureau:oath"]([]).ok).toBe(false);
-    expect(PIPELINE_VALIDATORS["bureau:oath"]("hi").ok).toBe(false);
-    expect(PIPELINE_VALIDATORS["bureau:oath"](null).ok).toBe(false);
+    expect(PIPELINE_VALIDATORS["bureau:mole"]([]).ok).toBe(false);
+    expect(PIPELINE_VALIDATORS["bureau:mole"]("hi").ok).toBe(false);
+    expect(PIPELINE_VALIDATORS["bureau:mole"](null).ok).toBe(false);
   });
 
   it("NUCLEI entry IS the exported validateNucleiPayload (single source of truth)", () => {
     expect(PIPELINE_VALIDATORS["bureau:nuclei"]).toBe(validateNucleiPayload);
+  });
+
+  it("OATH entry IS the exported validateOathPayload (single source of truth)", () => {
+    expect(PIPELINE_VALIDATORS["bureau:oath"]).toBe(validateOathPayload);
   });
 });
 
@@ -289,6 +292,116 @@ describe("validateNucleiPayload", () => {
     const r = validateNucleiPayload({
       ...validNuclei,
       authorizationAcknowledged: false,
+    });
+    expect(r.ok).toBe(false);
+  });
+});
+
+const validOath = {
+  vendorDomain: "openai.com",
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateOathPayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateOathPayload(validOath)).toEqual({ ok: true });
+  });
+
+  it("accepts a fully-formed payload with explicit hostingOrigin", () => {
+    const r = validateOathPayload({
+      ...validOath,
+      hostingOrigin: "https://chat.openai.com",
+    });
+    expect(r).toEqual({ ok: true });
+  });
+
+  it("accepts a full URL by extracting the hostname", () => {
+    const r = validateOathPayload({
+      ...validOath,
+      vendorDomain: "https://openai.com/v1/chat",
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("accepts the legacy `expectedOrigin` field name (back-compat)", () => {
+    const r = validateOathPayload({
+      ...validOath,
+      expectedOrigin: "https://chat.openai.com",
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("rejects non-objects", () => {
+    expect(validateOathPayload(null).ok).toBe(false);
+    expect(validateOathPayload("hi").ok).toBe(false);
+    expect(validateOathPayload([]).ok).toBe(false);
+  });
+
+  it("rejects missing vendorDomain", () => {
+    const r = validateOathPayload({ authorizationAcknowledged: true });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/Vendor domain is required/);
+    }
+  });
+
+  it("rejects vendorDomain that is a bare IP", () => {
+    const r = validateOathPayload({ ...validOath, vendorDomain: "10.0.0.1" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects vendorDomain that is localhost", () => {
+    const r = validateOathPayload({ ...validOath, vendorDomain: "localhost" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects single-label hostname (no TLD)", () => {
+    const r = validateOathPayload({ ...validOath, vendorDomain: "openai" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects vendorDomain with a path but no scheme", () => {
+    const r = validateOathPayload({
+      ...validOath,
+      vendorDomain: "openai.com/api",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects when authorization not acknowledged", () => {
+    const r = validateOathPayload({
+      ...validOath,
+      authorizationAcknowledged: false,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/authorized to fetch/);
+    }
+  });
+
+  it("rejects http:// hostingOrigin (HTTPS-only per OATH spec)", () => {
+    const r = validateOathPayload({
+      ...validOath,
+      hostingOrigin: "http://openai.com",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/https:\/\//);
+    }
+  });
+
+  it("rejects malformed hostingOrigin", () => {
+    const r = validateOathPayload({
+      ...validOath,
+      hostingOrigin: "not-a-url",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects localhost hostingOrigin", () => {
+    const r = validateOathPayload({
+      ...validOath,
+      hostingOrigin: "https://localhost",
     });
     expect(r.ok).toBe(false);
   });

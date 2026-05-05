@@ -187,7 +187,8 @@ status. As each program migrates, its payload reference moves from
 | Pipeline | Payload reference | Migrated to /v1/runs |
 |---|---|---|
 | `bureau:dragnet` | `src/lib/dragnet/run-form-module.ts` | **Yes (Phase 3 wedge)** |
-| `bureau:oath` | `src/lib/oath/run-form-module.ts` | No (legacy) |
+| `bureau:nuclei` | `src/lib/nuclei/run-form-module.ts` | **Yes** |
+| `bureau:oath` | `src/lib/oath/run-form-module.ts` | **Yes** |
 | `bureau:fingerprint` | `src/lib/fingerprint/run-form-module.ts` | No (legacy) |
 | `bureau:custody` | `src/lib/custody/run-form-module.ts` | No (legacy) |
 | `bureau:whistle` | `src/lib/whistle/run-form-module.ts` | No (legacy) |
@@ -195,7 +196,6 @@ status. As each program migrates, its payload reference moves from
 | `bureau:sbom-ai` | `src/lib/sbom-ai/run-form-module.ts` | No (legacy) |
 | `bureau:rotate` | `src/lib/rotate/run-form-module.ts` | No (legacy) |
 | `bureau:tripwire` | `src/lib/tripwire/run-form-module.ts` | No (legacy) |
-| `bureau:nuclei` | `src/lib/nuclei/run-form-module.ts` | No (legacy) |
 | `bureau:mole` | `src/lib/mole/run-form-module.ts` | No (legacy) |
 
 ### `bureau:dragnet` payload
@@ -209,26 +209,66 @@ status. As each program migrates, its payload reference moves from
 }
 ```
 
+### `bureau:nuclei` payload
+
+```ts
+{
+  author: string;              // short lowercase slug, ≤32 chars (e.g. "alice")
+  packName: string;            // "<slug>@<version>" (e.g. "canon-honesty@0.1")
+  sbomRekorUuid: string;       // 64–80 hex chars (SBOM-AI cross-reference)
+  vendorScope: string;         // comma-separated `<vendor>/<model>` pairs
+  license: string;             // SPDX identifier from ALLOWED_LICENSES
+  recommendedInterval: string; // 5-field cron OR @-macro (≤64 chars)
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+The runId is **author-scoped** (`alice-swift-falcon-3742`) — receipt URL
+self-discloses the publishing operator. Idempotency key shape used by
+the RunForm + legacy alias:
+`nuclei:<author>:<packName>:<sbomRekorUuid>:<minute-bucket>`.
+
+### `bureau:oath` payload
+
+```ts
+{
+  vendorDomain: string;        // bare hostname or full URL → normalized to hostname
+  hostingOrigin?: string;      // optional override; defaults to `https://<vendorDomain>`
+                               // must be https://, no private/localhost
+  // Legacy alias accepted by the validator for back-compat:
+  expectedOrigin?: string;     // same semantics as hostingOrigin
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+The runId is **vendor-scoped** (`openai-swift-falcon-3742`) — receipt
+URL self-discloses the OATH target. Idempotency key shape used by the
+RunForm + legacy alias:
+`oath:<vendorDomain>:<effectiveHostingOrigin>:<minute-bucket>`, where
+`effectiveHostingOrigin` is the explicit override or
+`https://<vendorDomain>` when omitted.
+
 ---
 
 ## Migration runway
 
-DRAGNET is the **wedge migration** — the first program to POST to the
-unified surface. The remaining 10 programs follow at the cadence below;
-they keep working unchanged on `/api/bureau/<slug>/run` until each is
-migrated.
+DRAGNET was the **wedge migration** — the first program to POST to the
+unified surface. NUCLEI and OATH followed in the second batch (this
+commit). The remaining 8 programs keep working unchanged on
+`/api/bureau/<slug>/run` until each is migrated.
 
-1. **DRAGNET** (shipped in Phase 3, this commit).
-2. **OATH + FINGERPRINT** — next batch. Both have stable payload shapes
-   and existing test coverage. Migration is mostly mechanical.
-3. **WHISTLE + TRIPWIRE + ROTATE + CUSTODY + BOUNTY + SBOM-AI + MOLE +
-   NUCLEI** — final batch. Migrate together once the per-pipeline
-   verdict-color mapping is written.
+1. **DRAGNET** (shipped in Phase 3 wedge).
+2. **NUCLEI + OATH** (this commit). Both now POST to `/v1/runs`; the
+   legacy aliases dual-write into the v1 store so legacy + /v1/runs
+   callers converge on the same `phraseId` for the same payload.
+3. **FINGERPRINT + WHISTLE + TRIPWIRE + ROTATE + CUSTODY + BOUNTY +
+   SBOM-AI + MOLE** — final batch. Migrate together once the
+   per-pipeline verdict-color mapping is written.
 
 The legacy `POST /api/bureau/<slug>/run` routes stay alive as
-deprecated aliases throughout. Internally, the DRAGNET legacy route
-already delegates to `lib/v1/run-store` so old callers and new
-callers see the same record from `GET /api/v1/runs/[id]`.
+deprecated aliases throughout. Internally, the migrated routes
+delegate to `lib/v1/run-store` so old callers and new callers see the
+same record from `GET /api/v1/runs/[id]`.
 
 ---
 

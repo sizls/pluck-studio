@@ -184,6 +184,11 @@ function runIdForBureau(
   // Bureau programs that probe a URL get a vendor-scoped phrase
   // (`openai-swift-falcon-3742`); the rest get a slug-prefixed one
   // so the program is readable from the URL alone.
+  //
+  // OATH carries `vendorDomain` (a hostname, not a URL) — same intent as
+  // DRAGNET's `targetUrl`: the receipt URL self-discloses the vendor.
+  // We promote it to a URL for `generateScopedPhraseId` so the phrase
+  // shape matches DRAGNET (e.g. `openai-swift-falcon-3742`).
   const targetUrl =
     typeof payload.targetUrl === "string" && payload.targetUrl.length > 0
       ? payload.targetUrl
@@ -191,6 +196,24 @@ function runIdForBureau(
 
   if (targetUrl !== null) {
     return generateScopedPhraseId(targetUrl);
+  }
+  const vendorDomain =
+    typeof payload.vendorDomain === "string" && payload.vendorDomain.length > 0
+      ? payload.vendorDomain
+      : null;
+
+  if (vendorDomain !== null) {
+    return generateScopedPhraseId(`https://${vendorDomain}`);
+  }
+  // NUCLEI carries `author` — same intent: the receipt URL self-discloses
+  // the publishing operator. Phrase shape: `<author>-<adj>-<noun>-NNNN`.
+  const author =
+    typeof payload.author === "string" && payload.author.length > 0
+      ? payload.author
+      : null;
+
+  if (author !== null) {
+    return generateScopedPhraseId(`https://${author}.example`);
   }
   const slug = bureauSlugOf(pipeline);
 
