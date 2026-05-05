@@ -81,6 +81,19 @@ export async function generateMetadata({
       title,
       description,
     },
+    // RSS reader auto-discovery — every vendor profile advertises its
+    // Atom feed via <link rel="alternate" type="application/atom+xml">
+    // in the document head.
+    alternates: {
+      types: {
+        "application/atom+xml": [
+          {
+            url: `/vendor/${vendor.slug}/feed.xml`,
+            title: `${vendor.displayName} — Pluck activity feed`,
+          },
+        ],
+      },
+    },
   };
 }
 
@@ -414,11 +427,13 @@ export default async function VendorProfilePage({
       <div style={SubscribeRowStyle}>
         <a
           href={`/vendor/${vendor.slug}/feed.xml`}
-          data-testid="vendor-subscribe-link"
+          data-testid="vendor-feed-link"
+          rel="alternate"
+          type="application/atom+xml"
         >
-          Subscribe (feed.xml)
+          Subscribe to feed
         </a>
-        <span>— per-vendor RSS feed lands with the Subscription Feed program.</span>
+        <span>— Atom 1.0; new receipts ride RSS readers.</span>
       </div>
     </>
   );

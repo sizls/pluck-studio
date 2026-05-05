@@ -52,10 +52,10 @@ test.describe("/vendor — Vendor Honesty Index", () => {
     }
   });
 
-  test("profile shows the preview banner + subscribe placeholder", async ({ page }) => {
+  test("profile shows the preview banner + subscribe link", async ({ page }) => {
     await page.goto("/vendor/openai");
     await expect(page.getByTestId("vendor-preview-banner").first()).toBeVisible();
-    await expect(page.getByTestId("vendor-subscribe-link")).toBeVisible();
+    await expect(page.getByTestId("vendor-feed-link")).toBeVisible();
   });
 
   test("unknown vendor slug returns 404", async ({ page }) => {

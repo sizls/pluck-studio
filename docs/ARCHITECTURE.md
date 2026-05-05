@@ -402,10 +402,45 @@ vendor's permanent URL.
   404 via `notFound()`. Vetted-allowlist gate is load-bearing for
   brand-safety since arbitrary slugs would be a defamation surface.
 - **Stub data** — `src/lib/programs/vendor-preview.ts` until pluck-api
-  wires real receipts. Per-vendor Atom feed at
-  `/vendor/[slug]/feed.xml` and OG image at
+  wires real receipts. Per-vendor OG image at
   `/vendor/[slug]/opengraph-image.tsx`.
-- **Tests** — `e2e/vendor-index.spec.ts`.
+- **Subscription feeds** — see "Subscription feeds" below.
+- **Tests** — `e2e/vendor-index.spec.ts`, `e2e/vendor-feed.spec.ts`.
+
+### Subscription feeds — `/vendor/[slug]/feed.xml`
+
+Per-vendor Atom 1.0 feed. Free passive distribution: a journalist
+subscribes to `/vendor/openai/feed.xml` in their RSS reader and every
+new receipt against OpenAI lands in their inbox. The route lives at
+`src/app/vendor/[slug]/feed.xml/route.ts` and pre-renders one feed
+per curated vendor via `generateStaticParams()`.
+
+- **Vetted-allowlist gate** — same `lookupVendor()` check as the page;
+  unknown slug → `notFound()`. The feed is never rendered for an
+  unvetted vendor.
+- **Privacy redaction** — every entry's payload routes through
+  `redactPayloadForGet(pipeline, payload)` before XML emission.
+  Defense-in-depth: WHISTLE `bundleUrl`, WHISTLE `manualRedactPhrase`,
+  and ROTATE `operatorNote` MUST NOT appear in feed entries even if
+  the upstream preview/feed source ever drifts.
+- **Atom 1.0 contract** — every entry carries `<id>`, `<title>`,
+  `<link>`, `<updated>`, `<published>`, `<author>`, `<summary>`. The
+  feed itself carries `<id>`, `<title>`, `<subtitle>`, `<updated>`,
+  `<author>`, `<link rel="self">`, `<link rel="alternate">`. No XML
+  library — strings + `xmlEscape()` for `&` `<` `>` `"` `'`.
+- **Cache + headers** — `Cache-Control: public, max-age=300`
+  (matches typical RSS reader poll cadence),
+  `Content-Type: application/atom+xml; charset=utf-8`,
+  `X-Content-Type-Options: nosniff`.
+- **Auto-discovery** — `/vendor/<slug>` head includes
+  `<link rel="alternate" type="application/atom+xml" href="/vendor/<slug>/feed.xml">`
+  so RSS readers detect the feed automatically; the
+  `data-testid="vendor-feed-link"` link in the page footer also
+  surfaces it for human visitors.
+- **Curl example** —
+  `curl https://studio.pluck.run/vendor/openai/feed.xml`
+- **Tests** — `src/app/vendor/[slug]/feed.xml/__tests__/route.test.ts`
+  (unit), `e2e/vendor-feed.spec.ts` (e2e).
 
 ### `/monitors` — cron timeline of upcoming pack fires
 

@@ -124,11 +124,11 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
    - Risk: empty days look sad — pre-seed with stub-status colors.
    - Status: BUILD third in sequence.
 
-5. **Receipt Subscription Feed** — RSS/Atom per vendor (`/vendor/openai/feed.xml`)
+5. **Receipt Subscription Feed** — RSS/Atom per vendor (`/vendor/openai/feed.xml`) **(SHIPPED v3-R1 Backlog #4)**
    - Why: free passive distribution. Journalists subscribe; every new red dot lands in their RSS reader.
    - Compound: high long-tail. Atom is read-only XML, no security surface.
    - Buildable in: 1 day after #1 (depends on the vendor-aggregation query).
-   - Status: BUILD after #1.
+   - Status: SHIPPED — Atom 1.0 emitter at `/vendor/[slug]/feed.xml`, payload-redacted at the feed boundary (`redactPayloadForGet`), 5min cache, RSS-reader auto-discovery `<link>` in `/vendor/<slug>` `<head>`. See `src/app/vendor/[slug]/feed.xml/route.ts`.
 
 ### Recommended sequence
 
