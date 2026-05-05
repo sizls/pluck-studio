@@ -117,12 +117,12 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
    - Buildable in: 1 day. Both programs ship; just CTA + back-link section.
    - Status: BUILD — closes the unblocked supply-chain story.
 
-4. **Daily Roll-Up OG Card** — `/today/opengraph-image` shows one tile per program color-coded by today's verdict density
+4. **Daily Roll-Up OG Card** — `/today/opengraph-image` shows one tile per program color-coded by today's verdict density **(SHIPPED v3-R1 Backlog #3)**
    - Why: the daily-tweet asset; one shareable image summarizes Pluck's last 24h across all 11 programs.
    - Compound: medium-high — pairs with #1 + #2 as the daily distribution arm.
    - Buildable in: 1 day. Reuses existing OG infrastructure.
    - Risk: empty days look sad — pre-seed with stub-status colors.
-   - Status: BUILD third in sequence.
+   - Status: SHIPPED — `/today` page + `/today/opengraph-image` 1200×630 PNG. Aggregation helper at `src/lib/programs/today-rollup.ts` covers all 11 programs (vendor-bearing programs fold from vendor-preview, non-vendor-bearing programs use a deterministic stub). Watermark "DEMO DATA — PREVIEW" carried on the OG card per VHI pattern. Public `getDailyRollup(now?)` API stays stable — the swap to pluck-api `/v1/runs?since=24h` is one private function.
 
 5. **Receipt Subscription Feed** — RSS/Atom per vendor (`/vendor/openai/feed.xml`) **(SHIPPED v3-R1 Backlog #4)**
    - Why: free passive distribution. Journalists subscribe; every new red dot lands in their RSS reader.

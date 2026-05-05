@@ -29,6 +29,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     { url: `${BASE_URL}/runs`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
+    {
+      url: `${BASE_URL}/today`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
     { url: `${BASE_URL}/vendor`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     {
       url: `${BASE_URL}/monitors`,

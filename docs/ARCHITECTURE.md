@@ -378,7 +378,7 @@ before this; aliases are removed at the same time.
 
 ## 7. Cross-cutting surfaces
 
-Beyond the per-program activation routes, Studio renders five
+Beyond the per-program activation routes, Studio renders six
 cross-cutting routes that aggregate or invert across programs.
 
 ### `/runs` — by-program activation directory
@@ -441,6 +441,31 @@ per curated vendor via `generateStaticParams()`.
   `curl https://studio.pluck.run/vendor/openai/feed.xml`
 - **Tests** — `src/app/vendor/[slug]/feed.xml/__tests__/route.test.ts`
   (unit), `e2e/vendor-feed.spec.ts` (e2e).
+
+### `/today` + `/today/opengraph-image` — Daily Roll-Up
+
+The shareable daily honesty card. Server-rendered page at
+`/today` shows one tile per Bureau program (registry-driven) with
+last-24h verdict density; `/today/opengraph-image` emits a 1200×630
+PNG via next/og's edge-runtime `ImageResponse` so any paste of the
+URL into Slack / X / Discord / iMessage auto-unfurls into the daily
+honesty signal.
+
+- **Aggregation helper** — `src/lib/programs/today-rollup.ts`. Pure +
+  deterministic with a `now` parameter; returns `DailyRollup` covering
+  all 11 active programs (vendor-bearing programs fold their
+  vendor-preview activity into per-program totals; non-vendor-bearing
+  programs use a hand-curated stub). Privacy posture: counts only —
+  no payload, phrase-ID, or vendor-ID data flows through the rollup
+  shape. Locked by `today-rollup.test.ts`.
+- **Watermark** — the OG card carries "DEMO DATA — PREVIEW" per the
+  VHI pattern; required while the rollup helper aggregates stub data.
+- **API stability** — when pluck-api `/v1/runs?since=24h-ago` lands,
+  the helper swaps to a real query in one private function; the
+  public `getDailyRollup(now?)` signature stays stable.
+- **Tests** — `src/lib/programs/__tests__/today-rollup.test.ts`
+  (unit), `src/app/today/__tests__/page.test.tsx` (server-render),
+  `e2e/today.spec.ts` (e2e — OG image PNG magic-bytes check).
 
 ### `/monitors` — cron timeline of upcoming pack fires
 

@@ -208,6 +208,16 @@ export default function RunsPage(): ReactNode {
       )}
 
       <section>
+        <h2 style={SectionHeadingStyle}>Daily roll-up</h2>
+        <p style={{ marginTop: 8 }} data-testid="today-cross-link">
+          The shareable daily honesty card.{" "}
+          <a href="/today">/today</a> renders one tile per program with
+          the last 24h verdict density — paste the URL into Slack / X /
+          Discord and the 1200×630 OG card auto-unfurls.
+        </p>
+      </section>
+
+      <section>
         <h2 style={SectionHeadingStyle}>Screenshot probe extractor</h2>
         <p style={{ marginTop: 8 }} data-testid="extract-cross-link">
           New: paste a screenshot of a vendor's marketing claim and Studio
