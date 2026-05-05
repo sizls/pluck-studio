@@ -51,6 +51,14 @@ import {
 } from "../../../../../../lib/v1/run-store";
 import type { RunRecord, RunStatus } from "../../../../../../lib/v1/run-spec";
 
+// ---------------------------------------------------------------------------
+// SSE requires the Node runtime — Edge has a 30s timeout that would silently
+// cap connections + break the documented 5-minute lifetime + Last-Event-ID
+// resume semantics. Explicit declaration prevents accidental future
+// regression to Edge.
+// ---------------------------------------------------------------------------
+export const runtime = "nodejs";
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
@@ -133,6 +141,10 @@ export async function GET(
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let connectionTimer: ReturnType<typeof setTimeout> | null = null;
   let terminalTimer: ReturnType<typeof setTimeout> | null = null;
+  // Hoisted so both `start` and `cancel` can call the same teardown path
+  // — single source of truth for cleanup. Assigned inside `start`, where
+  // we close over the stream controller.
+  let cleanup: () => void = () => {};
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -153,7 +165,7 @@ export async function GET(
         }
       };
 
-      const cleanup = (): void => {
+      cleanup = (): void => {
         if (closed) {
           return;
         }
@@ -197,7 +209,14 @@ export async function GET(
           send("state", safeView(record));
           if (TERMINAL_STATUSES.has(record.status)) {
             // Grace window so the final event reaches the client
-            // before we close the connection.
+            // before we close the connection. Clear any prior terminal
+            // timer first — back-to-back terminal events are impossible
+            // today but possible with a future runner that emits
+            // multiple terminal-status updates. Idempotent assignment
+            // prevents leaked timers.
+            if (terminalTimer !== null) {
+              clearTimeout(terminalTimer);
+            }
             terminalTimer = setTimeout(cleanup, TERMINAL_GRACE_MS);
           }
         });
@@ -224,20 +243,10 @@ export async function GET(
     },
     cancel() {
       // ReadableStream.cancel is invoked when the consumer pulls the
-      // plug (e.g. response.body.getReader().cancel()). Mirror cleanup.
-      closed = true;
-      if (heartbeatTimer !== null) {
-        clearInterval(heartbeatTimer);
-      }
-      if (connectionTimer !== null) {
-        clearTimeout(connectionTimer);
-      }
-      if (terminalTimer !== null) {
-        clearTimeout(terminalTimer);
-      }
-      if (unsubscribe !== null) {
-        unsubscribe();
-      }
+      // plug (e.g. response.body.getReader().cancel()). Delegate to
+      // cleanup() — single source of truth for teardown so the two
+      // paths can't drift.
+      cleanup();
     },
   });
 

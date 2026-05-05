@@ -13,6 +13,10 @@
 //   - WHISTLE bundleUrl is redacted from EVERY emitted state event
 // ---------------------------------------------------------------------------
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resetRateLimit } from "../../../../../../../lib/rate-limit.js";
@@ -21,7 +25,7 @@ import {
   cancelRun,
   createRun,
 } from "../../../../../../../lib/v1/run-store.js";
-import { GET } from "../route.js";
+import { GET, runtime } from "../route.js";
 
 interface SseEvent {
   id: string | null;
@@ -330,5 +334,28 @@ describe("GET /api/v1/runs/[id]/events — privacy redaction (defense-in-depth)"
     }
     const second = JSON.parse(events[1]!.data) as { status: string };
     expect(second.status).toBe("cancelled");
+  });
+});
+
+describe("GET /api/v1/runs/[id]/events — runtime declaration", () => {
+  // Build-time check: the route MUST opt into the Node runtime explicitly.
+  // Edge has a 30s timeout that would silently cap connections + break the
+  // documented 5-minute lifetime + Last-Event-ID resume semantics. A
+  // source-text assertion is simpler and safer than runtime introspection
+  // — it catches regressions at test time, not in production.
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const routePath = resolve(__dirname, "../route.ts");
+  const routeSource = readFileSync(routePath, "utf8");
+
+  it("exports runtime = 'nodejs' (value)", () => {
+    expect(runtime).toBe("nodejs");
+  });
+
+  it("declares `export const runtime = \"nodejs\"` in the route source", () => {
+    // Match either single or double quotes; tolerate optional semicolons.
+    expect(routeSource).toMatch(
+      /export\s+const\s+runtime\s*=\s*["']nodejs["']/,
+    );
   });
 });
