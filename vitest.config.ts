@@ -11,8 +11,13 @@ export default defineConfig({
   },
   test: {
     // e2e/ runs under Playwright (separate harness, see e2e/dragnet-activation.spec.ts).
-    // Vitest only picks up unit + integration tests under src/.
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Vitest picks up unit + integration tests under src/ AND any harness
+    // scripts (scripts/__tests__/) — the OpenAPI generator tests live
+    // there since the generator itself is a top-level script.
+    include: [
+      "src/**/*.{test,spec}.{ts,tsx}",
+      "scripts/**/*.{test,spec}.{ts,tsx}",
+    ],
     exclude: ["node_modules", ".next", "e2e"],
   },
 });

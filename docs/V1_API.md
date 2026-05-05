@@ -347,6 +347,47 @@ link doesn't 404 on the recipient.
 
 ---
 
+## Machine-readable spec — `/openapi.json`
+
+The /v1/runs surface is published as an auto-generated OpenAPI 3.1
+document at [`/openapi.json`](https://studio.pluck.run/openapi.json).
+The spec is regenerated from `src/lib/v1/run-spec.ts` by the
+`scripts/build-openapi.ts` generator and committed to
+`public/openapi.json`. The `BureauPipeline` and `RunStatus` enums are
+derived directly from `BUREAU_PIPELINES` and `RUN_STATUSES`, so adding
+a new pipeline cannot drift the spec without a regeneration step (a
+unit test asserts the invariant).
+
+```bash
+# Fetch the spec
+curl https://studio.pluck.run/openapi.json | jq .info
+
+# Regenerate after a RunSpec / RunRecord / pipeline-validators change
+pnpm openapi:build
+```
+
+### Generating a client SDK
+
+```bash
+# TypeScript SDK via openapi-typescript
+npx openapi-typescript https://studio.pluck.run/openapi.json -o pluck-runs.d.ts
+
+# Python SDK via openapi-python-client
+openapi-python-client generate --url https://studio.pluck.run/openapi.json
+
+# Any of the 50+ generators in openapi-generator
+openapi-generator-cli generate -i https://studio.pluck.run/openapi.json \
+  -g go -o ./pluck-runs-go
+```
+
+Per-pipeline payload schemas are intentionally NOT embedded in the
+spec — see "Per-pipeline payload reference" below for the 11
+program-specific shapes. The OpenAPI document treats `payload` as an
+open object so the spec stays under 800 lines and doesn't drift from
+the per-pipeline validators in `src/lib/v1/pipeline-validators.ts`.
+
+---
+
 ## Per-pipeline payload reference
 
 The canonical payload shape for each Bureau pipeline is defined by

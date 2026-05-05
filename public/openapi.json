@@ -1,0 +1,701 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Pluck Studio — /v1/runs API",
+    "version": "0.1.1",
+    "summary": "Unified pipeline activation surface for the Pluck Bureau.",
+    "description": "Auto-generated from `src/lib/v1/run-spec.ts`. Pipeline + status enums are derived from `BUREAU_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`. Per-pipeline payload schemas live in `docs/V1_API.md` (not embedded here). Re-run `pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators / redactor change.",
+    "license": {
+      "name": "Proprietary",
+      "identifier": "LicenseRef-Sizls-Internal"
+    },
+    "contact": {
+      "name": "Pluck Studio",
+      "url": "https://studio.pluck.run"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://studio.pluck.run",
+      "description": "production"
+    },
+    {
+      "url": "http://localhost:3030",
+      "description": "local dev"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Runs",
+      "description": "Unified pipeline activation surface. POST creates, GET-list and GET-by-id are public-read, DELETE cancels."
+    }
+  ],
+  "paths": {
+    "/api/v1/runs": {
+      "post": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "Create a run",
+        "operationId": "createRun",
+        "description": "Activate any pipeline. Same-site enforced via Sec-Fetch-Site / Origin / Referer. Auth required — Supabase session cookie in production, dev-mode `Authorization: Bearer <token>` outside production. Idempotent: same `idempotencyKey` + canonicalised (pipeline, payload) returns the same `runId` with `reused=true`.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunSpec"
+              },
+              "examples": {
+                "dragnet": {
+                  "summary": "Bureau DRAGNET — endpoint honesty probe",
+                  "value": {
+                    "pipeline": "bureau:dragnet",
+                    "payload": {
+                      "targetUrl": "https://api.openai.com/v1/chat/completions",
+                      "probePackId": "canon-honesty",
+                      "cadence": "once",
+                      "authorizationAcknowledged": true
+                    },
+                    "idempotencyKey": "client-retry-1"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Run created (or replayed via idempotency).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateRunResponse"
+                },
+                "example": {
+                  "runId": "openai-swift-falcon-3742",
+                  "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742",
+                  "status": "pending",
+                  "reused": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "List recent runs (public read, redacted)",
+        "operationId": "listRuns",
+        "description": "Public-read by phraseId model. Same-site (CSRF) and rate-limit gates apply. Per-pipeline GET-side redaction applied to each item's `payload`.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "pipeline",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/BureauPipeline"
+            },
+            "description": "Filter to one Bureau pipeline."
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Runs created strictly after this ISO-8601 timestamp."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "Opaque pagination cursor."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RunStatus filter. Single value (`?status=cancelled`) or comma-separated (`?status=pending,running`). Whitespace tolerated.",
+            "examples": {
+              "single": {
+                "value": "cancelled"
+              },
+              "csv": {
+                "value": "pending,running"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of redacted run records.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListRunsResponse"
+                },
+                "example": {
+                  "runs": [
+                    {
+                      "runId": "openai-swift-falcon-3742",
+                      "pipeline": "bureau:dragnet",
+                      "status": "pending",
+                      "verdict": null,
+                      "verdictColor": "gray",
+                      "payload": {
+                        "targetUrl": "https://api.openai.com/v1/chat/completions",
+                        "probePackId": "canon-honesty",
+                        "cadence": "once",
+                        "authorizationAcknowledged": true
+                      },
+                      "response": null,
+                      "createdAt": "2026-05-04T17:00:00.000Z",
+                      "updatedAt": "2026-05-04T17:00:00.000Z",
+                      "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742"
+                    }
+                  ],
+                  "nextCursor": null,
+                  "totalCount": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{id}": {
+      "get": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "Get a single run (public read, redacted)",
+        "operationId": "getRun",
+        "description": "Public read — the phraseId in the URL is the share credential. Same-site (CSRF) and rate-limit gates apply. Per-pipeline GET-side redaction applied to `payload`.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "phraseId of the run."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run record (with redacted payload).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRecord"
+                },
+                "example": {
+                  "runId": "openai-swift-falcon-3742",
+                  "pipeline": "bureau:dragnet",
+                  "status": "pending",
+                  "verdict": null,
+                  "verdictColor": "gray",
+                  "payload": {
+                    "targetUrl": "https://api.openai.com/v1/chat/completions",
+                    "probePackId": "canon-honesty",
+                    "cadence": "once",
+                    "authorizationAcknowledged": true
+                  },
+                  "response": null,
+                  "createdAt": "2026-05-04T17:00:00.000Z",
+                  "updatedAt": "2026-05-04T17:00:00.000Z",
+                  "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "Cancel a pending or running run",
+        "operationId": "cancelRun",
+        "description": "Cancel verb — does NOT erase the record. A cancelled run still resolves through GET so its receipt URL stays valid for audit + share. Auth required (same gate as POST). Final states (`anchored` | `failed`) return 409. Already-cancelled returns 200 with `alreadyCancelled=true`.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "phraseId of the run to cancel."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run cancelled (or already cancelled, idempotent).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelRunResponse"
+                },
+                "example": {
+                  "runId": "openai-swift-falcon-3742",
+                  "pipeline": "bureau:dragnet",
+                  "status": "cancelled",
+                  "verdict": null,
+                  "verdictColor": "gray",
+                  "payload": {
+                    "targetUrl": "https://api.openai.com/v1/chat/completions",
+                    "probePackId": "canon-honesty",
+                    "cadence": "once",
+                    "authorizationAcknowledged": true
+                  },
+                  "response": null,
+                  "createdAt": "2026-05-04T17:00:00.000Z",
+                  "updatedAt": "2026-05-04T17:00:00.000Z",
+                  "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742",
+                  "alreadyCancelled": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BureauPipeline": {
+        "type": "string",
+        "enum": [
+          "bureau:dragnet",
+          "bureau:oath",
+          "bureau:fingerprint",
+          "bureau:custody",
+          "bureau:whistle",
+          "bureau:bounty",
+          "bureau:sbom-ai",
+          "bureau:rotate",
+          "bureau:tripwire",
+          "bureau:nuclei",
+          "bureau:mole"
+        ],
+        "description": "One of the 11 Bureau program slugs. Each maps 1:1 to the legacy `/api/bureau/<slug>/run` route."
+      },
+      "RunSpecPipeline": {
+        "type": "string",
+        "enum": [
+          "bureau:dragnet",
+          "bureau:oath",
+          "bureau:fingerprint",
+          "bureau:custody",
+          "bureau:whistle",
+          "bureau:bounty",
+          "bureau:sbom-ai",
+          "bureau:rotate",
+          "bureau:tripwire",
+          "bureau:nuclei",
+          "bureau:mole",
+          "extract",
+          "sense",
+          "act",
+          "fleet"
+        ],
+        "description": "All known pipelines — 11 Bureau slugs (shipped) + 4 future surface slugs (extract/sense/act/fleet, return 400 today)."
+      },
+      "RunStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "anchored",
+          "failed",
+          "cancelled"
+        ],
+        "description": "`pending` → `running` → terminal (`anchored` | `failed` | `cancelled`)."
+      },
+      "VerdictColor": {
+        "type": "string",
+        "enum": [
+          "green",
+          "amber",
+          "red",
+          "gray"
+        ],
+        "description": "Traffic-light tag used by receipt UIs. `gray` = no verdict yet."
+      },
+      "RunSpec": {
+        "type": "object",
+        "required": [
+          "pipeline",
+          "payload"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "pipeline": {
+            "$ref": "#/components/schemas/RunSpecPipeline"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Per-pipeline payload — see docs/V1_API.md `Per-pipeline payload reference` for the 11 shapes."
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Caller-supplied. Same key + same canonicalised (pipeline, payload) returns the same runId (with `reused=true`)."
+          }
+        }
+      },
+      "RunRecord": {
+        "type": "object",
+        "required": [
+          "runId",
+          "pipeline",
+          "status",
+          "verdict",
+          "verdictColor",
+          "payload",
+          "response",
+          "createdAt",
+          "updatedAt",
+          "receiptUrl"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "phraseId — receipt URL primitive + share credential."
+          },
+          "pipeline": {
+            "$ref": "#/components/schemas/RunSpecPipeline"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "verdict": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Per-pipeline verdict tag once landed."
+          },
+          "verdictColor": {
+            "$ref": "#/components/schemas/VerdictColor"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Echoed payload (audit). Privacy redaction applies on GET — fields like WHISTLE.bundleUrl and ROTATE.operatorNote are stripped."
+          },
+          "response": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true,
+            "description": "Pipeline-specific response — null until data exists."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "receiptUrl": {
+            "type": "string",
+            "description": "Path to receipt page, e.g. `/bureau/dragnet/runs/<runId>`."
+          }
+        }
+      },
+      "CreateRunResponse": {
+        "type": "object",
+        "required": [
+          "runId",
+          "receiptUrl",
+          "status",
+          "reused"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "runId": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "receiptUrl": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "reused": {
+            "type": "boolean",
+            "description": "True when an idempotency replay returned the existing record."
+          }
+        }
+      },
+      "ListRunsResponse": {
+        "type": "object",
+        "required": [
+          "runs",
+          "nextCursor",
+          "totalCount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Opaque cursor; null when no more pages."
+          },
+          "totalCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total matching the filter across all pages."
+          }
+        }
+      },
+      "CancelRunResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RunRecord"
+          },
+          {
+            "type": "object",
+            "required": [
+              "alreadyCancelled"
+            ],
+            "properties": {
+              "alreadyCancelled": {
+                "type": "boolean",
+                "description": "True when the run was already cancelled (idempotent)."
+              }
+            }
+          }
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "signInUrl": {
+            "type": "string",
+            "description": "Present on 401 from POST. Pipeline-aware redirect."
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus",
+            "description": "Present on 409 from DELETE — the final-state status."
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid body, query, or path parameter.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "`pipeline` is required."
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid Bearer token / session cookie.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "authentication required",
+              "signInUrl": "/sign-in?redirect=/bureau/dragnet/run"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Cross-site request rejected. Sec-Fetch-Site / Origin / Referer enforcement.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "cross-site request rejected"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Run not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "run not found"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Run is in a final state (`anchored` | `failed`) and cannot be cancelled.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "run is in final state 'anchored' and cannot be cancelled",
+              "status": "anchored"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Per-IP+session rate limit exceeded.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "too many requests — slow down and try again in a minute"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Dev-mode affordance — accepted only outside production. Production honours `sessionCookie` only."
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sb-access-token",
+        "description": "Supabase JWT session cookie (production auth)."
+      }
+    }
+  }
+}
