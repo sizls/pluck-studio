@@ -22,10 +22,12 @@ import type { CSSProperties, ReactNode } from "react";
 import { notFound } from "next/navigation";
 
 import { PhraseSigil } from "../../../components/bureau-ui/PhraseSigil";
+import { VerdictBadge } from "../../../components/bureau-ui/VerdictBadge";
 import {
   ACTIVE_PROGRAMS,
   VENDOR_BEARING_PROGRAMS,
 } from "../../../lib/programs/registry";
+import { verdictToBadgeVariant } from "../../../lib/programs/verdict-mapping";
 import {
   listVendorSlugs,
   lookupVendor,
@@ -275,13 +277,16 @@ function ReceiptRow({
   programSlug: VendorProgramSlug;
   receipt: VendorReceipt;
 }): ReactNode {
+  const badgeVariant = verdictToBadgeVariant(programSlug, receipt.verdict);
+
   return (
     <li
       className={RECEIPT_ROW_CLASS}
       data-testid={`vendor-receipt-${receipt.phraseId}`}
     >
-      <span data-slot="dot">
+      <span data-slot="dot" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
         <VerdictDot verdict={receipt.verdict} />
+        {badgeVariant ? <VerdictBadge variant={badgeVariant} size="sm" /> : null}
       </span>
       <span data-slot="sigil">
         <PhraseSigil

@@ -15,6 +15,7 @@ import {
 } from "../../../../../lib/nuclei/run-receipt-module";
 import { V1RunStatusBanner } from "../../../../../components/bureau-ui/V1RunStatusBanner.js";
 import { PhraseSigil } from "../../../../../components/bureau-ui/PhraseSigil.js";
+import { VerdictBadge } from "../../../../../components/bureau-ui/VerdictBadge.js";
 import { isPhraseId } from "../../../../../lib/phrase-id";
 import { SbomAiSourceArtifact } from "./SbomAiSourceArtifact";
 
@@ -253,8 +254,18 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
                       ? "#a3201d"
                       : "#888273",
               marginLeft: 8,
+              marginRight: 8,
             }}
           />
+          {isFullyVerified ? (
+            <VerdictBadge variant="verified" size="md" />
+          ) : isPublished ? (
+            <VerdictBadge variant="registry-fenced" size="md" />
+          ) : isFailure ? (
+            <VerdictBadge variant="failed" size="md" />
+          ) : isPending ? (
+            <VerdictBadge variant="pending" size="md" />
+          ) : null}
         </p>
         {verdictDetail ? <p style={StatLineStyle}>{verdictDetail}</p> : null}
         {isFullyVerified ? (

@@ -43,3 +43,10 @@ export { V1RunStatusBanner } from "./V1RunStatusBanner.js";
 
 export { PhraseSigil } from "./PhraseSigil.js";
 export type { PhraseSigilProps } from "./PhraseSigil.js";
+
+export { VerdictBadge, verdictBadgeLabel } from "./VerdictBadge.js";
+export type {
+  VerdictBadgeProps,
+  VerdictBadgeSize,
+  VerdictBadgeVariant,
+} from "./VerdictBadge.js";

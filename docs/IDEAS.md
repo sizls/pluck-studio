@@ -160,12 +160,12 @@ Surfaced after R1 hardened the activation surface (D1 license tightening, D3 cro
    - Buildable in: 1 day (`cron-parser` does next-N).
    - Status: BUILD second — exposes the value of R1's grammar work.
 
-3. **Verdict-Verbose Badge** — registry-fence visibility per pack
+3. **Verdict-Verbose Badge** — registry-fence visibility per pack **(SHIPPED v3-R2)**
    - Pitch: R1 added `published-ingested-only` (NUCLEI) and `re-witnessed` (MOLE) as load-bearing distinctions, currently visible only on individual receipts. Add a public `<VerdictBadge variant="registry-fenced" />` component; surface it on `/runs`, on (future) `/vendor/openai`, and on the NUCLEI registry index. Any pack that's published-but-fenced renders an amber pill linking to a classifications explainer.
    - Tweet: *"NUCLEI's amber 'registry-fenced' badge: 'this pack is in the registry, but consumers refuse to honor it until the SBOM-AI cross-reference clears.' transparent supply-chain trust state, one pixel."*
    - Compound: medium-high — multiplies VHI / Auto-Stitch when those land. Polish on its own; load-bearing combined.
    - Buildable in: hours.
-   - Status: BUILD third (or fold into VHI when that ships).
+   - Status: shipped. `<VerdictBadge>` server component at `src/components/bureau-ui/VerdictBadge.tsx` with 6 variants (verified / registry-fenced / re-witnessed / expired / failed / pending). `verdictToBadgeVariant()` mapping at `src/lib/programs/verdict-mapping.ts`. Wired into /search results, /vendor receipt rows, and the NUCLEI + MOLE receipt headers — load-bearing trust tiers are now a system-wide visual primitive instead of per-receipt callouts.
 
 ### Recommended sequence
 

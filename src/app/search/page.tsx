@@ -25,10 +25,12 @@ import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 
 import { PhraseSigil } from "../../components/bureau-ui/PhraseSigil.js";
+import { VerdictBadge } from "../../components/bureau-ui/VerdictBadge.js";
 import {
   PHRASE_ID_PREFIX_CONVENTIONS,
   type PhraseIdPrefixConvention,
 } from "../../lib/programs/registry.js";
+import { verdictToBadgeVariant } from "../../lib/programs/verdict-mapping.js";
 import { PREVIEW_NOW } from "../../lib/programs/vendor-preview.js";
 import {
   sampleSearchablePhraseIds,
@@ -273,6 +275,14 @@ function ResultTile({
             style={ResultDotStyle(VERDICT_COLORS[result.verdictColor])}
           />
           <span style={ResultProgramStyle}>{result.programName}</span>
+          {(() => {
+            const variant = verdictToBadgeVariant(
+              result.programSlug,
+              result.verdictColor,
+            );
+
+            return variant ? <VerdictBadge variant={variant} size="sm" /> : null;
+          })()}
         </div>
         <div style={ResultPhraseStyle}>{result.phraseId}</div>
         <p style={ResultSummaryStyle}>{result.summary}</p>
