@@ -237,6 +237,39 @@ describe("POST /api/bureau/whistle/run — privacy invariant", () => {
     expect(text).not.toMatch(/secret-bundle/);
     expect(text).not.toMatch(/bundleUrl/);
   });
+
+  it("GET-by-phraseId on the v1 store ALSO never echoes bundleUrl", async () => {
+    // Anonymity has to hold on BOTH boundaries — the legacy POST response
+    // already drops bundleUrl, but a phraseId-credentialed GET on the v1
+    // store must too. Otherwise anyone with the receipt URL could trace
+    // back to the source by curl-ing /api/v1/runs/<phraseId>. Defense-
+    // in-depth via per-pipeline GET redaction (see lib/v1/redact.ts).
+    const post = await POST(
+      buildRequest({
+        headers: SAME_SITE_AUTHED_HEADERS,
+        body: validBody({
+          bundleUrl: "https://leaked-source-host.example/secret-bundle.json",
+        }),
+      }),
+    );
+    expect(post.status).toBe(200);
+    const body = (await post.json()) as SuccessBody;
+
+    // GET via /api/v1/runs/[id] using the legacy-allocated phraseId.
+    const { GET: GET_V1 } = await import("../../../../v1/runs/[id]/route.js");
+    const getRes = await GET_V1(
+      new Request(`http://localhost:3030/api/v1/runs/${body.phraseId}`, {
+        method: "GET",
+        headers: SAME_SITE_AUTHED_HEADERS,
+      }),
+      { params: Promise.resolve({ id: body.phraseId }) },
+    );
+    expect(getRes.status).toBe(200);
+    const getText = await getRes.text();
+    expect(getText).not.toMatch(/leaked-source-host/);
+    expect(getText).not.toMatch(/secret-bundle/);
+    expect(getText).not.toMatch(/"bundleUrl":/);
+  });
 });
 
 describe("POST /api/bureau/whistle/run — success path", () => {

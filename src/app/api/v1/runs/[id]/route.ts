@@ -14,6 +14,14 @@
 // don't auth-gate their server-side data reads either). POST stays
 // auth-gated. Same-site (CSRF) and rate-limit gates still apply on GET
 // to keep abuse and cross-site scrapers in check.
+//
+// PRIVACY: the run-store holds the FULL canonical payload (so the
+// idempotency hash stays stable across retries), but some pipelines
+// carry fields that MUST NOT echo to a phraseId-credentialed reader —
+// most notably WHISTLE.bundleUrl (anonymity hazard) and ROTATE.operatorNote
+// (incident-detail hazard). The per-pipeline redactor in `lib/v1/redact.ts`
+// strips those fields from the GET response shape; the stored record is
+// untouched. See `lib/v1/redact.ts` for the full registry.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
@@ -22,6 +30,7 @@ import {
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { redactPayloadForGet } from "../../../../../lib/v1/redact";
 import { getRun } from "../../../../../lib/v1/run-store";
 
 interface RouteContext {
@@ -61,5 +70,16 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(record, { status: 200 });
+  // Per-pipeline GET-side redaction. Strips fields that participated in
+  // the canonical idempotency hash but MUST NOT echo to a phraseId-
+  // credentialed reader (WHISTLE.bundleUrl + manualRedactPhrase,
+  // ROTATE.operatorNote, …). Pass-through for pipelines without
+  // privacy-sensitive persisted fields. The stored record is untouched —
+  // a future GET re-derives the safe view from the same record.
+  const safe = {
+    ...record,
+    payload: redactPayloadForGet(record.pipeline, record.payload),
+  };
+
+  return NextResponse.json(safe, { status: 200 });
 }

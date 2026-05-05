@@ -451,6 +451,18 @@ The legacy alias additionally echoes `runId === phraseId`,
 > (`privateKey`, `private_key`, `*secret`, `pem`, `privkey`, …) —
 > defense-in-depth backstop on the "Studio handles only public
 > material" posture.
+>
+> **GET-side redaction.** `operatorNote` is accepted at submission
+> (operator-supplied free-form context, e.g. "scheduled rotation Q3")
+> but is **NOT echoed in the public `GET /api/v1/runs/[id]` response**.
+> The phraseId is the share credential and the URL prefix is reason-
+> scoped (compromised/routine/lost) — that's already a deliberate
+> social-pressure signal, but the optional note could carry attacker
+> IOCs or internal-investigation language the operator did not intend
+> to surface at GET-by-phraseId resolution. The per-pipeline redactor
+> in `src/lib/v1/redact.ts` strips it; the run-store record is
+> untouched so canonical idempotency stays stable. Defense-in-depth:
+> redaction at the GET boundary.
 
 The runId is **reason-scoped** — the receipt URL surfaces *why* the
 rotation happened (`compromised-…`, `routine-…`, `lost-…`). This is a
@@ -526,6 +538,16 @@ The legacy alias additionally echoes `runId === phraseId`,
 > in case a misbuilt client tries to "be helpful" by forwarding
 > identifying info. Anonymity is best-effort, NOT absolute; both ack
 > checkboxes are required.
+>
+> **GET-side redaction.** `bundleUrl` is required at submission (the
+> routing partner needs to retrieve the bundle), but it is **NOT echoed
+> in the public `GET /api/v1/runs/[id]` response**. The phraseId is the
+> share credential; if it leaked the URL, anyone could trace the source.
+> The same applies to `manualRedactPhrase` (the operator-supplied scrub
+> phrase). The per-pipeline redactor in `src/lib/v1/redact.ts` strips
+> these fields from the GET response shape; the run-store record is
+> untouched so the canonical idempotency hash remains stable across
+> retries. Defense-in-depth: redaction at the GET boundary.
 
 The runId is **routing-partner-scoped** — the receipt URL self-
 discloses *which newsroom received the tip*, never the source

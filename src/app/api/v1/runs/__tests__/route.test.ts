@@ -828,6 +828,171 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
   });
 });
 
+describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
+  it("WHISTLE: bundleUrl is NOT echoed in the GET response payload", async () => {
+    const post = await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://leaked-host.example/bundle.json",
+          category: "training-data",
+          routingPartner: "propublica",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(post.status).toBe(200);
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await GET(getReq(), { params: Promise.resolve({ id: runId }) });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as RunRecord;
+
+    // Privacy invariant — phraseId is the share credential; the response
+    // must not leak bundleUrl. Also verify the JSON payload byte-for-byte
+    // does not contain the URL anywhere (defense-in-depth — covers any
+    // future field that might accidentally echo it).
+    expect("bundleUrl" in body.payload).toBe(false);
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain("leaked-host.example");
+
+    // Public-safe fields still present.
+    expect(body.payload.routingPartner).toBe("propublica");
+    expect(body.payload.category).toBe("training-data");
+  });
+
+  it("WHISTLE: manualRedactPhrase is NOT echoed in the GET response payload", async () => {
+    const post = await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://example.com/bundle.json",
+          category: "policy-violation",
+          routingPartner: "bellingcat",
+          manualRedactPhrase: "redact-internal-codename-zeus",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(post.status).toBe(200);
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await GET(getReq(), { params: Promise.resolve({ id: runId }) });
+    const body = (await res.json()) as RunRecord;
+    expect("manualRedactPhrase" in body.payload).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("zeus");
+  });
+
+  it("WHISTLE: idempotency replay still works AFTER redaction (canonical hash uses original payload)", async () => {
+    const idempotencyKey = "whistle-replay-test-key";
+    const r1 = (await (await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://example.com/bundle.json",
+          category: "training-data",
+          routingPartner: "propublica",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+        idempotencyKey,
+      }),
+    )).json()) as PostSuccessBody;
+    expect(r1.reused).toBe(false);
+
+    // Retry — same idempotencyKey + same canonical (pipeline, payload).
+    // The store hashes the ORIGINAL payload (with bundleUrl) so this MUST
+    // hit the existing run with reused=true. The redaction lives at the
+    // GET boundary and never touches the canonical hash input.
+    const r2 = (await (await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://example.com/bundle.json",
+          category: "training-data",
+          routingPartner: "propublica",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+        idempotencyKey,
+      }),
+    )).json()) as PostSuccessBody;
+    expect(r2.reused).toBe(true);
+    expect(r2.runId).toBe(r1.runId);
+
+    // GET still redacts.
+    const getRes = await GET(getReq(), {
+      params: Promise.resolve({ id: r1.runId }),
+    });
+    const body = (await getRes.json()) as RunRecord;
+    expect("bundleUrl" in body.payload).toBe(false);
+  });
+
+  it("ROTATE: operatorNote is NOT echoed in the GET response payload", async () => {
+    const post = await POST(
+      postReq({
+        pipeline: "bureau:rotate",
+        payload: {
+          oldKeyFingerprint: "a".repeat(64),
+          newKeyFingerprint: "b".repeat(64),
+          reason: "compromised",
+          operatorNote: "incident #42 — internal investigation IOCs follow",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(post.status).toBe(200);
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await GET(getReq(), { params: Promise.resolve({ id: runId }) });
+    const body = (await res.json()) as RunRecord;
+    expect("operatorNote" in body.payload).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("incident #42");
+
+    // Public-safe fields still present.
+    expect(body.payload.oldKeyFingerprint).toBe("a".repeat(64));
+    expect(body.payload.newKeyFingerprint).toBe("b".repeat(64));
+    expect(body.payload.reason).toBe("compromised");
+  });
+
+  it("DRAGNET: pass-through — full payload echoed unchanged", async () => {
+    const original = {
+      targetUrl: "https://api.openai.com/v1/chat/completions",
+      probePackId: "canon-honesty",
+      cadence: "once",
+      authorizationAcknowledged: true,
+    };
+    const post = await POST(
+      postReq({ pipeline: "bureau:dragnet", payload: original }),
+    );
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await GET(getReq(), { params: Promise.resolve({ id: runId }) });
+    const body = (await res.json()) as RunRecord;
+    expect(body.payload).toEqual(original);
+  });
+
+  it("MOLE: pass-through — canaryUrl is by-design public, echoed unchanged", async () => {
+    const original = {
+      canaryId: "nyt-2024-01-15",
+      canaryUrl: "https://example.com/canary.txt",
+      fingerprintPhrases:
+        "first unique-enough fingerprint phrase, second unique-enough phrase",
+      authorizationAcknowledged: true,
+    };
+    const post = await POST(
+      postReq({ pipeline: "bureau:mole", payload: original }),
+    );
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await GET(getReq(), { params: Promise.resolve({ id: runId }) });
+    const body = (await res.json()) as RunRecord;
+    expect(body.payload).toEqual(original);
+  });
+});
+
 describe("POST /api/v1/runs — rate limit", () => {
   it("429s after the per-window threshold", async () => {
     const headers = {
