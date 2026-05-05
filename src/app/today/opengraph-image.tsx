@@ -53,10 +53,10 @@ function WatermarkChip(): ReactElement {
         fontFamily:
           "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace",
         fontWeight: 700,
-        fontSize: 18,
+        fontSize: 24,
         letterSpacing: "0.12em",
         textTransform: "uppercase",
-        padding: "6px 12px",
+        padding: "8px 16px",
         borderRadius: 4,
       }}
     >
@@ -154,6 +154,7 @@ function ProgramTile({ program }: { program: ProgramRollup }): ReactElement {
 }
 
 export default function Image(): Response {
+  // TODO(pluck-api): pass new Date() once /v1/runs since-24h queries land
   const rollup = getDailyRollup();
 
   return new ImageResponse(

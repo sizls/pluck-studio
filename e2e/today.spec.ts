@@ -13,19 +13,11 @@
 
 import { expect, test } from "@playwright/test";
 
-const ACTIVE_SLUGS = [
-  "dragnet",
-  "oath",
-  "fingerprint",
-  "custody",
-  "whistle",
-  "bounty",
-  "sbom-ai",
-  "rotate",
-  "tripwire",
-  "nuclei",
-  "mole",
-] as const;
+import { ACTIVE_PROGRAMS } from "../src/lib/programs/registry.js";
+
+// Derived from the registry — single source of truth. If ACTIVE_PROGRAMS
+// is reordered or extended, this list follows automatically. No drift.
+const ACTIVE_SLUGS = ACTIVE_PROGRAMS.map((p) => p.slug);
 
 test.describe("/today — daily honesty roll-up", () => {
   test("renders all 11 program tiles plus OG preview + share link", async ({
@@ -69,5 +61,50 @@ test.describe("/today — daily honesty roll-up", () => {
     const link = page.getByTestId("today-cross-link");
     await expect(link).toBeVisible();
     await expect(link).toContainText("/today");
+  });
+
+  test("share link copies the page URL to the clipboard", async ({
+    page,
+    context,
+  }) => {
+    // Grant clipboard permissions for chromium. Other browsers ignore.
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+
+    await page.goto("/today");
+    const button = page.getByTestId("today-share-link");
+    await expect(button).toBeVisible();
+    // Initial state is idle — label should read "Copy share URL".
+    await expect(button).toContainText(/Copy share URL/i);
+    await expect(button).toHaveAttribute("data-copy-state", "idle");
+
+    // Stub clipboard.writeText so we can assert it was called even on
+    // browsers (webkit/firefox) that don't honor grantPermissions.
+    await page.evaluate(() => {
+      (
+        window as unknown as { __copied?: string[] }
+      ).__copied = [];
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: (text: string) => {
+            (window as unknown as { __copied: string[] }).__copied.push(text);
+
+            return Promise.resolve();
+          },
+        },
+      });
+    });
+
+    await button.click();
+
+    // After click the button should briefly enter the "copied" state.
+    await expect(button).toHaveAttribute("data-copy-state", "copied");
+    await expect(button).toContainText(/Copied/i);
+
+    const copied = await page.evaluate(
+      () => (window as unknown as { __copied: string[] }).__copied,
+    );
+    expect(copied.length).toBe(1);
+    expect(copied[0]).toMatch(/\/today$/);
   });
 });

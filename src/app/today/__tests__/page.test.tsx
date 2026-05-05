@@ -42,10 +42,18 @@ describe("/today page — server render", () => {
     expect(html).toMatch(/src="\/today\/opengraph-image[^"]*"/);
   });
 
-  it("renders the share link", () => {
+  it("renders the share link as a copy-to-clipboard button (not a misleading anchor)", () => {
     const html = renderToStaticMarkup(<TodayPage />);
     expect(html).toContain('data-testid="today-share-link"');
-    expect(html).toContain("href=\"/today\"");
+    // The element MUST be a button — the previous <a href="/today"> shape
+    // was misleading: the label said "Copy share URL" but clicking just
+    // navigated. The CopyShareLink client component now does an actual
+    // navigator.clipboard.writeText() on click.
+    expect(html).toMatch(/<button[^>]*data-testid="today-share-link"/);
+    expect(html).toContain('data-copy-state="idle"');
+    expect(html).toContain("Copy share URL");
+    // The old misleading affordance should be gone.
+    expect(html).not.toMatch(/<a[^>]+data-testid="today-share-link"/);
   });
 
   it("renders the page header with UTC date", () => {

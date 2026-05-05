@@ -20,6 +20,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { getDailyRollup } from "../../lib/programs/today-rollup.js";
 import { ACTIVE_PROGRAMS } from "../../lib/programs/registry.js";
 import { VERDICT_COLORS } from "../vendor/_ui";
+import { CopyShareLink } from "./CopyShareLink";
 
 const PAGE_DESCRIPTION =
   "Today on Pluck — one tile per Bureau program showing the last 24h verdict density. The shareable daily honesty card.";
@@ -134,7 +135,7 @@ const ShareLinkStyle: CSSProperties = {
   color: "var(--bureau-fg)",
   border: "1px solid var(--bureau-fg-dim)",
   borderRadius: 4,
-  textDecoration: "none",
+  cursor: "pointer",
 };
 
 const VERDICT_ORDER: ReadonlyArray<keyof typeof VERDICT_COLORS> = [
@@ -208,6 +209,7 @@ function ProgramTile({
 }
 
 export default function TodayPage(): ReactNode {
+  // TODO(pluck-api): pass new Date() once /v1/runs since-24h queries land
   const rollup = getDailyRollup();
   const landingFor = (slug: string): string => {
     const program = ACTIVE_PROGRAMS.find((p) => p.slug === slug);
@@ -272,13 +274,7 @@ export default function TodayPage(): ReactNode {
           data-testid="today-og-preview"
         />
         <div>
-          <a
-            href="/today"
-            style={ShareLinkStyle}
-            data-testid="today-share-link"
-          >
-            Copy share URL → /today
-          </a>
+          <CopyShareLink style={ShareLinkStyle} />
         </div>
       </section>
 
