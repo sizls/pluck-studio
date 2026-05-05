@@ -112,6 +112,32 @@ describe.each([
     expect(q.length).toBeLessThanOrEqual(128);
   });
 
+  it("128-char phrase passes through to parsePhraseId (boundary)", async () => {
+    // Exactly at the cap — should NOT trip the over-length truncation.
+    const phrase = "a".repeat(128);
+    const res = await invoke(handler, { phrase });
+
+    expect(res.status).toBe(302);
+    // Falls through to /search (parsePhraseId rejects single-token input)
+    // but the q param is the FULL 128-char phrase, not truncated.
+    const target = new URL(locationOf(res));
+    const q = target.searchParams.get("q") ?? "";
+    expect(q.length).toBe(128);
+    expect(q).toBe(phrase);
+  });
+
+  it("129-char phrase trips the cap (boundary)", async () => {
+    // One past the cap — must truncate to 128.
+    const phrase = "a".repeat(129);
+    const res = await invoke(handler, { phrase });
+
+    expect(res.status).toBe(302);
+    const target = new URL(locationOf(res));
+    const q = target.searchParams.get("q") ?? "";
+    expect(q.length).toBeLessThanOrEqual(128);
+    expect(q.length).toBeLessThan(phrase.length);
+  });
+
   it("handles an empty phrase param without throwing", async () => {
     const res = await invoke(handler, { phrase: "" });
 
