@@ -23,13 +23,14 @@ import {
   __INTERNAL_TTL_MS,
   __resetForTests,
   __runCount,
+  cancelRun,
   canonicalJson,
   createRun,
   getRun,
   idempotencyHashOf,
   listRuns,
 } from "../run-store.js";
-import type { RunSpec } from "../run-spec.js";
+import type { RunRecord, RunSpec } from "../run-spec.js";
 
 const validBureauSpec: RunSpec = {
   pipeline: "bureau:dragnet",
@@ -385,6 +386,122 @@ describe("run-store — listRuns", () => {
       const result = listRuns({}, t0 + __INTERNAL_TTL_MS + 2000);
       expect(result.runs.map((r) => r.runId)).toEqual([fresh.record.runId]);
       expect(result.totalCount).toBe(1);
+    });
+  });
+});
+
+describe("run-store — cancelRun", () => {
+  it("cancels a pending run → ok kind with the updated record (status='cancelled')", () => {
+    const { record } = createRun(validBureauSpec);
+    expect(record.status).toBe("pending");
+
+    const result = cancelRun(record.runId);
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      throw new Error("unreachable");
+    }
+    expect(result.record.status).toBe("cancelled");
+    expect(result.alreadyCancelled).toBe(false);
+    expect(result.record.runId).toBe(record.runId);
+  });
+
+  it("cancels a running run → ok kind with status='cancelled'", () => {
+    // Bypass the "createRun is dumb persistence" boundary by reading,
+    // mutating, and re-storing through the public surface. Easiest path:
+    // use createRun, then flip status via a re-creation through the
+    // module's internal Map. We stay public-only by using cancelRun
+    // after manually overwriting via the test seam — but the store
+    // doesn't expose a "set status" helper, so we exercise the running-
+    // path via cancel-after-cancel? No — that's the idempotent path.
+    //
+    // Instead: round-trip through createRun, then directly mutate the
+    // returned record's status via a side-channel by re-storing through
+    // a fresh run-store import path is overkill. We use a runtime poke:
+    // grab the record, JSON-roundtrip a `running` variant, and bypass
+    // by calling cancelRun against the runId AFTER calling createRun
+    // a second time with a different idempotency path? Cleaner: the
+    // status field on the returned record is not frozen — Object.assign
+    // through the Map reference works for the stub. We do the minimum
+    // poke needed to exercise the running-state branch.
+    const { record } = createRun({ ...validBureauSpec, idempotencyKey: "run" });
+    // Reach into the live Map via getRun — the returned reference IS
+    // the stored record (the stub does not deep-clone on read), so
+    // mutating its status in place puts the store into a 'running'
+    // state for the next cancelRun call.
+    const live = getRun(record.runId) as RunRecord;
+    (live as { status: RunRecord["status"] }).status = "running";
+
+    const result = cancelRun(record.runId);
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      throw new Error("unreachable");
+    }
+    expect(result.record.status).toBe("cancelled");
+    expect(result.alreadyCancelled).toBe(false);
+  });
+
+  it("is idempotent — cancelling an already-cancelled run returns alreadyCancelled=true", () => {
+    const { record } = createRun(validBureauSpec);
+    const first = cancelRun(record.runId);
+    if (first.kind !== "ok") {
+      throw new Error("expected first cancel to succeed");
+    }
+    const firstUpdatedAt = first.record.updatedAt;
+
+    const second = cancelRun(record.runId);
+    expect(second.kind).toBe("ok");
+    if (second.kind !== "ok") {
+      throw new Error("unreachable");
+    }
+    expect(second.alreadyCancelled).toBe(true);
+    expect(second.record.runId).toBe(record.runId);
+    expect(second.record.status).toBe("cancelled");
+    // updatedAt should not change on the idempotent replay.
+    expect(second.record.updatedAt).toBe(firstUpdatedAt);
+  });
+
+  it("returns kind='final-state' with status='anchored' when the run has anchored", () => {
+    const { record } = createRun(validBureauSpec);
+    const live = getRun(record.runId) as RunRecord;
+    (live as { status: RunRecord["status"] }).status = "anchored";
+
+    const result = cancelRun(record.runId);
+    expect(result.kind).toBe("final-state");
+    if (result.kind !== "final-state") {
+      throw new Error("unreachable");
+    }
+    expect(result.status).toBe("anchored");
+
+    // Anchored stays anchored — cancel must NOT mutate.
+    expect((getRun(record.runId) as RunRecord).status).toBe("anchored");
+  });
+
+  it("returns kind='final-state' with status='failed' when the run has failed", () => {
+    const { record } = createRun(validBureauSpec);
+    const live = getRun(record.runId) as RunRecord;
+    (live as { status: RunRecord["status"] }).status = "failed";
+
+    const result = cancelRun(record.runId);
+    expect(result.kind).toBe("final-state");
+    if (result.kind !== "final-state") {
+      throw new Error("unreachable");
+    }
+    expect(result.status).toBe("failed");
+  });
+
+  it("returns kind='not-found' for an unknown runId", () => {
+    const result = cancelRun("does-not-exist-0000");
+    expect(result.kind).toBe("not-found");
+  });
+
+  // STUB-coupled: TTL eviction is a property of the in-memory store.
+  describe.skipIf(!STUB_ONLY)("STUB-only — TTL-evicted run is not-found", () => {
+    it("returns kind='not-found' when the run has been TTL-evicted", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      const { record } = createRun(validBureauSpec, t0);
+      // Past TTL → evictExpired sweeps it; cancelRun returns not-found.
+      const result = cancelRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000);
+      expect(result.kind).toBe("not-found");
     });
   });
 });

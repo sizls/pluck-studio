@@ -84,7 +84,12 @@ export interface RunSpec {
   idempotencyKey?: string;
 }
 
-export type RunStatus = "pending" | "running" | "anchored" | "failed";
+export type RunStatus =
+  | "pending"
+  | "running"
+  | "anchored"
+  | "failed"
+  | "cancelled";
 export type VerdictColor = "green" | "amber" | "red" | "gray";
 
 export interface RunRecord {

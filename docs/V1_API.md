@@ -64,7 +64,7 @@ echoed back by `POST` indirectly via `runId` + `receiptUrl`):
 interface RunRecord {
   runId: string;            // phrase ID — the canonical receipt URL primitive
   pipeline: RunSpecPipeline;
-  status: "pending" | "running" | "anchored" | "failed";
+  status: "pending" | "running" | "anchored" | "failed" | "cancelled";
   verdict: string | null;
   verdictColor: "green" | "amber" | "red" | "gray";
   payload: Record<string, unknown>;
@@ -241,6 +241,100 @@ curl -sS 'http://localhost:3030/api/v1/runs?pipeline=bureau:dragnet&since=2026-0
 curl -sS 'http://localhost:3030/api/v1/runs?limit=20&cursor=openai-swift-falcon-3742' \
   -H 'sec-fetch-site: same-origin'
 ```
+
+---
+
+## `DELETE /api/v1/runs/[id]` — cancel a pending or running run
+
+Completes the v1 read+write surface (POST / GET-list / GET-by-id /
+DELETE). DELETE is the **cancel** verb — it does NOT erase the record.
+A cancelled run still resolves through `GET /api/v1/runs/[id]` so its
+receipt URL stays valid for audit + share.
+
+**Auth model.** Same gate as `POST /api/v1/runs` — `isSameSiteRequest`
++ `rateLimitOk` + `isAuthed`. NOT public-read like the GET handlers;
+cancelling is state-modifying so the caller must hold a Supabase
+session cookie (or the dev-mode `Bearer` affordance).
+
+**Privacy.** The success body echoes the cancelled record. The same
+per-pipeline `redactPayloadForGet` redaction that the GET handler uses
+runs on the cancel response too — without it, a WHISTLE `bundleUrl` or
+ROTATE `operatorNote` would leak through the cancel path. The store
+record itself is untouched (the canonical hash inputs are preserved).
+
+### Status transitions
+
+| From | DELETE result | HTTP |
+|---|---|---|
+| `pending` | flips to `cancelled` | 200 + record echo, `alreadyCancelled: false` |
+| `running` | flips to `cancelled` (real backend signals the runner; stub just flips status) | 200 + record echo, `alreadyCancelled: false` |
+| `cancelled` | idempotent — record unchanged | 200 + record echo, `alreadyCancelled: true` |
+| `anchored` | rejected — already-final | 409 `{ error, status: "anchored" }` |
+| `failed` | rejected — already-final | 409 `{ error, status: "failed" }` |
+| missing runId | not found (or TTL'd) | 404 |
+
+### Status codes
+
+| Code | Meaning |
+|---|---|
+| `200` | Cancelled successfully (or already cancelled — idempotent). Body is the redacted RunRecord plus `alreadyCancelled: boolean`. |
+| `400` | Invalid run id (length cap 128, same as GET). |
+| `401` | Authentication required — caller must hold a Supabase session cookie (or dev-mode Bearer). |
+| `403` | Cross-site request rejected (CSRF gate, same as POST). |
+| `404` | Run not found (no such id, or TTL-evicted from the stub). |
+| `409` | Run is in a final state (`anchored` or `failed`) and cannot be cancelled. Response body echoes the offending status. |
+| `429` | Rate-limited — same per-IP+session bucket as POST/GET. |
+
+### Idempotency
+
+Cancelling a `cancelled` run is idempotent: the store record is not
+re-mutated and the response carries `alreadyCancelled: true` so the
+client can distinguish "fresh cancel" from "your retry hit an
+already-cancelled run." `updatedAt` is preserved across idempotent
+replays.
+
+> **Stub-era authorization caveat (pre-pluck-api).** Today, ANY
+> authenticated caller can cancel ANY run. The auth gate proves "the
+> caller is signed in" but does NOT prove "the caller owns this run"
+> — the run-store stub has no concept of run ownership yet. This will
+> bind to the authenticated user identity at the same pluck-api
+> inflection that adds `runs.owner_id`. Until then this is a known
+> gap; MUST be fixed before public alpha. See the SECURITY block in
+> `src/app/api/v1/runs/[id]/route.ts`. (Mirrors the NUCLEI
+> author-handle stub gap — both close at the same migration.)
+
+### curl example
+
+```bash
+# Cancel a pending or running run. Auth required — sb-session cookie
+# (production) or the dev-mode Bearer affordance.
+curl -X DELETE \
+  -H "Cookie: sb-session=..." \
+  -H "sec-fetch-site: same-origin" \
+  https://studio.pluck.run/api/v1/runs/openai-swift-falcon-3742
+# → 200 { runId, pipeline, status: "cancelled",
+#         payload: <redacted>, …, alreadyCancelled: false }
+
+# Replay — idempotent. The record is not re-mutated; the response
+# tells you it was already cancelled.
+curl -X DELETE \
+  -H "Cookie: sb-session=..." \
+  -H "sec-fetch-site: same-origin" \
+  https://studio.pluck.run/api/v1/runs/openai-swift-falcon-3742
+# → 200 { …, status: "cancelled", alreadyCancelled: true }
+
+# Cancelling an anchored run is rejected — the receipt is final.
+curl -X DELETE \
+  -H "Cookie: sb-session=..." \
+  -H "sec-fetch-site: same-origin" \
+  https://studio.pluck.run/api/v1/runs/already-anchored-run-0001
+# → 409 { error: "run is in final state 'anchored' and cannot be cancelled",
+#         status: "anchored" }
+```
+
+After cancel, the run is still readable via `GET /api/v1/runs/[id]`
+with `status: "cancelled"` — the receipt URL stays valid so the share
+link doesn't 404 on the recipient.
 
 ---
 
@@ -724,7 +818,6 @@ swap so SDKs can be generated against the planned union today.
 
 | Endpoint | Purpose | Status |
 |---|---|---|
-| `DELETE /v1/runs/:id` | Cancel an in-flight run | Planned — no impl |
 | `GET /v1/runs/:id/events` | Server-Sent Events stream of run progress | Planned — no impl |
 
 Until each ships, the only run-discovery primitive is the `runId` /

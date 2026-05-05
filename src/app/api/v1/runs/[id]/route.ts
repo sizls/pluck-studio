@@ -27,11 +27,12 @@
 import { NextResponse } from "next/server";
 
 import {
+  isAuthed,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
 import { redactPayloadForGet } from "../../../../../lib/v1/redact";
-import { getRun } from "../../../../../lib/v1/run-store";
+import { cancelRun, getRun } from "../../../../../lib/v1/run-store";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -82,4 +83,118 @@ export async function GET(
   };
 
   return NextResponse.json(safe, { status: 200 });
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /api/v1/runs/[id] — cancel a pending or running run
+// ---------------------------------------------------------------------------
+//
+// Completes the v1 read+write CRUD-style surface (POST / GET-list /
+// GET-by-id / DELETE). DELETE is the cancel verb — it does NOT erase
+// the record. A cancelled run still resolves through GET so its
+// receipt URL stays valid for audit + share.
+//
+// Status transitions (canonical — matches `cancelRun` in run-store.ts):
+//   pending   → cancelled       (200 + record echo)
+//   running   → cancelled       (200 + record echo; real backend signals runner)
+//   anchored  → 409             (already-final, can't undo)
+//   failed    → 409             (already-final)
+//   cancelled → 200 idempotent  (returns alreadyCancelled=true; record unchanged)
+//   missing   → 404
+//
+// AUTH: same gate as POST — `isAuthed` + `isSameSiteRequest` +
+// `rateLimitOk`. NOT public-read like GET. Cancelling is state-
+// modifying; callers must hold a Supabase session cookie (or the
+// dev-mode Bearer affordance).
+//
+// PRIVACY: the success body echoes the cancelled record, so we run the
+// same per-pipeline `redactPayloadForGet` redaction here as the GET
+// handler. Without that, a WHISTLE bundleUrl or ROTATE operatorNote
+// would leak through the cancel response — same anonymity hazard the
+// GET path closes.
+//
+// =============================================================================
+// SECURITY (stub-era) — coarse authorization
+// =============================================================================
+//
+// Today, ANY authenticated caller can cancel ANY run. The auth gate
+// only proves "the caller is signed in"; it does NOT prove "the caller
+// owns this run." The Supabase user identity is intentionally not
+// threaded through to a runs.owner_id check because the run-store stub
+// has no concept of run ownership yet — runs are author-less in this
+// pre-pluck-api phase.
+//
+// Tracking: bind runs to authenticated owners via pluck-api (the same
+// migration that adds run ownership for the audit trail). Once that
+// lands, the DELETE handler MUST check `record.ownerId === session.user.id`
+// (or admin role) before invoking `cancelRun`. Until then, this is a
+// known stub-era authorization gap — MUST be fixed before public alpha.
+//
+// This mirrors the NUCLEI author-handle stub gap (see
+// `src/app/api/bureau/nuclei/run/route.ts` SECURITY block, AE R1
+// finding S1): operator-asserted identity is not yet bound to the
+// authenticated user. Both close at the same pluck-api inflection.
+// =============================================================================
+export async function DELETE(
+  req: Request,
+  context: RouteContext,
+): Promise<Response> {
+  if (!isSameSiteRequest(req)) {
+    return NextResponse.json(
+      { error: "cross-site request rejected" },
+      { status: 403 },
+    );
+  }
+  if (!rateLimitOk(req)) {
+    return NextResponse.json(
+      { error: "too many requests — slow down and try again in a minute" },
+      { status: 429 },
+    );
+  }
+  if (!isAuthed(req)) {
+    return NextResponse.json(
+      { error: "authentication required" },
+      { status: 401 },
+    );
+  }
+
+  const { id } = await context.params;
+  if (typeof id !== "string" || id.length === 0 || id.length > 128) {
+    return NextResponse.json(
+      { error: "invalid run id" },
+      { status: 400 },
+    );
+  }
+
+  const result = cancelRun(id);
+
+  if (result.kind === "not-found") {
+    return NextResponse.json(
+      { error: "run not found" },
+      { status: 404 },
+    );
+  }
+
+  if (result.kind === "final-state") {
+    return NextResponse.json(
+      {
+        error: `run is in final state '${result.status}' and cannot be cancelled`,
+        status: result.status,
+      },
+      { status: 409 },
+    );
+  }
+
+  // ok — cancelled (or already-cancelled, idempotent). Apply the same
+  // GET-side redactor so privacy-sensitive fields don't leak through
+  // the cancel response either. The stored record is untouched.
+  const safe = {
+    ...result.record,
+    payload: redactPayloadForGet(result.record.pipeline, result.record.payload),
+  };
+
+  return NextResponse.json(
+    { ...safe, alreadyCancelled: result.alreadyCancelled },
+    { status: 200 },
+  );
 }

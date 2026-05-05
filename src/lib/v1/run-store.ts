@@ -528,6 +528,61 @@ export function getRun(runId: string, now: number = Date.now()): RunRecord | nul
   return record;
 }
 
+/**
+ * Result of a `cancelRun` call. Discriminated so the route handler can
+ * map each kind to a distinct HTTP status without re-parsing strings:
+ *   - `ok`           → 200 (200 even when alreadyCancelled — idempotent)
+ *   - `not-found`    → 404 (no such runId, or TTL-evicted)
+ *   - `final-state`  → 409 (already-anchored / already-failed; can't undo)
+ */
+export type CancelResult =
+  | { kind: "ok"; record: RunRecord; alreadyCancelled: boolean }
+  | { kind: "not-found" }
+  | { kind: "final-state"; status: RunRecord["status"] };
+
+/**
+ * Cancel a run. Pending or running → cancelled. Anchored or failed →
+ * final-state (cannot be undone). Already-cancelled → idempotent ok.
+ *
+ * Status transitions:
+ *   pending   → cancelled  ✓
+ *   running   → cancelled  ✓ (real backend signals the runner; stub flips status)
+ *   anchored  → final-state (already-final, can't undo)
+ *   failed    → final-state (already-final)
+ *   cancelled → ok with alreadyCancelled=true (idempotent replay)
+ */
+export function cancelRun(
+  runId: string,
+  now: number = Date.now(),
+): CancelResult {
+  // Apply TTL eviction first — consistent with getRun. A run that's
+  // older than the TTL is treated as not-found rather than cancellable.
+  evictExpired(now);
+
+  const record = runs.get(runId);
+  if (record === undefined) {
+    return { kind: "not-found" };
+  }
+
+  if (record.status === "anchored" || record.status === "failed") {
+    return { kind: "final-state", status: record.status };
+  }
+
+  if (record.status === "cancelled") {
+    return { kind: "ok", record, alreadyCancelled: true };
+  }
+
+  // pending or running → cancelled
+  const updated: RunRecord = {
+    ...record,
+    status: "cancelled",
+    updatedAt: nowIso(now),
+  };
+  runs.set(runId, updated);
+
+  return { kind: "ok", record: updated, alreadyCancelled: false };
+}
+
 /** @internal — for tests asserting cap / TTL / idempotency behaviour. */
 export function __resetForTests(): void {
   runs.clear();

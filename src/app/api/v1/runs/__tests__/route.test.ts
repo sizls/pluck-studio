@@ -19,8 +19,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetRateLimit } from "../../../../../lib/rate-limit.js";
 import type { RunRecord } from "../../../../../lib/v1/run-spec.js";
-import { __resetForTests } from "../../../../../lib/v1/run-store.js";
-import { GET } from "../[id]/route.js";
+import {
+  __resetForTests,
+  getRun,
+} from "../../../../../lib/v1/run-store.js";
+import { DELETE, GET } from "../[id]/route.js";
 import { GET as LIST, POST } from "../route.js";
 
 interface PostSuccessBody {
@@ -1232,5 +1235,286 @@ describe("POST /api/v1/runs — rate limit", () => {
     }
     const overflow = await POST(postReq(validBody(), headers));
     expect(overflow.status).toBe(429);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/v1/runs/[id] — cancel a run
+// ---------------------------------------------------------------------------
+//
+// Same-gate as POST: same-site + rate-limit + auth. Locks:
+//   - Auth + same-site posture (matches POST)
+//   - Status transitions: pending|running → cancelled, anchored|failed → 409
+//   - Idempotency on second cancel
+//   - Privacy: response runs through redactPayloadForGet
+//   - Defense-in-depth: serialized response does not leak WHISTLE.bundleUrl
+
+interface DeleteSuccessBody extends RunRecord {
+  alreadyCancelled: boolean;
+}
+
+function deleteReq(
+  id: string,
+  headers: Record<string, string> = SAME_SITE_AUTHED,
+): Request {
+  return new Request(`http://localhost:3030/api/v1/runs/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+}
+
+async function postAndGetRunId(
+  body: unknown = validBody({ idempotencyKey: `seed-${Math.random()}` }),
+): Promise<string> {
+  const res = await POST(postReq(body));
+  const j = (await res.json()) as PostSuccessBody;
+  return j.runId;
+}
+
+describe("DELETE /api/v1/runs/[id] — auth + same-site", () => {
+  it("rejects unauthenticated DELETEs with 401", async () => {
+    const id = await postAndGetRunId();
+    const res = await DELETE(deleteReq(id, SAME_SITE), {
+      params: Promise.resolve({ id }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects cross-site DELETEs with 403", async () => {
+    const id = await postAndGetRunId();
+    const res = await DELETE(
+      deleteReq(id, {
+        "content-type": "application/json",
+        "sec-fetch-site": "cross-site",
+        authorization: "Bearer dev-test-jwt",
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("429s after the per-window threshold", async () => {
+    const headers = {
+      ...SAME_SITE_AUTHED,
+      "x-forwarded-for": "203.0.113.55",
+    };
+    // Burn the bucket on POSTs first so the DELETE hits the rate limit.
+    for (let i = 0; i < 10; i++) {
+      const res = await POST(postReq(validBody(), headers));
+      expect(res.status).toBe(200);
+    }
+    const id = "openai-swift-falcon-0000";
+    const overflow = await DELETE(deleteReq(id, headers), {
+      params: Promise.resolve({ id }),
+    });
+    expect(overflow.status).toBe(429);
+  });
+});
+
+describe("DELETE /api/v1/runs/[id] — id validation", () => {
+  it("400s on absurdly long id", async () => {
+    const id = "x".repeat(200);
+    const res = await DELETE(deleteReq(id), {
+      params: Promise.resolve({ id }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("404s on a missing id", async () => {
+    const id = "nope-nope-nope-0000";
+    const res = await DELETE(deleteReq(id), {
+      params: Promise.resolve({ id }),
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/not found/);
+  });
+});
+
+describe("DELETE /api/v1/runs/[id] — status transitions", () => {
+  it("cancels a pending run → 200 with status='cancelled'", async () => {
+    const id = await postAndGetRunId();
+    const res = await DELETE(deleteReq(id), {
+      params: Promise.resolve({ id }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as DeleteSuccessBody;
+    expect(body.runId).toBe(id);
+    expect(body.status).toBe("cancelled");
+    expect(body.alreadyCancelled).toBe(false);
+  });
+
+  it("is idempotent — second DELETE returns 200 with alreadyCancelled=true", async () => {
+    const id = await postAndGetRunId();
+    const first = await DELETE(deleteReq(id), {
+      params: Promise.resolve({ id }),
+    });
+    expect(first.status).toBe(200);
+    const firstBody = (await first.json()) as DeleteSuccessBody;
+    expect(firstBody.alreadyCancelled).toBe(false);
+
+    const second = await DELETE(deleteReq(id), {
+      params: Promise.resolve({ id }),
+    });
+    expect(second.status).toBe(200);
+    const secondBody = (await second.json()) as DeleteSuccessBody;
+    expect(secondBody.alreadyCancelled).toBe(true);
+    expect(secondBody.status).toBe("cancelled");
+    expect(secondBody.runId).toBe(id);
+  });
+
+  it("409s on an anchored run with an echoed status field", async () => {
+    const id = await postAndGetRunId();
+    // Flip the live record into 'anchored' through the store reference
+    // — simulates the real backend's anchor transition.
+    const live = getRun(id) as RunRecord;
+    (live as { status: RunRecord["status"] }).status = "anchored";
+
+    const res = await DELETE(deleteReq(id), {
+      params: Promise.resolve({ id }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string; status: string };
+    expect(body.status).toBe("anchored");
+    expect(body.error).toMatch(/final state/);
+  });
+
+  it("409s on a failed run", async () => {
+    const id = await postAndGetRunId();
+    const live = getRun(id) as RunRecord;
+    (live as { status: RunRecord["status"] }).status = "failed";
+
+    const res = await DELETE(deleteReq(id), {
+      params: Promise.resolve({ id }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string; status: string };
+    expect(body.status).toBe("failed");
+  });
+});
+
+describe("DELETE /api/v1/runs/[id] — privacy redaction", () => {
+  it("WHISTLE: bundleUrl is NOT echoed in the cancel response payload", async () => {
+    const post = await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://leaked-host.example/bundle.json",
+          category: "training-data",
+          routingPartner: "propublica",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await DELETE(deleteReq(runId), {
+      params: Promise.resolve({ id: runId }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as DeleteSuccessBody;
+    expect(body.status).toBe("cancelled");
+    expect("bundleUrl" in body.payload).toBe(false);
+
+    // Defense-in-depth — the bundle host must not appear ANYWHERE in
+    // the serialized JSON of the cancel response.
+    expect(JSON.stringify(body)).not.toContain("leaked-host.example");
+
+    // Public-safe fields still present.
+    expect(body.payload.routingPartner).toBe("propublica");
+    expect(body.payload.category).toBe("training-data");
+  });
+
+  it("WHISTLE: manualRedactPhrase is NOT echoed in the cancel response", async () => {
+    const post = await POST(
+      postReq({
+        pipeline: "bureau:whistle",
+        payload: {
+          bundleUrl: "https://example.com/bundle.json",
+          category: "policy-violation",
+          routingPartner: "bellingcat",
+          manualRedactPhrase: "redact-internal-codename-zeus",
+          anonymityCaveatAcknowledged: true,
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await DELETE(deleteReq(runId), {
+      params: Promise.resolve({ id: runId }),
+    });
+    const body = (await res.json()) as DeleteSuccessBody;
+    expect("manualRedactPhrase" in body.payload).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("zeus");
+  });
+
+  it("ROTATE: operatorNote is NOT echoed in the cancel response", async () => {
+    const post = await POST(
+      postReq({
+        pipeline: "bureau:rotate",
+        payload: {
+          oldKeyFingerprint: "a".repeat(64),
+          newKeyFingerprint: "b".repeat(64),
+          reason: "compromised",
+          operatorNote: "incident #77 — IOCs follow",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await DELETE(deleteReq(runId), {
+      params: Promise.resolve({ id: runId }),
+    });
+    const body = (await res.json()) as DeleteSuccessBody;
+    expect(body.status).toBe("cancelled");
+    expect("operatorNote" in body.payload).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("incident #77");
+    // Public-safe fields still present.
+    expect(body.payload.reason).toBe("compromised");
+  });
+
+  it("DRAGNET: pass-through — full payload echoed unchanged on cancel", async () => {
+    const original = {
+      targetUrl: "https://api.openai.com/v1/chat/completions",
+      probePackId: "canon-honesty",
+      cadence: "once",
+      authorizationAcknowledged: true,
+    };
+    const post = await POST(
+      postReq({ pipeline: "bureau:dragnet", payload: original }),
+    );
+    const { runId } = (await post.json()) as PostSuccessBody;
+
+    const res = await DELETE(deleteReq(runId), {
+      params: Promise.resolve({ id: runId }),
+    });
+    const body = (await res.json()) as DeleteSuccessBody;
+    expect(body.status).toBe("cancelled");
+    expect(body.payload).toEqual(original);
+  });
+});
+
+describe("DELETE /api/v1/runs/[id] — interaction with GET", () => {
+  it("after cancel, GET still returns the record with status='cancelled'", async () => {
+    const id = await postAndGetRunId();
+    const del = await DELETE(deleteReq(id), {
+      params: Promise.resolve({ id }),
+    });
+    expect(del.status).toBe(200);
+
+    const res = await GET(
+      new Request(`http://localhost:3030/api/v1/runs/${id}`, {
+        method: "GET",
+        headers: SAME_SITE,
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as RunRecord;
+    expect(body.runId).toBe(id);
+    expect(body.status).toBe("cancelled");
   });
 });
