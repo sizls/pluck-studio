@@ -111,6 +111,25 @@ export function V1RunStatusBanner({ id }: V1RunStatusBannerProps): ReactNode {
 }
 
 /**
+ * Format an ISO timestamp into a locale-friendly display string (e.g.
+ * "May 4, 2026, 8:54 PM"). Falls back to the raw input when the string
+ * is not a valid Date so the banner never crashes on a malformed
+ * `updatedAt` from a future store shape — graceful degradation matches
+ * the shell's overall posture.
+ */
+function formatUpdatedAtDisplay(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) {
+    return iso;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsed);
+}
+
+/**
  * Pure presentation slice — given a status interpretation, render the
  * cancellation banner. Split from the data-fetching shell so the visual
  * surface can be unit-tested without spinning up a DOM. The shell does
@@ -119,6 +138,11 @@ export function V1RunStatusBanner({ id }: V1RunStatusBannerProps): ReactNode {
  * Exported for tests (and any future caller that already knows the run
  * is cancelled — e.g. a server component that could pre-fetch and skip
  * the client-side round trip).
+ *
+ * Display rule: the human-visible string is locale-formatted (e.g.
+ * "May 4, 2026, 8:54 PM"); the machine-readable `<time dateTime="…">`
+ * attribute keeps the original ISO string verbatim so SR users, tests,
+ * and any future scrapers still see the canonical timestamp.
  */
 export function V1CancelledBannerView({
   updatedAt,
@@ -137,7 +161,7 @@ export function V1CancelledBannerView({
         <>
           {" at "}
           <time dateTime={updatedAt} style={TimestampStyle}>
-            {updatedAt}
+            {formatUpdatedAtDisplay(updatedAt)}
           </time>
         </>
       ) : null}

@@ -30,13 +30,62 @@ import {
 } from "../V1RunStatusBanner.js";
 
 describe("V1CancelledBannerView", () => {
-  it("renders the banner copy with the updatedAt timestamp", () => {
+  it("renders the banner copy and a non-ISO human-friendly timestamp", () => {
+    const iso = "2026-05-04T12:34:56.789Z";
     const html = renderToStaticMarkup(
-      <V1CancelledBannerView updatedAt="2026-05-04T12:34:56.789Z" />,
+      <V1CancelledBannerView updatedAt={iso} />,
     );
     expect(html).toContain("This run was cancelled");
     expect(html).toContain("at ");
-    expect(html).toContain("2026-05-04T12:34:56.789Z");
+    // Extract the inner text of the <time> element — that's the
+    // human-visible string. It must NOT be the raw ISO; the exact
+    // locale output varies by test environment so we assert on shape
+    // rather than equality.
+    const innerMatch = html.match(/<time[^>]*>([^<]+)<\/time>/);
+    expect(innerMatch).not.toBeNull();
+    const displayText = innerMatch?.[1] ?? "";
+    expect(displayText).not.toBe(iso);
+    expect(displayText).not.toContain("T");
+    expect(displayText).not.toContain("Z");
+    // Year is locale-stable across the formats Intl.DateTimeFormat will
+    // pick for `dateStyle: 'medium'` — assert that, plus a non-empty
+    // display body, to catch regressions where formatting silently
+    // returns the raw ISO again.
+    expect(displayText).toContain("2026");
+    expect(displayText.length).toBeGreaterThan(0);
+  });
+
+  it("keeps <time dateTime> set to the raw ISO for machines", () => {
+    const iso = "2026-05-04T12:34:56.789Z";
+    const html = renderToStaticMarkup(
+      <V1CancelledBannerView updatedAt={iso} />,
+    );
+    // React 19's renderToStaticMarkup preserves `dateTime` (camelCase)
+    // verbatim — browsers normalize attribute names case-insensitively
+    // so it still parses as the HTML `datetime` attribute. Mirrors the
+    // contract that the human-visible string is locale-friendly while
+    // the machine-readable attribute stays canonical.
+    const attrMatch = html.match(/<time[^>]*dateTime="([^"]+)"/);
+    expect(attrMatch).not.toBeNull();
+    expect(attrMatch?.[1]).toBe(iso);
+  });
+
+  it("falls back to the raw string for an invalid date (no crash)", () => {
+    // Defensive: if the v1 store ever emits a malformed `updatedAt`
+    // (future shape change, partial migration, etc.) the banner must
+    // not throw or render an "Invalid Date" string. We render the raw
+    // input as a graceful fallback.
+    const garbage = "not-a-date";
+    const html = renderToStaticMarkup(
+      <V1CancelledBannerView updatedAt={garbage} />,
+    );
+    expect(html).toContain("This run was cancelled");
+    expect(html).not.toContain("Invalid Date");
+    const innerMatch = html.match(/<time[^>]*>([^<]+)<\/time>/);
+    expect(innerMatch?.[1]).toBe(garbage);
+    // Machine-readable attribute also pins the raw input verbatim.
+    const attrMatch = html.match(/<time[^>]*dateTime="([^"]+)"/);
+    expect(attrMatch?.[1]).toBe(garbage);
   });
 
   it("emits the v1-cancelled-banner testid hook", () => {
@@ -52,16 +101,6 @@ describe("V1CancelledBannerView", () => {
     );
     expect(html).toContain('role="status"');
     expect(html).toContain('aria-live="polite"');
-  });
-
-  it("emits a semantic <time> element with dateTime attribute", () => {
-    const html = renderToStaticMarkup(
-      <V1CancelledBannerView updatedAt="2026-05-04T12:34:56.789Z" />,
-    );
-    // React 19's renderToStaticMarkup preserves `dateTime` (camelCase)
-    // verbatim — browsers normalize attribute names case-insensitively
-    // so it still parses as the HTML `datetime` attribute.
-    expect(html).toMatch(/<time[^>]*dateTime="2026-05-04T12:34:56\.789Z"/);
   });
 
   it("renders without timestamp when updatedAt is null", () => {

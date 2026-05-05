@@ -412,10 +412,12 @@ export interface ListRunsFilter {
   /** runId of the last item from a previous page; pagination starts AFTER it. */
   readonly cursor?: string;
   /**
-   * Filter by run status. Pass a single `RunStatus` to match exactly one
-   * status, or an array of `RunStatus` to match any of several (logical
-   * OR). Omit to include runs of any status (default — keeps the GET-list
-   * contract backward compatible).
+   * Filter by run status. Single value or array of values.
+   * - Omitted: returns runs of any status
+   * - String: matches that single status
+   * - Array: matches any status in the array
+   * - Empty array: matches NO runs (programmatic callers; over-the-wire
+   *   empty `?status=` is 400'd at the route)
    *
    * Common shapes:
    *   - `status: "cancelled"`             — only cancelled runs
