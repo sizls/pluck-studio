@@ -21,7 +21,7 @@ import { resetRateLimit } from "../../../../../lib/rate-limit.js";
 import type { RunRecord } from "../../../../../lib/v1/run-spec.js";
 import { __resetForTests } from "../../../../../lib/v1/run-store.js";
 import { GET } from "../[id]/route.js";
-import { POST } from "../route.js";
+import { GET as LIST, POST } from "../route.js";
 
 interface PostSuccessBody {
   runId: string;
@@ -990,6 +990,233 @@ describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
     const res = await GET(getReq(), { params: Promise.resolve({ id: runId }) });
     const body = (await res.json()) as RunRecord;
     expect(body.payload).toEqual(original);
+  });
+});
+
+describe("GET /api/v1/runs — list endpoint", () => {
+  interface ListBody {
+    runs: RunRecord[];
+    nextCursor: string | null;
+    totalCount: number;
+  }
+
+  function listReq(
+    query: string = "",
+    headers: Record<string, string> = SAME_SITE,
+  ): Request {
+    return new Request(`http://localhost:3030/api/v1/runs${query}`, {
+      method: "GET",
+      headers,
+    });
+  }
+
+  async function postBody(body: unknown): Promise<PostSuccessBody> {
+    const r = await POST(postReq(body));
+    return (await r.json()) as PostSuccessBody;
+  }
+
+  it("returns an empty list when the store is empty", async () => {
+    const res = await LIST(listReq());
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ListBody;
+    expect(body.runs).toEqual([]);
+    expect(body.nextCursor).toBeNull();
+    expect(body.totalCount).toBe(0);
+  });
+
+  it("returns runs in createdAt DESC order", async () => {
+    const a = await postBody(validBody({ idempotencyKey: "a" }));
+    // Slight pause to push createdAt ms forward — Date.now() granularity
+    // is sufficient on Node, but we use distinct idempotency keys to
+    // guarantee distinct records regardless.
+    await new Promise((r) => setTimeout(r, 5));
+    const b = await postBody(validBody({ idempotencyKey: "b" }));
+    await new Promise((r) => setTimeout(r, 5));
+    const c = await postBody(validBody({ idempotencyKey: "c" }));
+
+    const res = await LIST(listReq());
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ListBody;
+    expect(body.totalCount).toBe(3);
+    // Newest first.
+    expect(body.runs[0]?.runId).toBe(c.runId);
+    expect(body.runs[2]?.runId).toBe(a.runId);
+    expect(body.runs[1]?.runId).toBe(b.runId);
+  });
+
+  it("filters by pipeline=bureau:oath", async () => {
+    await postBody(validBody({ idempotencyKey: "d1" }));
+    const o = await postBody({
+      pipeline: "bureau:oath",
+      payload: { vendorDomain: "openai.com", authorizationAcknowledged: true },
+      idempotencyKey: "o1",
+    });
+    await postBody(validBody({ idempotencyKey: "d2" }));
+
+    const res = await LIST(listReq("?pipeline=bureau:oath"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ListBody;
+    expect(body.runs.length).toBe(1);
+    expect(body.runs[0]?.runId).toBe(o.runId);
+    expect(body.totalCount).toBe(1);
+  });
+
+  it("rejects an unknown pipeline filter with 400", async () => {
+    const res = await LIST(listReq("?pipeline=bureau:made-up"));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an unparseable since with 400", async () => {
+    const res = await LIST(listReq("?since=not-a-date"));
+    expect(res.status).toBe(400);
+  });
+
+  it("filters by since (ISO timestamp)", async () => {
+    // First run created — capture an ISO snapshot AFTER it lands so the
+    // since filter is strictly newer than this point.
+    await postBody(validBody({ idempotencyKey: "old" }));
+    await new Promise((r) => setTimeout(r, 10));
+    const cutoff = new Date().toISOString();
+    await new Promise((r) => setTimeout(r, 10));
+    const fresh = await postBody(validBody({ idempotencyKey: "fresh" }));
+
+    const res = await LIST(listReq(`?since=${encodeURIComponent(cutoff)}`));
+    const body = (await res.json()) as ListBody;
+    expect(body.totalCount).toBe(1);
+    expect(body.runs[0]?.runId).toBe(fresh.runId);
+  });
+
+  it("clamps limit: ?limit=0 returns 1 item, ?limit=999 caps at 100", async () => {
+    // Seed 5 runs.
+    for (let i = 0; i < 5; i++) {
+      await postBody(validBody({ idempotencyKey: `k-${i}` }));
+    }
+
+    const zero = (await (await LIST(listReq("?limit=0"))).json()) as ListBody;
+    expect(zero.runs.length).toBe(1);
+
+    const huge = (await (await LIST(listReq("?limit=999"))).json()) as ListBody;
+    // 5 < 100; clamping to 100 still yields 5.
+    expect(huge.runs.length).toBe(5);
+  });
+
+  it("paginates: page 1 cursor → page 2 with no overlap", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const r = await postBody(validBody({ idempotencyKey: `p-${i}` }));
+      ids.push(r.runId);
+      await new Promise((r) => setTimeout(r, 2));
+    }
+    // DESC: ids[4], ids[3], …, ids[0].
+    const expectedDesc = [...ids].reverse();
+
+    const page1 = (await (await LIST(listReq("?limit=2"))).json()) as ListBody;
+    expect(page1.runs.map((r) => r.runId)).toEqual(expectedDesc.slice(0, 2));
+    expect(page1.nextCursor).toBe(expectedDesc[1]);
+
+    const page2 = (await (await LIST(
+      listReq(`?limit=2&cursor=${encodeURIComponent(page1.nextCursor ?? "")}`),
+    )).json()) as ListBody;
+    expect(page2.runs.map((r) => r.runId)).toEqual(expectedDesc.slice(2, 4));
+
+    // No overlap.
+    const overlap = page2.runs.find((r) =>
+      page1.runs.some((p) => p.runId === r.runId),
+    );
+    expect(overlap).toBeUndefined();
+  });
+
+  it("rejects an absurdly long cursor with 400", async () => {
+    const res = await LIST(listReq(`?cursor=${"x".repeat(200)}`));
+    expect(res.status).toBe(400);
+  });
+
+  it("403s on cross-site requests", async () => {
+    const res = await LIST(
+      listReq("", {
+        "content-type": "application/json",
+        "sec-fetch-site": "cross-site",
+      }),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("429s after the per-window threshold", async () => {
+    const headers = {
+      ...SAME_SITE,
+      "x-forwarded-for": "203.0.113.99",
+    };
+    for (let i = 0; i < 10; i++) {
+      const res = await LIST(listReq("", headers));
+      expect(res.status).toBe(200);
+    }
+    const overflow = await LIST(listReq("", headers));
+    expect(overflow.status).toBe(429);
+  });
+
+  it("PRIVACY: WHISTLE bundleUrl is REDACTED in the list payload", async () => {
+    await postBody({
+      pipeline: "bureau:whistle",
+      payload: {
+        bundleUrl: "https://leaked-host.example/bundle.json",
+        category: "training-data",
+        routingPartner: "propublica",
+        anonymityCaveatAcknowledged: true,
+        authorizationAcknowledged: true,
+      },
+    });
+
+    const res = await LIST(listReq("?pipeline=bureau:whistle"));
+    const body = (await res.json()) as ListBody;
+    expect(body.runs.length).toBe(1);
+    const first = body.runs[0]!;
+    expect("bundleUrl" in first.payload).toBe(false);
+    // Defense-in-depth — the URL must not appear ANYWHERE in the body.
+    expect(JSON.stringify(body)).not.toContain("leaked-host.example");
+    // Public-safe fields still present.
+    expect(first.payload.routingPartner).toBe("propublica");
+  });
+
+  it("PRIVACY: WHISTLE manualRedactPhrase is REDACTED in the list payload", async () => {
+    await postBody({
+      pipeline: "bureau:whistle",
+      payload: {
+        bundleUrl: "https://example.com/bundle.json",
+        category: "policy-violation",
+        routingPartner: "bellingcat",
+        manualRedactPhrase: "redact-internal-codename-zeus",
+        anonymityCaveatAcknowledged: true,
+        authorizationAcknowledged: true,
+      },
+    });
+
+    const res = await LIST(listReq("?pipeline=bureau:whistle"));
+    const body = (await res.json()) as ListBody;
+    const first = body.runs[0]!;
+    expect("manualRedactPhrase" in first.payload).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("zeus");
+  });
+
+  it("PRIVACY: ROTATE operatorNote is REDACTED in the list payload", async () => {
+    await postBody({
+      pipeline: "bureau:rotate",
+      payload: {
+        oldKeyFingerprint: "a".repeat(64),
+        newKeyFingerprint: "b".repeat(64),
+        reason: "compromised",
+        operatorNote: "incident #99 — internal investigation IOCs follow",
+        authorizationAcknowledged: true,
+      },
+    });
+
+    const res = await LIST(listReq("?pipeline=bureau:rotate"));
+    const body = (await res.json()) as ListBody;
+    expect(body.runs.length).toBe(1);
+    const first = body.runs[0]!;
+    expect("operatorNote" in first.payload).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("incident #99");
+    // Public-safe fields still present.
+    expect(first.payload.reason).toBe("compromised");
   });
 });
 

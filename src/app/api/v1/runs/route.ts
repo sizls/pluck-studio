@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// POST /api/v1/runs — unified pipeline activation endpoint (STUB)
+// /api/v1/runs — POST (activate) + GET (list) (STUB)
 // ---------------------------------------------------------------------------
 //
 // The single canonical surface for kicking off any pipeline run. Today
@@ -36,8 +36,10 @@ import {
   rateLimitOk,
 } from "../../../../lib/security/request-guards";
 import { PIPELINE_VALIDATORS } from "../../../../lib/v1/pipeline-validators";
-import { createRun } from "../../../../lib/v1/run-store";
+import { redactPayloadForGet } from "../../../../lib/v1/redact";
+import { createRun, listRuns } from "../../../../lib/v1/run-store";
 import {
+  type BureauPipeline,
   bureauSlugOf,
   isBureauPipeline,
   isFuturePipeline,
@@ -145,6 +147,143 @@ export async function POST(req: Request): Promise<Response> {
       receiptUrl: record.receiptUrl,
       status: record.status,
       reused,
+    },
+    { status: 200 },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/runs — list recent runs (paginated, cursor-based)
+// ---------------------------------------------------------------------------
+//
+// Companion to GET /api/v1/runs/[id]. Same auth posture as the single-
+// record GET — public read by phraseId is the contract today, so the
+// list is also public read. Same-site (CSRF) and rate-limit gates still
+// apply. Listing the entire stub store would be a privacy regression,
+// but the GET-side payload redactor (redactPayloadForGet) strips the
+// same fields here that it strips on the single-record GET — so a list
+// scrape never leaks WHISTLE.bundleUrl, ROTATE.operatorNote, etc.
+//
+// Query params:
+//   ?pipeline=bureau:dragnet — filter by bureau pipeline (optional)
+//   ?since=<ISO timestamp>   — runs created strictly after this timestamp
+//   ?limit=N                 — page size, default 20, max 100
+//   ?cursor=<runId>          — opaque pagination cursor (the runId of the
+//                              last item from a previous page)
+//
+// Response shape:
+//   { runs: RedactedRunRecord[], nextCursor: string | null, totalCount: number }
+//
+// `runs[].payload` is redacted via the same per-pipeline registry as the
+// single-record GET. `nextCursor` is null when no more pages.
+// `totalCount` is the total matching the filter (across all pages) so
+// UIs can render "showing N of M" without a second request.
+// ---------------------------------------------------------------------------
+
+const MAX_CURSOR_LEN = 128;
+
+interface ParsedQuery {
+  ok: true;
+  pipeline?: BureauPipeline;
+  since?: number;
+  limit?: number;
+  cursor?: string;
+}
+
+interface ParsedQueryErr {
+  ok: false;
+  error: string;
+}
+
+function parseListQuery(url: URL): ParsedQuery | ParsedQueryErr {
+  const out: ParsedQuery = { ok: true };
+
+  const pipeline = url.searchParams.get("pipeline");
+  if (pipeline !== null) {
+    if (!isBureauPipeline(pipeline)) {
+      return {
+        ok: false,
+        error: `Unknown pipeline \`${pipeline}\`. Filter must be one of the bureau:* slugs.`,
+      };
+    }
+    out.pipeline = pipeline;
+  }
+
+  const since = url.searchParams.get("since");
+  if (since !== null) {
+    const parsed = Date.parse(since);
+    if (!Number.isFinite(parsed)) {
+      return {
+        ok: false,
+        error: "`since` must be a parseable ISO-8601 timestamp.",
+      };
+    }
+    out.since = parsed;
+  }
+
+  const limit = url.searchParams.get("limit");
+  if (limit !== null) {
+    const n = Number(limit);
+    if (!Number.isFinite(n)) {
+      return { ok: false, error: "`limit` must be a number." };
+    }
+    // Clamp happens in listRuns; just pass through.
+    out.limit = n;
+  }
+
+  const cursor = url.searchParams.get("cursor");
+  if (cursor !== null) {
+    if (cursor.length === 0 || cursor.length > MAX_CURSOR_LEN) {
+      return {
+        ok: false,
+        error: `\`cursor\` must be 1..${MAX_CURSOR_LEN} characters.`,
+      };
+    }
+    out.cursor = cursor;
+  }
+
+  return out;
+}
+
+export async function GET(req: Request): Promise<Response> {
+  if (!isSameSiteRequest(req)) {
+    return NextResponse.json(
+      { error: "cross-site request rejected" },
+      { status: 403 },
+    );
+  }
+  if (!rateLimitOk(req)) {
+    return NextResponse.json(
+      { error: "too many requests — slow down and try again in a minute" },
+      { status: 429 },
+    );
+  }
+
+  const parsed = parseListQuery(new URL(req.url));
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+
+  const result = listRuns({
+    ...(parsed.pipeline !== undefined ? { pipeline: parsed.pipeline } : {}),
+    ...(parsed.since !== undefined ? { since: parsed.since } : {}),
+    ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
+    ...(parsed.cursor !== undefined ? { cursor: parsed.cursor } : {}),
+  });
+
+  // Per-pipeline GET-side redaction applied to EACH list item — same
+  // contract as the single-record GET. The stored record is untouched;
+  // we project a safe view of `payload` for serialization.
+  const safe = result.runs.map((record) => ({
+    ...record,
+    payload: redactPayloadForGet(record.pipeline, record.payload),
+  }));
+
+  return NextResponse.json(
+    {
+      runs: safe,
+      nextCursor: result.nextCursor,
+      totalCount: result.totalCount,
     },
     { status: 200 },
   );

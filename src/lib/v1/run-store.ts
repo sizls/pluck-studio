@@ -396,6 +396,125 @@ function receiptUrlFor(pipeline: RunSpecPipeline, runId: string): string {
   return `/${pipeline}/runs/${runId}`;
 }
 
+/**
+ * Filter applied to `listRuns`. All fields optional — omit a field to
+ * disable that filter. The `cursor` is opaque to callers (it's just the
+ * `runId` of the last item from a previous page; the public contract
+ * does not expose internal indexing).
+ */
+export interface ListRunsFilter {
+  readonly pipeline?: BureauPipeline;
+  /** Unix ms — only runs created strictly AFTER this timestamp are returned. */
+  readonly since?: number;
+  /** Page size. Clamped to [1, 100]; default 20 when omitted. */
+  readonly limit?: number;
+  /** runId of the last item from a previous page; pagination starts AFTER it. */
+  readonly cursor?: string;
+}
+
+export interface ListRunsResult {
+  readonly runs: ReadonlyArray<RunRecord>;
+  /** runId of the last item in this page, or null when there's no next page. */
+  readonly nextCursor: string | null;
+  /** Total matching the filter (across all pages), AFTER TTL eviction. */
+  readonly totalCount: number;
+}
+
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+const MIN_LIMIT = 1;
+
+/**
+ * List runs in createdAt-DESC order with optional filters and cursor
+ * pagination.
+ *
+ * Semantics:
+ *   - TTL eviction runs first (consistent with `getRun`); evicted runs
+ *     never appear in the result, totalCount, or cursor traversal.
+ *   - Sort is `createdAt` DESC, ties broken by `runId` for stable ordering.
+ *   - `cursor` is opaque — pass back the `nextCursor` from a prior call.
+ *     If the cursor's runId no longer exists (TTL'd between pages) we
+ *     fall through and return from the start.
+ *   - `limit` is clamped to [1, 100]; default 20 when omitted/zero/negative.
+ *   - `totalCount` reflects the full filtered set (not just this page) so
+ *     UIs can render "showing 20 of N" without a separate count query.
+ */
+export function listRuns(
+  filter: ListRunsFilter = {},
+  now: number = Date.now(),
+): ListRunsResult {
+  evictExpired(now);
+
+  const limit = clampLimit(filter.limit);
+
+  // Build the filtered + sorted candidate list. Iterate the entire Map
+  // (bounded by MAX_ENTRIES = 10K — acceptable for the stub; the Supabase
+  // swap replaces this with an indexed SELECT).
+  const matched: RunRecord[] = [];
+  for (const record of runs.values()) {
+    if (filter.pipeline !== undefined && record.pipeline !== filter.pipeline) {
+      continue;
+    }
+    if (filter.since !== undefined) {
+      const created = Date.parse(record.createdAt);
+      if (!Number.isFinite(created) || created <= filter.since) {
+        continue;
+      }
+    }
+    matched.push(record);
+  }
+
+  // Sort newest first; tiebreak on runId for deterministic pagination.
+  matched.sort((a, b) => {
+    if (a.createdAt !== b.createdAt) {
+      return a.createdAt < b.createdAt ? 1 : -1;
+    }
+    if (a.runId === b.runId) {
+      return 0;
+    }
+
+    return a.runId < b.runId ? 1 : -1;
+  });
+
+  const totalCount = matched.length;
+
+  // Apply cursor — skip everything up to and including the cursor's runId.
+  // If the cursor isn't found (TTL'd or never existed) we treat it as
+  // "start from the top" rather than 400ing; the cursor is opaque and
+  // callers shouldn't need to know about TTL boundaries.
+  let startIndex = 0;
+  if (filter.cursor !== undefined && filter.cursor.length > 0) {
+    const idx = matched.findIndex((r) => r.runId === filter.cursor);
+    if (idx >= 0) {
+      startIndex = idx + 1;
+    }
+  }
+
+  const page = matched.slice(startIndex, startIndex + limit);
+  const last = page.length > 0 ? page[page.length - 1] : undefined;
+  const nextCursor =
+    last !== undefined && startIndex + limit < matched.length
+      ? last.runId
+      : null;
+
+  return { runs: page, nextCursor, totalCount };
+}
+
+function clampLimit(raw: number | undefined): number {
+  if (raw === undefined || !Number.isFinite(raw)) {
+    return DEFAULT_LIMIT;
+  }
+  const n = Math.floor(raw);
+  if (n < MIN_LIMIT) {
+    return MIN_LIMIT;
+  }
+  if (n > MAX_LIMIT) {
+    return MAX_LIMIT;
+  }
+
+  return n;
+}
+
 export function getRun(runId: string, now: number = Date.now()): RunRecord | null {
   const record = runs.get(runId);
   if (record === undefined) {

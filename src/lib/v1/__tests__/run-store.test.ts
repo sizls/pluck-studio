@@ -27,6 +27,7 @@ import {
   createRun,
   getRun,
   idempotencyHashOf,
+  listRuns,
 } from "../run-store.js";
 import type { RunSpec } from "../run-spec.js";
 
@@ -235,6 +236,156 @@ describe("run-store — canonicalJson", () => {
       idempotencyKey: "k",
     });
     expect(withUndef).toBe(without);
+  });
+});
+
+describe("run-store — listRuns", () => {
+  const dragnetSpec: RunSpec = validBureauSpec;
+  const oathSpec: RunSpec = {
+    pipeline: "bureau:oath",
+    payload: { vendorDomain: "openai.com", authorizationAcknowledged: true },
+  };
+
+  it("returns an empty result when the store is empty", () => {
+    const result = listRuns();
+    expect(result.runs).toEqual([]);
+    expect(result.nextCursor).toBeNull();
+    expect(result.totalCount).toBe(0);
+  });
+
+  it("returns all runs in createdAt DESC order with no filter", () => {
+    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+    const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
+    const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+    const c = createRun({ ...dragnetSpec, idempotencyKey: "c" }, t0 + 2000);
+
+    // Pass `now` consistent with creation timestamps so TTL doesn't sweep.
+    const result = listRuns({}, t0 + 3000);
+    expect(result.runs.map((r) => r.runId)).toEqual([
+      c.record.runId,
+      b.record.runId,
+      a.record.runId,
+    ]);
+    expect(result.totalCount).toBe(3);
+    expect(result.nextCursor).toBeNull();
+  });
+
+  it("filters by pipeline", () => {
+    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+    createRun({ ...dragnetSpec, idempotencyKey: "d1" }, t0);
+    const o = createRun({ ...oathSpec, idempotencyKey: "o1" }, t0 + 1000);
+    createRun({ ...dragnetSpec, idempotencyKey: "d2" }, t0 + 2000);
+
+    const result = listRuns({ pipeline: "bureau:oath" }, t0 + 3000);
+    expect(result.runs.map((r) => r.runId)).toEqual([o.record.runId]);
+    expect(result.totalCount).toBe(1);
+  });
+
+  it("filters by `since` (strictly after)", () => {
+    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+    createRun({ ...dragnetSpec, idempotencyKey: "old" }, t0);
+    const mid = createRun({ ...dragnetSpec, idempotencyKey: "mid" }, t0 + 5000);
+    const fresh = createRun(
+      { ...dragnetSpec, idempotencyKey: "fresh" },
+      t0 + 10000,
+    );
+
+    const result = listRuns({ since: t0 + 1000 }, t0 + 11000);
+    expect(result.runs.map((r) => r.runId)).toEqual([
+      fresh.record.runId,
+      mid.record.runId,
+    ]);
+    expect(result.totalCount).toBe(2);
+  });
+
+  it("clamps limit: 0 → 1, 999 → 100, default 20", () => {
+    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+    for (let i = 0; i < 25; i++) {
+      createRun({ ...dragnetSpec, idempotencyKey: `k-${i}` }, t0 + i * 1000);
+    }
+    const after = t0 + 26000;
+
+    const zero = listRuns({ limit: 0 }, after);
+    expect(zero.runs.length).toBe(1);
+
+    const huge = listRuns({ limit: 999 }, after);
+    // We have 25 runs total — clamping to 100 still returns all 25.
+    expect(huge.runs.length).toBe(25);
+
+    const def = listRuns({}, after);
+    expect(def.runs.length).toBe(20);
+  });
+
+  it("paginates via cursor across multiple pages without overlap", () => {
+    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+    const ids: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const { record } = createRun(
+        { ...dragnetSpec, idempotencyKey: `p-${i}` },
+        t0 + i * 1000,
+      );
+      ids.push(record.runId);
+    }
+    const after = t0 + 8000;
+    // DESC order: ids[6], ids[5], …, ids[0].
+    const expectedDesc = [...ids].reverse();
+
+    const page1 = listRuns({ limit: 3 }, after);
+    expect(page1.runs.map((r) => r.runId)).toEqual(expectedDesc.slice(0, 3));
+    expect(page1.totalCount).toBe(7);
+    expect(page1.nextCursor).toBe(expectedDesc[2]);
+
+    const page2 = listRuns({ limit: 3, cursor: page1.nextCursor ?? "" }, after);
+    expect(page2.runs.map((r) => r.runId)).toEqual(expectedDesc.slice(3, 6));
+    expect(page2.nextCursor).toBe(expectedDesc[5]);
+
+    const page3 = listRuns({ limit: 3, cursor: page2.nextCursor ?? "" }, after);
+    expect(page3.runs.map((r) => r.runId)).toEqual(expectedDesc.slice(6, 7));
+    expect(page3.nextCursor).toBeNull();
+
+    // No overlap across pages.
+    const seen = new Set<string>();
+    for (const id of [
+      ...page1.runs.map((r) => r.runId),
+      ...page2.runs.map((r) => r.runId),
+      ...page3.runs.map((r) => r.runId),
+    ]) {
+      expect(seen.has(id)).toBe(false);
+      seen.add(id);
+    }
+    expect(seen.size).toBe(7);
+  });
+
+  it("falls through to start when cursor refers to a runId not in the result set", () => {
+    const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+    const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
+    const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+
+    const result = listRuns(
+      { cursor: "nonexistent-cursor-id-0000" },
+      t0 + 2000,
+    );
+    expect(result.runs.map((r) => r.runId)).toEqual([
+      b.record.runId,
+      a.record.runId,
+    ]);
+  });
+
+  // STUB-coupled — TTL eviction is in-memory implementation behaviour.
+  describe.skipIf(!STUB_ONLY)("excludes TTL-evicted runs from the list", () => {
+    it("does not return runs older than the TTL", () => {
+      const t0 = Date.parse("2026-01-01T00:00:00.000Z");
+      createRun({ ...dragnetSpec, idempotencyKey: "old" }, t0);
+      const fresh = createRun(
+        { ...dragnetSpec, idempotencyKey: "fresh" },
+        t0 + __INTERNAL_TTL_MS + 1000,
+      );
+
+      // List at a time past the original's TTL — only the fresh one survives.
+      const result = listRuns({}, t0 + __INTERNAL_TTL_MS + 2000);
+      expect(result.runs.map((r) => r.runId)).toEqual([fresh.record.runId]);
+      expect(result.totalCount).toBe(1);
+    });
   });
 });
 

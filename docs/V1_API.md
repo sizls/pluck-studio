@@ -176,6 +176,74 @@ curl -sS http://localhost:3030/api/v1/runs/openai-swift-falcon-3742 \
 
 ---
 
+## `GET /api/v1/runs` — list recent runs
+
+Companion to `GET /api/v1/runs/[id]`. Returns a paginated list of runs
+in `createdAt` DESC order with optional filters and an opaque
+cursor-based pagination scheme.
+
+**Auth model.** Same posture as the single-record GET — public read by
+phraseId is the contract. Same-site (CSRF) and rate-limit gates still
+apply. The list endpoint does NOT require a Supabase session cookie or
+Bearer token.
+
+**Privacy.** Each list item's `payload` is run through the same
+per-pipeline redactor (`src/lib/v1/redact.ts`) that the single-record
+GET uses. WHISTLE.bundleUrl, WHISTLE.manualRedactPhrase, ROTATE.operatorNote
+(and any future privacy-sensitive persisted fields) are stripped before
+the payload is serialized. A list-scrape is not a deanonymization
+vector.
+
+### Query parameters
+
+| Param | Type | Notes |
+|---|---|---|
+| `pipeline` | `bureau:<slug>` | Filter to a single bureau pipeline. Must be one of the 11 bureau slugs. Omit to include all pipelines. |
+| `since` | ISO-8601 | Only runs created strictly AFTER this timestamp. Unparseable values return 400. |
+| `limit` | integer | Page size. Clamped to `[1, 100]`; default `20`. |
+| `cursor` | string ≤128 chars | Opaque pagination cursor — pass back the `nextCursor` from a prior response to fetch the next page. |
+
+### Response shape
+
+```ts
+interface ListRunsResponse {
+  runs: RedactedRunRecord[];   // each item's `payload` is per-pipeline redacted
+  nextCursor: string | null;   // null when there are no more pages
+  totalCount: number;          // total matching the filter (across all pages)
+}
+```
+
+`totalCount` reflects the full filtered set so UIs can render
+"showing 20 of N" without a second count query.
+
+### Pagination semantics
+
+The cursor is the `runId` of the last item from the previous page.
+Pages do not overlap — the next page begins strictly AFTER the cursor's
+record in `createdAt` DESC order (ties broken by `runId` for stable
+ordering). A cursor that no longer resolves (e.g. the underlying run
+TTL'd between pages) falls through to "start from the top" rather than
+returning a 400 — callers shouldn't need to reason about TTL boundaries.
+
+### curl example
+
+```bash
+# First page — newest 20 runs across all pipelines.
+curl -sS 'http://localhost:3030/api/v1/runs?limit=20' \
+  -H 'sec-fetch-site: same-origin'
+# → { "runs": [...], "nextCursor": "openai-swift-falcon-3742", "totalCount": 47 }
+
+# Filter to one pipeline + a creation cutoff.
+curl -sS 'http://localhost:3030/api/v1/runs?pipeline=bureau:dragnet&since=2026-05-01T00:00:00Z' \
+  -H 'sec-fetch-site: same-origin'
+
+# Next page — pass the previous nextCursor.
+curl -sS 'http://localhost:3030/api/v1/runs?limit=20&cursor=openai-swift-falcon-3742' \
+  -H 'sec-fetch-site: same-origin'
+```
+
+---
+
 ## Per-pipeline payload reference
 
 The canonical payload shape for each Bureau pipeline is defined by
@@ -656,7 +724,6 @@ swap so SDKs can be generated against the planned union today.
 
 | Endpoint | Purpose | Status |
 |---|---|---|
-| `GET /v1/runs` | Paginated list of recent runs (caller-scoped) | Planned — no impl |
 | `DELETE /v1/runs/:id` | Cancel an in-flight run | Planned — no impl |
 | `GET /v1/runs/:id/events` | Server-Sent Events stream of run progress | Planned — no impl |
 
