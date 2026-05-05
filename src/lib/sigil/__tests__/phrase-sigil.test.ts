@@ -99,6 +99,37 @@ describe("phraseSigilData", () => {
     expect(data.accentColor).toBe("#6b7280");
   });
 
+  // The accent flows into an SVG `stroke` attribute via the data layer.
+  // Lock the regex contract — every malicious / malformed payload below
+  // MUST fall back to the safe default. Dropping any of these cases is a
+  // tacit weakening of the XSS posture; add new ones, never delete.
+  describe("programAccent sanitization — XSS fallback corpus", () => {
+    const SAFE_DEFAULT = "#6b7280";
+    const LONG_NONSENSE = "x".repeat(100);
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      ["javascript: scheme injection", "javascript:alert(1)"],
+      ["attribute break + script tag", 'red"); <script>alert(1)</script>'],
+      ["style tag escape", "</style><script>..."],
+      ["url() function payload", "url(http://evil.example)"],
+      ["hex with quote + onload handler", '#abc"; onload=alert(1)'],
+      ["space-separated event handler", "red onmouseover=alert(1)"],
+      ["newline injection through hex", "#abc\nonload=alert(1)"],
+      ["css comment injection", "red /*"],
+      ["multiple hex values concatenated", "#abc#fff"],
+      ["empty hex literal", "#"],
+      ["4-digit hex (invalid length)", "#1234"],
+      ["rgb() form not in allowlist", "rgb(255, 0, 0)"],
+      ["css keyword (currentColor)", "currentColor"],
+      ["empty string", ""],
+      ["100-char nonsense (length cap)", LONG_NONSENSE],
+    ];
+
+    it.each(cases)("rejects %s — falls back to %s", (_label, payload) => {
+      const data = phraseSigilData(FIXED_PHRASE, { programAccent: payload });
+      expect(data.accentColor).toBe(SAFE_DEFAULT);
+    });
+  });
+
   it("seed is a non-zero unsigned 32-bit number", () => {
     const data = phraseSigilData(FIXED_PHRASE);
     expect(data.seed).toBeGreaterThan(0);

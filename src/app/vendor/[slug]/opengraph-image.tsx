@@ -109,6 +109,10 @@ function renderPlaceholder(): Response {
 }
 
 export default async function Image({ params }: OgProps): Promise<Response> {
+  // TODO(sigil): integrate <PhraseSigil renderPhraseSigil() bytes /> into the OG image
+  // once edge runtime supports inline SVG composition. The sigil is the canonical
+  // visual identity for every phrase ID — see src/lib/sigil/phrase-sigil.ts. Wiring
+  // here means social-share unfurls (Slack/X/iMessage) carry the sigil too.
   const { slug } = await params;
 
   if (slug.length === 0 || slug.length > MAX_SLUG_LENGTH) {

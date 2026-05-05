@@ -35,6 +35,14 @@ export interface PhraseSigilProps {
   readonly testId?: string;
 }
 
+/**
+ * PhraseSigil — procedural SVG sigil for a phrase ID.
+ *
+ * Caller responsibility: the data layer renders for ANY input (falls back
+ * to defaults for invalid phraseId). Callers should gate via isPhraseId()
+ * if they only want sigils for valid 4-part scoped phrase IDs. Receipt
+ * views already do this; new callers must be aware.
+ */
 export function PhraseSigil({
   phraseId,
   size = 64,

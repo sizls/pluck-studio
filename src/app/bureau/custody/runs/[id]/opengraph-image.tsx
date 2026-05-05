@@ -70,6 +70,10 @@ function headlineFontSize(id: string): number {
 }
 
 export default async function Image({ params }: OgProps): Promise<Response> {
+  // TODO(sigil): integrate <PhraseSigil renderPhraseSigil() bytes /> into the OG image
+  // once edge runtime supports inline SVG composition. The sigil is the canonical
+  // visual identity for every phrase ID — see src/lib/sigil/phrase-sigil.ts. Wiring
+  // here means social-share unfurls (Slack/X/iMessage) carry the sigil too.
   const { id } = await params;
 
   if (id.length === 0 || id.length > MAX_ID_LENGTH) {

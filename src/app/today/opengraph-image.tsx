@@ -155,6 +155,11 @@ function ProgramTile({ program }: { program: ProgramRollup }): ReactElement {
 
 export default function Image(): Response {
   // TODO(pluck-api): pass new Date() once /v1/runs since-24h queries land
+  // TODO(sigil): /today is an aggregate across 11 programs — there is no
+  // single phraseId here, so PhraseSigil does not apply directly. If a
+  // future layout swaps to per-cell receipt highlights, integrate
+  // <PhraseSigil renderPhraseSigil() bytes /> per cell once edge runtime
+  // supports inline SVG composition. See src/lib/sigil/phrase-sigil.ts.
   const rollup = getDailyRollup();
 
   return new ImageResponse(
