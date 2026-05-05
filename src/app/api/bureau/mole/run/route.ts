@@ -1,27 +1,55 @@
 // ---------------------------------------------------------------------------
-// POST /api/bureau/mole/run — MOLE seal-canary endpoint (Phase-5 stub)
+// POST /api/bureau/mole/run — MOLE seal-canary endpoint (DEPRECATED ALIAS)
 // ---------------------------------------------------------------------------
 //
-// Per landing's "Sealing comes BEFORE probing" callout: the canary
-// commit is signed and anchored to Rekor BEFORE any probe touches the
-// vendor. This endpoint emits the seal — never the canary body.
+// !! DEPRECATED — clients should POST to /api/v1/runs with
+//    { pipeline: "bureau:mole", payload: { ...this body... } }. !!
+//
+// Wave-2 migration: this route stays alive as a deprecated alias so callers
+// that haven't migrated keep working, but it now validates via the shared
+// `validateMolePayload` and dual-writes into the v1 store so legacy
+// + /v1/runs callers converge on the same phraseId for the same payload.
+//
+// Day-1 contract preserved:
+//   1. Auth check by Supabase JWT cookie presence.
+//   2. CSRF defence — same-origin enforced.
+//   3. Per landing's "Sealing comes BEFORE probing" callout: the canary
+//      commit is signed and anchored to Rekor BEFORE any probe touches
+//      the vendor. This endpoint emits the seal — never the canary body.
+//   4. PRIVACY INVARIANT: the canary body NEVER enters this surface. The
+//      shared validator rejects any payload carrying `canaryBody` /
+//      `canaryContent` (defense-in-depth — receipt schema already drops
+//      these, but the wire backstops).
+//   5. canaryId slug + https-only canaryUrl + private-IP block + phrase
+//      length/count bounds + ToS / authorization assertion.
+//   6. On success: { runId, phraseId, canaryId, canaryUrl,
+//      fingerprintPhrases, status:"seal pending", deprecated: true,
+//      replacement: "/api/v1/runs" } + RFC 8594 Deprecation/Sunset/Link
+//      headers. runId === phraseId — single primitive, identical on
+//      idempotent retries (mirrors DRAGNET M5).
+//
+// Idempotency contract: legacy MOLE callers double-clicking within ~60s
+// dedupe to the SAME phraseId as a /v1/runs caller posting the same body
+// — we synthesize the same minute-bucketed key the RunForm uses
+// (`mole:<canaryId>:<canaryUrl>:<minute>`) before delegating.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 
-import {
-  FINGERPRINT_BOUNDS,
-  isValidCanaryId,
-  parseFingerprintPhrases,
-} from "../../../../../lib/mole/run-form-module";
-import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
+import { parseFingerprintPhrases } from "../../../../../lib/mole/run-form-module";
 import {
   isAuthed,
-  isPrivateOrLocalHost,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { validateMolePayload } from "../../../../../lib/v1/pipeline-validators";
+import { createRun } from "../../../../../lib/v1/run-store";
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecation: "true",
+  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
+  Link: '</api/v1/runs>; rel="successor-version"',
+};
 
 interface MoleRequestBody {
   canaryId?: string;
@@ -30,7 +58,23 @@ interface MoleRequestBody {
   authorizationAcknowledged?: boolean;
 }
 
-const ALLOWED_SCHEMES = new Set(["https:"]);
+/**
+ * Synthesize the same minute-bucketed idempotency key the MOLE RunForm
+ * sends to /v1/runs. Format:
+ *   `mole:<canaryId>:<canaryUrl>:<minute-bucket>`
+ *
+ * Legacy double-click + /v1/runs double-click with the same payload land
+ * on the SAME stored run record. Mirrors DRAGNET's C1 fix.
+ */
+function synthesizeIdempotencyKey(
+  canaryId: string,
+  canaryUrl: string,
+  now: number = Date.now(),
+): string {
+  const minuteBucket = Math.floor(now / 60_000);
+
+  return `mole:${canaryId}:${canaryUrl}:${minuteBucket}`;
+}
 
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
@@ -63,96 +107,62 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const canaryId = body.canaryId?.trim().toLowerCase() ?? "";
-  const canaryUrl = body.canaryUrl?.trim() ?? "";
-  const fingerprintPhrases = body.fingerprintPhrases?.trim() ?? "";
 
-  if (!isValidCanaryId(canaryId)) {
-    return NextResponse.json(
-      {
-        error:
-          "Canary ID must be a short lowercase slug (e.g. 'nyt-2024-01-15')",
-      },
-      { status: 400 },
-    );
+  // Single source of truth — the same validator /v1/runs uses. Keeps the
+  // two surfaces from drifting. Validator also enforces the privacy
+  // invariant (rejects canaryBody / canaryContent).
+  const result = validateMolePayload(body);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
-  if (!canaryUrl) {
-    return NextResponse.json(
-      { error: "Canary URL is required (https:// only)" },
-      { status: 400 },
-    );
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(canaryUrl);
-  } catch {
-    return NextResponse.json(
-      { error: "Canary URL must be a valid URL (include https://)" },
-      { status: 400 },
-    );
-  }
-  if (!ALLOWED_SCHEMES.has(parsed.protocol)) {
-    return NextResponse.json(
-      { error: "Canary URL must use https://" },
-      { status: 400 },
-    );
-  }
-  if (isPrivateOrLocalHost(parsed.hostname)) {
-    return NextResponse.json(
-      {
-        error:
-          "Canary URL cannot point at localhost, private, or link-local addresses.",
-      },
-      { status: 400 },
-    );
-  }
-  const { phrases, outOfBounds } = parseFingerprintPhrases(fingerprintPhrases);
-  if (outOfBounds.length > 0) {
-    return NextResponse.json(
-      {
-        error: `Fingerprint phrases must be ${FINGERPRINT_BOUNDS.MIN_LENGTH}–${FINGERPRINT_BOUNDS.MAX_LENGTH} chars; out-of-bounds: ${outOfBounds.join(" | ")}`,
-      },
-      { status: 400 },
-    );
-  }
-  if (phrases.length === 0) {
-    return NextResponse.json(
-      { error: "At least one fingerprint phrase is required" },
-      { status: 400 },
-    );
-  }
-  if (phrases.length > FINGERPRINT_BOUNDS.MAX_COUNT) {
-    return NextResponse.json(
-      {
-        error: `Maximum ${FINGERPRINT_BOUNDS.MAX_COUNT} fingerprint phrases (got ${phrases.length})`,
-      },
-      { status: 400 },
-    );
-  }
-  if (body.authorizationAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge the canary-content-stays-private posture and authorization to seal.",
-      },
-      { status: 400 },
-    );
-  }
-  const runId = randomUUID();
-  // Phrase prefix is the canary ID — the seal's URL self-discloses
-  // *which* canary was sealed, never the body.
-  const phraseId = generateScopedPhraseId(`https://${canaryId}.example`);
+
+  // After validation passes, normalize for the response shape + dedupe key.
+  const canaryId = (body.canaryId ?? "").trim().toLowerCase();
+  const canaryUrl = (body.canaryUrl ?? "").trim();
+  const fingerprintPhrasesRaw = (body.fingerprintPhrases ?? "").trim();
+  const { phrases } = parseFingerprintPhrases(fingerprintPhrasesRaw);
+
+  // Delegate persistence to the unified /v1/runs store so the receipt
+  // page can read this run back via GET /api/v1/runs/[id]. The store
+  // assigns the canonical canary-id-scoped phraseId — that becomes the
+  // user-facing runId. Phrase shape: `<canaryIdSlug>-<adj>-<noun>-NNNN`
+  // (e.g. `nyt20240115-...`).
+  //
+  // PRIVACY: only canaryId, canaryUrl, fingerprintPhrases (the parsed
+  // public-log array; not the canary body) and the auth-ack flag enter
+  // the store payload. canaryBody/canaryContent are rejected upstream
+  // by the validator.
+  const { record } = createRun({
+    pipeline: "bureau:mole",
+    payload: {
+      canaryId,
+      canaryUrl,
+      // Forms post `fingerprintPhrases` as the raw textarea string. The
+      // store's payload reflects the same field shape as the RunForm
+      // POSTs to /v1/runs so canonicalJson hashes identically across
+      // both surfaces and dedupe converges.
+      fingerprintPhrases: fingerprintPhrasesRaw,
+      authorizationAcknowledged: body.authorizationAcknowledged,
+    },
+    idempotencyKey: synthesizeIdempotencyKey(canaryId, canaryUrl),
+  });
 
   return NextResponse.json(
     {
-      runId,
-      phraseId,
+      runId: record.runId,
+      phraseId: record.runId,
       canaryId,
       canaryUrl,
+      // Echo the parsed phrase ARRAY (not the raw string) — back-compat
+      // with the legacy response shape so existing clients continue to
+      // see a list. Privacy-invariant: this is operator-supplied
+      // metadata, NOT the canary body.
       fingerprintPhrases: phrases,
       status: "seal pending",
-      note: "stub seal — pluck-api /v1/mole/seal not yet wired; see plan",
+      deprecated: true,
+      replacement: "/api/v1/runs",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:mole",
     },
-    { status: 200 },
+    { status: 200, headers: DEPRECATION_HEADERS },
   );
 }

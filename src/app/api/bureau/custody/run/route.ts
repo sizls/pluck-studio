@@ -1,33 +1,47 @@
 // ---------------------------------------------------------------------------
-// POST /api/bureau/custody/run — CUSTODY verify-bundle endpoint (Phase-6 stub)
+// POST /api/bureau/custody/run — CUSTODY verify-bundle endpoint (DEPRECATED ALIAS)
 // ---------------------------------------------------------------------------
 //
-// Fourth program through the Studio activation pattern. CUSTODY's
-// existing `/bureau/custody/verify` is a journalist drag-and-drop tool
-// (no signed receipt). This `/run` flow is the operator complement:
-// fetch + verify a CustodyBundle URL server-side, emit a signed
-// FRE 902(13) compliance verdict.
+// !! DEPRECATED — clients should POST to /api/v1/runs with
+//    { pipeline: "bureau:custody", payload: { ...this body... } }. !!
 //
-// Day-1 contract:
-//   1. Shared CSRF + auth + rate-limit guards (lib/security/request-guards).
-//   2. Domain validation: bundleUrl HTTPS-only, public, not localhost
-//      / private / link-local. expectedVendor is an optional bare
-//      hostname slug (used to assert `body.vendor === expectedVendor`).
-//   3. ToS / authorization-to-fetch assertion.
-//   4. On success: returns { runId, phraseId, status:"verification pending" }.
-//      Real verify path lands when pluck-api /v1/custody/verify ships.
+// Wave-2 migration: this route stays alive as a deprecated alias so callers
+// that haven't migrated keep working, but it now validates via the shared
+// `validateCustodyPayload` and dual-writes into the v1 store so legacy
+// + /v1/runs callers converge on the same phraseId for the same payload.
+//
+// Day-1 contract preserved:
+//   1. Auth check by Supabase JWT cookie presence.
+//   2. CSRF defence — same-origin enforced.
+//   3. https-only bundleUrl + private-IP block + optional expectedVendor
+//      hostname grammar + ToS / authorization assertion.
+//   4. On success: { runId, phraseId, bundleUrl, expectedVendor (or null),
+//      status:"verification pending", deprecated: true,
+//      replacement: "/api/v1/runs" } + RFC 8594 Deprecation/Sunset/Link
+//      headers. runId === phraseId — single primitive, identical on
+//      idempotent retries (mirrors DRAGNET M5).
+//
+// Idempotency contract: legacy CUSTODY callers double-clicking within
+// ~60s dedupe to the SAME phraseId as a /v1/runs caller posting the same
+// body — we synthesize the same minute-bucketed key the RunForm uses
+// (`custody:<vendorOrUnknown>:<bundleUrl>:<minute>`) before delegating.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 
-import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import {
   isAuthed,
-  isPrivateOrLocalHost,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { validateCustodyPayload } from "../../../../../lib/v1/pipeline-validators";
+import { createRun } from "../../../../../lib/v1/run-store";
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecation: "true",
+  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
+  Link: '</api/v1/runs>; rel="successor-version"',
+};
 
 interface CustodyRequestBody {
   bundleUrl?: string;
@@ -35,19 +49,26 @@ interface CustodyRequestBody {
   authorizationAcknowledged?: boolean;
 }
 
-const ALLOWED_BUNDLE_SCHEMES = new Set(["https:"]);
-const VENDOR_SLUG_PATTERN =
-  /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+/**
+ * Synthesize the same minute-bucketed idempotency key the CUSTODY
+ * RunForm sends to /v1/runs. Format:
+ *   `custody:<vendorOrUnknown>:<bundleUrl>:<minute-bucket>`
+ *
+ * `vendorOrUnknown` is the operator-supplied expectedVendor when present,
+ * else the literal string "unknown" (so a generic bundle still has a
+ * dedupe key shape that's stable across the legacy + /v1/runs surfaces).
+ *
+ * Legacy double-click + /v1/runs double-click with the same payload land
+ * on the SAME stored run record. Mirrors DRAGNET's C1 fix.
+ */
+function synthesizeIdempotencyKey(
+  vendorOrUnknown: string,
+  bundleUrl: string,
+  now: number = Date.now(),
+): string {
+  const minuteBucket = Math.floor(now / 60_000);
 
-function isValidExpectedVendor(s: string): boolean {
-  const lowered = s.toLowerCase();
-  if (!VENDOR_SLUG_PATTERN.test(lowered)) {
-    return false;
-  }
-  if (isPrivateOrLocalHost(lowered)) {
-    return false;
-  }
-  return true;
+  return `custody:${vendorOrUnknown}:${bundleUrl}:${minuteBucket}`;
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -81,78 +102,55 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const bundleUrl = body.bundleUrl?.trim();
-  const expectedVendor = body.expectedVendor?.trim().toLowerCase();
 
-  if (!bundleUrl) {
-    return NextResponse.json(
-      { error: "Bundle URL is required (https:// only, public host)" },
-      { status: 400 },
-    );
+  // Single source of truth — the same validator /v1/runs uses. Keeps the
+  // two surfaces from drifting.
+  const result = validateCustodyPayload(body);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
-  if (body.authorizationAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge that you are authorized to fetch this bundle before running.",
-      },
-      { status: 400 },
-    );
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(bundleUrl);
-  } catch {
-    return NextResponse.json(
-      { error: "Bundle URL must be a valid URL (include https://)" },
-      { status: 400 },
-    );
-  }
-  if (!ALLOWED_BUNDLE_SCHEMES.has(parsed.protocol)) {
-    return NextResponse.json(
-      { error: "Bundle URL must use https:// (per CUSTODY wire spec)" },
-      { status: 400 },
-    );
-  }
-  if (isPrivateOrLocalHost(parsed.hostname)) {
-    return NextResponse.json(
-      {
-        error:
-          "Bundle URL cannot point at localhost, private, or link-local addresses.",
-      },
-      { status: 400 },
-    );
-  }
-  if (expectedVendor !== undefined && expectedVendor.length > 0) {
-    if (!isValidExpectedVendor(expectedVendor)) {
-      return NextResponse.json(
-        {
-          error:
-            "Expected vendor must be a public hostname (e.g. 'openai.com'); no IPs, no localhost, no scheme, no path.",
-        },
-        { status: 400 },
-      );
-    }
-  }
-  const runId = randomUUID();
-  // Vendor-scoped phrase ID — prefer expectedVendor when supplied so the
-  // URL self-discloses the asserted target; else fall back to the
-  // bundle-URL hostname.
-  const phraseId = expectedVendor && expectedVendor.length > 0
-    ? generateScopedPhraseId(`https://${expectedVendor}`)
-    : generateScopedPhraseId(bundleUrl);
+
+  // After validation passes, normalize for the response shape + dedupe key.
+  const bundleUrl = (body.bundleUrl ?? "").trim();
+  const explicitVendor = (body.expectedVendor ?? "").trim().toLowerCase();
+  const vendorOrUnknown =
+    explicitVendor.length > 0 ? explicitVendor : "unknown";
+
+  // Delegate persistence to the unified /v1/runs store so the receipt
+  // page can read this run back via GET /api/v1/runs/[id]. The store
+  // assigns the canonical vendor- or bundle-scoped phraseId — that
+  // becomes the user-facing runId.
+  //
+  // CUSTODY's vendor-scoped vs. bundleUrl-scoped phrase-prefix logic
+  // lives in run-store#runIdForBureau: when expectedVendor is supplied,
+  // we promote it to vendorDomain for `generateScopedPhraseId`; else
+  // the bundle hostname is used. Form must omit `expectedVendor` when
+  // empty so canonicalJson skips the field and legacy + /v1/runs hash
+  // identically.
+  const { record } = createRun({
+    pipeline: "bureau:custody",
+    payload: {
+      bundleUrl,
+      // expectedVendor is canonical; promote to vendorDomain so the
+      // store's scoping prefers expectedVendor over the bundle hostname.
+      vendorDomain: explicitVendor.length > 0 ? explicitVendor : undefined,
+      expectedVendor: explicitVendor.length > 0 ? explicitVendor : undefined,
+      authorizationAcknowledged: body.authorizationAcknowledged,
+    },
+    idempotencyKey: synthesizeIdempotencyKey(vendorOrUnknown, bundleUrl),
+  });
 
   return NextResponse.json(
     {
-      runId,
-      phraseId,
+      runId: record.runId,
+      phraseId: record.runId,
       bundleUrl,
-      expectedVendor: expectedVendor && expectedVendor.length > 0
-        ? expectedVendor
-        : null,
+      expectedVendor: explicitVendor.length > 0 ? explicitVendor : null,
       status: "verification pending",
-      note: "stub verify — pluck-api /v1/custody/verify not yet wired; see plan",
+      deprecated: true,
+      replacement: "/api/v1/runs",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:custody",
     },
-    { status: 200 },
+    { status: 200, headers: DEPRECATION_HEADERS },
   );
 }

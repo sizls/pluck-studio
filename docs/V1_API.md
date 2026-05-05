@@ -187,16 +187,20 @@ status. As each program migrates, its payload reference moves from
 | Pipeline | Payload reference | Migrated to /v1/runs |
 |---|---|---|
 | `bureau:dragnet` | `src/lib/dragnet/run-form-module.ts` | **Yes (Phase 3 wedge)** |
-| `bureau:nuclei` | `src/lib/nuclei/run-form-module.ts` | **Yes** |
-| `bureau:oath` | `src/lib/oath/run-form-module.ts` | **Yes** |
-| `bureau:fingerprint` | `src/lib/fingerprint/run-form-module.ts` | No (legacy) |
-| `bureau:custody` | `src/lib/custody/run-form-module.ts` | No (legacy) |
+| `bureau:nuclei` | `src/lib/nuclei/run-form-module.ts` | **Yes (Wave 1)** |
+| `bureau:oath` | `src/lib/oath/run-form-module.ts` | **Yes (Wave 1)** |
+| `bureau:fingerprint` | `src/lib/fingerprint/run-form-module.ts` | **Yes (Wave 2)** |
+| `bureau:custody` | `src/lib/custody/run-form-module.ts` | **Yes (Wave 2)** |
+| `bureau:mole` | `src/lib/mole/run-form-module.ts` | **Yes (Wave 2)** |
 | `bureau:whistle` | `src/lib/whistle/run-form-module.ts` | No (legacy) |
 | `bureau:bounty` | `src/lib/bounty/run-form-module.ts` | No (legacy) |
 | `bureau:sbom-ai` | `src/lib/sbom-ai/run-form-module.ts` | No (legacy) |
 | `bureau:rotate` | `src/lib/rotate/run-form-module.ts` | No (legacy) |
 | `bureau:tripwire` | `src/lib/tripwire/run-form-module.ts` | No (legacy) |
-| `bureau:mole` | `src/lib/mole/run-form-module.ts` | No (legacy) |
+
+**Migration progress:** 6/11 Bureau pipelines now POST to `/v1/runs`. The
+remaining 5 (whistle, bounty, sbom-ai, rotate, tripwire) keep working
+unchanged on `/api/bureau/<slug>/run` until each is migrated.
 
 ### `bureau:dragnet` payload
 
@@ -257,22 +261,129 @@ RunForm + legacy alias:
 `effectiveHostingOrigin` is the explicit override or
 `https://<vendorDomain>` when omitted.
 
+### `bureau:fingerprint` payload
+
+```ts
+{
+  vendor: string;          // hosted-mode allowlist slug ("openai", "anthropic", …)
+  model: string;           // vendor-specific model slug ("gpt-4o", "claude-3-5-sonnet")
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+The runId is **vendor-scoped** (`openai-swift-falcon-3742`) — receipt
+URL self-discloses the scanned vendor. The vendor must be in the
+hosted-mode allowlist (see `src/lib/fingerprint/run-form-module.ts` for
+the canonical list); unsupported vendors are rejected with a 400 +
+`supportedVendors` array so the client can surface alternatives. Run
+the OSS `pluck bureau fingerprint scan --responder` CLI for vendors
+outside the allowlist.
+
+Idempotency key shape used by the RunForm + legacy alias:
+`fingerprint:<vendor>:<model>:<minute-bucket>`.
+
+**Response (200):** `{ runId, receiptUrl, status: "pending", reused }`.
+The legacy alias additionally echoes `runId === phraseId`, `vendor`,
+`model`, `status: "scan pending"`, `deprecated: true`, and
+`replacement: "/api/v1/runs"`.
+
+### `bureau:custody` payload
+
+```ts
+{
+  bundleUrl: string;             // HTTPS-only public URL of the CustodyBundle
+  expectedVendor?: string;       // optional — bare hostname (e.g. "openai.com")
+                                 //   used both to assert the bundle's
+                                 //   self-declared vendor AND as the runId
+                                 //   phrase prefix when present
+  vendorDomain?: string;         // mirror of expectedVendor — the form posts
+                                 //   both fields so canonicalJson() drops
+                                 //   them identically when omitted, and the
+                                 //   run-store's vendor-scoping picks
+                                 //   expectedVendor over the bundle host
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+The runId scoping rule: when `expectedVendor` (and its `vendorDomain`
+mirror) is present, the runId is **vendor-scoped**
+(`openai-swift-falcon-3742`); when absent, it falls back to the
+**bundle hostname** (`example-swift-falcon-3742`). Either way the
+receipt URL self-discloses the verification target.
+
+Idempotency key shape used by the RunForm + legacy alias:
+`custody:<vendorOrUnknown>:<bundleUrl>:<minute-bucket>`, where
+`vendorOrUnknown` is the explicit `expectedVendor` or the literal
+string `"unknown"` (so a generic bundle still has a stable dedupe
+shape across legacy + /v1/runs).
+
+**Response (200):** `{ runId, receiptUrl, status: "pending", reused }`.
+The legacy alias additionally echoes `runId === phraseId`,
+`bundleUrl`, `expectedVendor` (or null), `status: "verification pending"`,
+`deprecated: true`, and `replacement: "/api/v1/runs"`.
+
+### `bureau:mole` payload
+
+```ts
+{
+  canaryId: string;              // operator slug (≤48 chars, e.g. "nyt-2024-01-15")
+  canaryUrl: string;             // HTTPS-only public URL of the canary content
+                                 //   (Studio fetches + sha256-hashes; the body
+                                 //   itself is NEVER published)
+  fingerprintPhrases: string;    // comma-separated short phrases (10–80 chars
+                                 //   each, ≤7 phrases) that should appear in
+                                 //   the canary verbatim
+  authorizationAcknowledged: true; // must be literal true
+}
+```
+
+> **PRIVACY INVARIANT — canaryBody is NEVER accepted on the payload.**
+>
+> MOLE's load-bearing privacy posture: the canary body itself stays
+> with the operator. Only `canaryId`, `canaryUrl`, and the
+> operator-supplied fingerprint phrases (the public-log subset) enter
+> the wire. The shared `validateMolePayload` validator enforces this
+> as a defense-in-depth check: any payload carrying `canaryBody` or
+> `canaryContent` is rejected with a 400 — even on the legacy
+> `/api/bureau/mole/run` alias. Receipts schema-drops these fields
+> at render; the validator backstops the wire so a misbuilt client
+> can't accidentally leak the body. See "Sealing comes BEFORE
+> probing" in the MOLE landing for context.
+
+The runId is **canary-id-scoped** — receipt URL self-discloses
+*which* canary was sealed, never the body. The phrase prefix is the
+canaryId with non-alphanumerics stripped (e.g. `nyt-2024-01-15` →
+`nyt20240115-swift-falcon-3742`).
+
+Idempotency key shape used by the RunForm + legacy alias:
+`mole:<canaryId>:<canaryUrl>:<minute-bucket>`.
+
+**Response (200):** `{ runId, receiptUrl, status: "pending", reused }`.
+The legacy alias additionally echoes `runId === phraseId`,
+`canaryId`, `canaryUrl`, the parsed `fingerprintPhrases` array (NOT
+the canary body), `status: "seal pending"`, `deprecated: true`, and
+`replacement: "/api/v1/runs"`.
+
 ---
 
 ## Migration runway
 
 DRAGNET was the **wedge migration** — the first program to POST to the
-unified surface. NUCLEI and OATH followed in the second batch (this
-commit). The remaining 8 programs keep working unchanged on
-`/api/bureau/<slug>/run` until each is migrated.
+unified surface. NUCLEI and OATH followed in Wave 1; FINGERPRINT,
+CUSTODY, and MOLE in Wave 2 (this commit). The remaining 5 programs
+keep working unchanged on `/api/bureau/<slug>/run` until each is
+migrated.
 
 1. **DRAGNET** (shipped in Phase 3 wedge).
-2. **NUCLEI + OATH** (this commit). Both now POST to `/v1/runs`; the
-   legacy aliases dual-write into the v1 store so legacy + /v1/runs
-   callers converge on the same `phraseId` for the same payload.
-3. **FINGERPRINT + WHISTLE + TRIPWIRE + ROTATE + CUSTODY + BOUNTY +
-   SBOM-AI + MOLE** — final batch. Migrate together once the
-   per-pipeline verdict-color mapping is written.
+2. **NUCLEI + OATH** (Wave 1). Both now POST to `/v1/runs`; the legacy
+   aliases dual-write into the v1 store so legacy + /v1/runs callers
+   converge on the same `phraseId` for the same payload.
+3. **FINGERPRINT + CUSTODY + MOLE** (Wave 2 — this commit). Same
+   delegated-validator + dual-write pattern. MOLE additionally enforces
+   the canary-body privacy invariant on the wire.
+4. **WHISTLE + BOUNTY + SBOM-AI + ROTATE + TRIPWIRE** — final batch.
+   Migrate together once the per-pipeline verdict-color mapping is
+   written.
 
 The legacy `POST /api/bureau/<slug>/run` routes stay alive as
 deprecated aliases throughout. Internally, the migrated routes

@@ -1,5 +1,21 @@
 "use client";
 
+// ---------------------------------------------------------------------------
+// MOLE Run form — Wave-2 migration to /v1/runs
+// ---------------------------------------------------------------------------
+//
+// MOLE is the sixth program migrated to the unified /v1/runs surface
+// (after DRAGNET, NUCLEI, OATH, FINGERPRINT, CUSTODY). The legacy
+// /api/bureau/mole/run route stays alive as a deprecated alias for
+// callers that haven't migrated; new client code POSTs here.
+//
+// PRIVACY INVARIANT: this form NEVER posts the canary BODY. Only canaryId,
+// canaryUrl, and the operator-supplied fingerprintPhrases (short
+// memorizable strings) enter the wire. The shared validator
+// (validateMolePayload) backstops by REJECTING any payload that includes
+// `canaryBody` / `canaryContent`.
+// ---------------------------------------------------------------------------
+
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
 import { useRouter } from "next/navigation";
@@ -30,9 +46,23 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/mole/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors the legacy synthesized key.
+ */
+function idempotencyKeyFor(canaryId: string, canaryUrl: string): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `mole:${canaryId}:${canaryUrl}:${minuteBucket}`;
 }
 
 export function MoleRunForm(): ReactNode {
@@ -110,14 +140,26 @@ export function MoleRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/mole/run", {
+      const normalizedCanaryId = (canaryId ?? "").trim().toLowerCase();
+      const normalizedPhrases = (fingerprintPhrases ?? "").trim();
+
+      // PRIVACY: payload contains ONLY canaryId, canaryUrl, the raw
+      // fingerprintPhrases textarea string, and the auth-ack flag. The
+      // canary body itself never enters this fetch — and the shared
+      // validateMolePayload validator REJECTS the request if
+      // canaryBody / canaryContent are supplied.
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          canaryId: (canaryId ?? "").trim().toLowerCase(),
-          canaryUrl: url,
-          fingerprintPhrases: (fingerprintPhrases ?? "").trim(),
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:mole",
+          payload: {
+            canaryId: normalizedCanaryId,
+            canaryUrl: url,
+            fingerprintPhrases: normalizedPhrases,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(normalizedCanaryId, url),
         }),
       });
       const body = (await res.json()) as RunResponse;
@@ -126,7 +168,7 @@ export function MoleRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Seal failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -134,10 +176,10 @@ export function MoleRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
-      router.push(`/bureau/mole/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/mole/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

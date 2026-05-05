@@ -1,7 +1,24 @@
+// ---------------------------------------------------------------------------
+// POST /api/bureau/mole/run — contract tests (deprecated alias)
+// ---------------------------------------------------------------------------
+//
+// Wave-2 migration: the legacy route now delegates to the shared
+// `validateMolePayload` and dual-writes into the v1 store. These tests
+// lock the new contract:
+//   - runId === phraseId, canary-id-scoped (mirrors DRAGNET M5)
+//   - PRIVACY INVARIANT: canaryBody / canaryContent are REJECTED on the
+//     wire; response NEVER carries those fields
+//   - RFC 8594 Deprecation/Sunset/Link headers
+//   - Idempotency dedupe within the minute bucket
+//   - Cross-route convergence with /v1/runs
+// ---------------------------------------------------------------------------
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetRateLimit } from "../../../../../../lib/rate-limit.js";
+import { __resetForTests } from "../../../../../../lib/v1/run-store.js";
 import { POST } from "../route.js";
+import { POST as POST_V1 } from "../../../../v1/runs/route.js";
 
 interface SuccessBody {
   runId: string;
@@ -39,6 +56,7 @@ function valid(overrides: Record<string, unknown> = {}): unknown {
 
 beforeEach(() => {
   resetRateLimit();
+  __resetForTests();
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -93,26 +111,112 @@ describe("POST /api/bureau/mole/run — validation", () => {
   });
 });
 
-describe("POST /api/bureau/mole/run — privacy posture", () => {
+describe("POST /api/bureau/mole/run — privacy invariant (canaryBody REJECTED on wire)", () => {
   it("response NEVER contains a canaryBody / canaryContent field", async () => {
     const r = await POST(buildRequest(valid()));
     const text = await r.text();
     expect(text).not.toMatch(/canaryBody/);
     expect(text).not.toMatch(/canaryContent/);
   });
+
+  it("rejects payloads that supply canaryBody (defense-in-depth)", async () => {
+    const r = await POST(
+      buildRequest(valid({ canaryBody: "the secret canary text" })),
+    );
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as { error: string };
+    expect(body.error).toMatch(/never accepts canary body content/i);
+  });
+
+  it("rejects payloads that supply canaryContent (defense-in-depth)", async () => {
+    const r = await POST(
+      buildRequest(valid({ canaryContent: "alternative leak channel" })),
+    );
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as { error: string };
+    expect(body.error).toMatch(/never accepts canary body content/i);
+  });
 });
 
 describe("POST /api/bureau/mole/run — success", () => {
-  it("returns canary-id-scoped phrase ID + parsed phrases array", async () => {
+  it("returns canary-id-scoped phrase ID; runId === phraseId post-migration", async () => {
     const r = await POST(buildRequest(valid()));
     expect(r.status).toBe(200);
     const b = (await r.json()) as SuccessBody;
-    expect(b.runId).toMatch(/^[0-9a-f-]{36}$/);
+    // Post-migration: runId === phraseId (mirrors DRAGNET M5).
+    expect(b.runId).toBe(b.phraseId);
     // Phrase prefix is the canaryId with hyphens stripped per slug
     // normalization (nyt-2024-01-15 → nyt20240115).
     expect(b.phraseId).toMatch(/^nyt20240115-[a-z]+-[a-z]+-\d{4}$/);
     expect(b.canaryId).toBe("nyt-2024-01-15");
     expect(b.fingerprintPhrases).toHaveLength(2);
     expect(b.status).toBe("seal pending");
+  });
+});
+
+describe("POST /api/bureau/mole/run — RFC 8594 deprecation signaling", () => {
+  it("emits Deprecation, Sunset, and Link successor-version headers", async () => {
+    const res = await POST(buildRequest(valid()));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Deprecation")).toBe("true");
+    const sunset = res.headers.get("Sunset");
+    expect(sunset).not.toBeNull();
+    expect(Number.isFinite(Date.parse(sunset ?? ""))).toBe(true);
+    expect(res.headers.get("Link")).toMatch(
+      /<\/api\/v1\/runs>;\s*rel="successor-version"/,
+    );
+  });
+
+  it("includes deprecated: true + replacement in the response body", async () => {
+    const res = await POST(buildRequest(valid()));
+    const b = (await res.json()) as SuccessBody & {
+      deprecated?: boolean;
+      replacement?: string;
+    };
+    expect(b.deprecated).toBe(true);
+    expect(b.replacement).toBe("/api/v1/runs");
+  });
+});
+
+describe("POST /api/bureau/mole/run — idempotency dedupe", () => {
+  it("two same-payload posts within the minute bucket return the SAME phraseId", async () => {
+    const r1 = (await (await POST(buildRequest(valid()))).json()) as SuccessBody;
+    const r2 = (await (await POST(buildRequest(valid()))).json()) as SuccessBody;
+    expect(r2.phraseId).toBe(r1.phraseId);
+  });
+
+  it("legacy callers + /v1/runs callers with the same payload converge on the SAME phraseId", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-04T12:00:30.000Z"));
+    try {
+      const legacy = (await (await POST(buildRequest(valid()))).json()) as SuccessBody;
+
+      const minuteBucket = Math.floor(Date.now() / 60_000);
+      const v1Body = {
+        pipeline: "bureau:mole",
+        payload: {
+          canaryId: "nyt-2024-01-15",
+          canaryUrl: "https://example.com/canary.txt",
+          fingerprintPhrases:
+            "first unique-enough fingerprint phrase, second unique-enough phrase",
+          authorizationAcknowledged: true,
+        },
+        idempotencyKey: `mole:nyt-2024-01-15:https://example.com/canary.txt:${minuteBucket}`,
+      };
+      const v1 = (await (
+        await POST_V1(
+          new Request("http://localhost:3030/api/v1/runs", {
+            method: "POST",
+            headers: HEADERS,
+            body: JSON.stringify(v1Body),
+          }),
+        )
+      ).json()) as { runId: string; reused: boolean };
+
+      expect(v1.runId).toBe(legacy.phraseId);
+      expect(v1.reused).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

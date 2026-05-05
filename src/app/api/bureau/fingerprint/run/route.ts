@@ -1,42 +1,69 @@
 // ---------------------------------------------------------------------------
-// POST /api/bureau/fingerprint/run — FINGERPRINT scan endpoint (Phase-4 stub)
+// POST /api/bureau/fingerprint/run — FINGERPRINT scan endpoint (DEPRECATED ALIAS)
 // ---------------------------------------------------------------------------
 //
-// Third program through the Studio activation pattern. Same hardening
-// posture as DRAGNET + OATH (shared via lib/security/request-guards),
-// different domain validation:
+// !! DEPRECATED — clients should POST to /api/v1/runs with
+//    { pipeline: "bureau:fingerprint", payload: { ...this body... } }. !!
 //
-//   - vendor: short slug ("openai", "anthropic", ...)
-//   - model:  longer slug allowing dots/underscores ("gpt-4o",
-//             "claude-3-5-sonnet", "llama-3.1-70b", ...)
+// Wave-2 migration: this route stays alive as a deprecated alias so callers
+// that haven't migrated keep working, but it now validates via the shared
+// `validateFingerprintPayload` and dual-writes into the v1 store so legacy
+// + /v1/runs callers converge on the same phraseId for the same payload.
 //
-// FINGERPRINT runs a fixed 5-probe calibration set against the
-// vendor+model and emits a signed `ModelFingerprint/v1` cassette.
-// Studio's hosted-mode runner wires the transport (OpenAI / Anthropic
-// / etc) — the operator just picks the target. When pluck-api
-// /v1/fingerprint/scan ships, this handler proxies to it.
+// Day-1 contract preserved:
+//   1. Auth check by Supabase JWT cookie presence.
+//   2. CSRF defence — same-origin enforced.
+//   3. Vendor slug grammar + hosted-mode allowlist + model slug grammar +
+//      ToS / authorization assertion.
+//   4. On success: { runId, phraseId, vendor, model, status:"scan pending",
+//      deprecated: true, replacement: "/api/v1/runs" } + RFC 8594
+//      Deprecation/Sunset/Link headers. runId === phraseId — single
+//      primitive, identical on idempotent retries (mirrors DRAGNET M5).
+//
+// Idempotency contract: legacy FINGERPRINT callers double-clicking within
+// ~60s dedupe to the SAME phraseId as a /v1/runs caller posting the same
+// body — we synthesize the same minute-bucketed key the RunForm uses
+// (`fingerprint:<vendor>:<model>:<minute>`) before delegating.
 // ---------------------------------------------------------------------------
 
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 
-import {
-  SUPPORTED_VENDORS,
-  isSupportedVendor,
-  isValidModelSlug,
-  isValidVendorSlug,
-} from "../../../../../lib/fingerprint/run-form-module";
-import { generateScopedPhraseId } from "../../../../../lib/phrase-id";
 import {
   isAuthed,
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../lib/security/request-guards";
+import { validateFingerprintPayload } from "../../../../../lib/v1/pipeline-validators";
+import { createRun } from "../../../../../lib/v1/run-store";
+
+const DEPRECATION_HEADERS: Record<string, string> = {
+  Deprecation: "true",
+  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
+  Link: '</api/v1/runs>; rel="successor-version"',
+};
 
 interface FingerprintRequestBody {
   vendor?: string;
   model?: string;
   authorizationAcknowledged?: boolean;
+}
+
+/**
+ * Synthesize the same minute-bucketed idempotency key the FINGERPRINT
+ * RunForm sends to /v1/runs. Format:
+ *   `fingerprint:<vendor>:<model>:<minute-bucket>`
+ *
+ * Legacy double-click + /v1/runs double-click with the same payload land
+ * on the SAME stored run record. Mirrors DRAGNET's C1 fix.
+ */
+function synthesizeIdempotencyKey(
+  vendor: string,
+  model: string,
+  now: number = Date.now(),
+): string {
+  const minuteBucket = Math.floor(now / 60_000);
+
+  return `fingerprint:${vendor}:${model}:${minuteBucket}`;
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -70,65 +97,66 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const vendor = body.vendor?.trim().toLowerCase() ?? "";
-  const model = body.model?.trim().toLowerCase() ?? "";
 
-  if (!vendor || !model) {
-    return NextResponse.json(
-      { error: "Vendor and Model are required (e.g. 'openai' + 'gpt-4o')" },
-      { status: 400 },
-    );
+  // Single source of truth — the same validator /v1/runs uses. Keeps the
+  // two surfaces from drifting.
+  const result = validateFingerprintPayload(body);
+  if (!result.ok) {
+    // FINGERPRINT-specific affordance: when the failure is "vendor not in
+    // hosted allowlist", echo the supportedVendors array so the client
+    // can show the operator the alternatives. Mirrors the legacy shape.
+    const isUnsupported = /not yet supported in hosted mode/.test(result.error);
+
+    if (isUnsupported) {
+      // Lazy import keeps this branch from pulling SUPPORTED_VENDORS into
+      // the hot path on every request.
+      const { SUPPORTED_VENDORS } = await import(
+        "../../../../../lib/fingerprint/run-form-module"
+      );
+
+      return NextResponse.json(
+        { error: result.error, supportedVendors: SUPPORTED_VENDORS },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
-  if (!isValidVendorSlug(vendor)) {
-    return NextResponse.json(
-      {
-        error:
-          "Vendor must be a short lowercase slug (e.g. 'openai', 'anthropic'); no spaces, no dots, no slashes.",
-      },
-      { status: 400 },
-    );
-  }
-  if (!isSupportedVendor(vendor)) {
-    return NextResponse.json(
-      {
-        error: `Vendor '${vendor}' is not yet supported in hosted mode. Supported: ${SUPPORTED_VENDORS.join(", ")}. Run the CLI with --responder for unsupported vendors.`,
-        supportedVendors: SUPPORTED_VENDORS,
-      },
-      { status: 400 },
-    );
-  }
-  if (!isValidModelSlug(model)) {
-    return NextResponse.json(
-      {
-        error:
-          "Model must be a slug like 'gpt-4o' or 'claude-3-5-sonnet'; lowercase letters, digits, '.', '-', '_' only.",
-      },
-      { status: 400 },
-    );
-  }
-  if (body.authorizationAcknowledged !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "You must acknowledge that you are authorized to scan this vendor's model before running.",
-      },
-      { status: 400 },
-    );
-  }
-  const runId = randomUUID();
-  // Vendor-scoped phrase ID — `<vendor>-<adj>-<noun>-<NNNN>`, where
-  // the vendor prefix matches the form's `vendor` slug exactly.
-  const phraseId = generateScopedPhraseId(`https://${vendor}.example`);
+
+  // After validation passes, normalize for the response shape + dedupe key.
+  const vendor = (body.vendor ?? "").trim().toLowerCase();
+  const model = (body.model ?? "").trim().toLowerCase();
+
+  // Delegate persistence to the unified /v1/runs store so the receipt
+  // page can read this run back via GET /api/v1/runs/[id]. The store
+  // assigns the canonical vendor-scoped phraseId — that becomes the
+  // user-facing runId.
+  //
+  // Payload shape MUST match what the FINGERPRINT RunForm posts to
+  // /v1/runs so (pipeline, payload, idempotencyKey) canonicalises
+  // identically and legacy + /v1/runs callers converge on the SAME
+  // phraseId.
+  const { record } = createRun({
+    pipeline: "bureau:fingerprint",
+    payload: {
+      vendor,
+      model,
+      authorizationAcknowledged: body.authorizationAcknowledged,
+    },
+    idempotencyKey: synthesizeIdempotencyKey(vendor, model),
+  });
 
   return NextResponse.json(
     {
-      runId,
-      phraseId,
+      runId: record.runId,
+      phraseId: record.runId,
       vendor,
       model,
       status: "scan pending",
-      note: "stub scan — pluck-api /v1/fingerprint/scan not yet wired; see plan",
+      deprecated: true,
+      replacement: "/api/v1/runs",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:fingerprint",
     },
-    { status: 200 },
+    { status: 200, headers: DEPRECATION_HEADERS },
   );
 }

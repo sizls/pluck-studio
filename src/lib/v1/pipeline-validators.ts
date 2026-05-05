@@ -23,12 +23,34 @@
 //   - bureau:oath    — REAL validator (hostname grammar + private-IP block
 //     + hosting-origin https-only + auth-ack). Both /v1/runs and the legacy
 //     /api/bureau/oath/run route share THIS function.
-//   - bureau:fingerprint / custody / whistle / bounty / sbom-ai / rotate /
-//     tripwire / mole — STUB validators (accept any object). These tighten
-//     as each program's RunForm migrates to /v1/runs. The registry exists
-//     so the plumbing is in place.
+//   - bureau:fingerprint — REAL validator (vendor slug + hosted-mode
+//     allowlist + model slug + auth-ack). Both /v1/runs and the legacy
+//     /api/bureau/fingerprint/run route share THIS function.
+//   - bureau:custody — REAL validator (https-only bundleUrl + private-IP
+//     block + optional expectedVendor hostname + auth-ack). Both /v1/runs
+//     and the legacy /api/bureau/custody/run route share THIS function.
+//   - bureau:mole    — REAL validator (canaryId slug + https-only canaryUrl
+//     + private-IP block + fingerprint phrase bounds + auth-ack +
+//     privacy invariant: canaryBody / canaryContent are NEVER accepted).
+//     Both /v1/runs and the legacy /api/bureau/mole/run route share
+//     THIS function.
+//   - bureau:whistle / bounty / sbom-ai / rotate / tripwire — STUB
+//     validators (accept any object). These tighten as each program's
+//     RunForm migrates to /v1/runs. The registry exists so the plumbing
+//     is in place.
 // ---------------------------------------------------------------------------
 
+import {
+  SUPPORTED_VENDORS,
+  isSupportedVendor,
+  isValidModelSlug,
+  isValidVendorSlug,
+} from "../fingerprint/run-form-module";
+import {
+  FINGERPRINT_BOUNDS,
+  isValidCanaryId,
+  parseFingerprintPhrases,
+} from "../mole/run-form-module";
 import {
   isAllowedLicense,
   isValidAuthor,
@@ -156,10 +178,6 @@ function passthroughObjectValidator(payload: unknown): ValidatorResult {
   return { ok: true };
 }
 
-// TODO(bureau:fingerprint): tighten when FINGERPRINT RunForm migrates to /v1/runs.
-const validateFingerprintPayload: PipelineValidator = passthroughObjectValidator;
-// TODO(bureau:custody): tighten when CUSTODY RunForm migrates to /v1/runs.
-const validateCustodyPayload: PipelineValidator = passthroughObjectValidator;
 // TODO(bureau:whistle): tighten when WHISTLE RunForm migrates to /v1/runs.
 const validateWhistlePayload: PipelineValidator = passthroughObjectValidator;
 // TODO(bureau:bounty): tighten when BOUNTY RunForm migrates to /v1/runs.
@@ -286,8 +304,6 @@ export function validateNucleiPayload(payload: unknown): ValidatorResult {
   return { ok: true };
 }
 
-// TODO(bureau:mole): tighten when MOLE RunForm migrates to /v1/runs.
-const validateMolePayload: PipelineValidator = passthroughObjectValidator;
 
 // ---------------------------------------------------------------------------
 // OATH — single source of truth for verify payload rules.
@@ -391,6 +407,291 @@ export function validateOathPayload(payload: unknown): ValidatorResult {
           "Hosting origin cannot point at localhost, private, or link-local addresses.",
       };
     }
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// FINGERPRINT — single source of truth for scan payload rules.
+//
+// Mirrors the legacy /api/bureau/fingerprint/run route's body validation
+// so /v1/runs callers can't slip past program-specific rules (vendor
+// slug grammar, hosted-mode allowlist, model slug grammar, auth-ack)
+// by hitting the unified surface directly.
+// ---------------------------------------------------------------------------
+
+export interface FingerprintPayload {
+  vendor: string;
+  model: string;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:fingerprint` scan payload. Identical to the rules
+ * the legacy `/api/bureau/fingerprint/run` route enforces — both call
+ * sites share THIS function so the contract cannot drift.
+ */
+export function validateFingerprintPayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  const vendor =
+    typeof body.vendor === "string" ? body.vendor.trim().toLowerCase() : "";
+  const model =
+    typeof body.model === "string" ? body.model.trim().toLowerCase() : "";
+
+  if (!vendor || !model) {
+    return {
+      ok: false,
+      error: "Vendor and Model are required (e.g. 'openai' + 'gpt-4o')",
+    };
+  }
+  if (!isValidVendorSlug(vendor)) {
+    return {
+      ok: false,
+      error:
+        "Vendor must be a short lowercase slug (e.g. 'openai', 'anthropic'); no spaces, no dots, no slashes.",
+    };
+  }
+  if (!isSupportedVendor(vendor)) {
+    return {
+      ok: false,
+      error: `Vendor '${vendor}' is not yet supported in hosted mode. Supported: ${SUPPORTED_VENDORS.join(", ")}. Run the CLI with --responder for unsupported vendors.`,
+    };
+  }
+  if (!isValidModelSlug(model)) {
+    return {
+      ok: false,
+      error:
+        "Model must be a slug like 'gpt-4o' or 'claude-3-5-sonnet'; lowercase letters, digits, '.', '-', '_' only.",
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to scan this vendor's model before running.",
+    };
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// CUSTODY — single source of truth for verify-bundle payload rules.
+//
+// Mirrors the legacy /api/bureau/custody/run route's body validation so
+// /v1/runs callers can't slip past program-specific rules (https-only
+// bundleUrl, private-IP block, optional expectedVendor hostname grammar,
+// auth-ack) by hitting the unified surface directly.
+// ---------------------------------------------------------------------------
+
+const CUSTODY_ALLOWED_BUNDLE_SCHEMES = new Set(["https:"]);
+const CUSTODY_VENDOR_PATTERN =
+  /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+
+function isValidCustodyExpectedVendor(s: string): boolean {
+  const lowered = s.toLowerCase();
+  if (!CUSTODY_VENDOR_PATTERN.test(lowered)) {
+    return false;
+  }
+  if (isPrivateOrLocalHost(lowered)) {
+    return false;
+  }
+
+  return true;
+}
+
+export interface CustodyPayload {
+  bundleUrl: string;
+  expectedVendor?: string;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:custody` verify-bundle payload. Identical to the
+ * rules the legacy `/api/bureau/custody/run` route enforces — both call
+ * sites share THIS function so the contract cannot drift.
+ */
+export function validateCustodyPayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  const bundleUrl =
+    typeof body.bundleUrl === "string" ? body.bundleUrl.trim() : "";
+  const expectedVendor =
+    typeof body.expectedVendor === "string"
+      ? body.expectedVendor.trim().toLowerCase()
+      : "";
+
+  if (!bundleUrl) {
+    return {
+      ok: false,
+      error: "Bundle URL is required (https:// only, public host)",
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge that you are authorized to fetch this bundle before running.",
+    };
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(bundleUrl);
+  } catch {
+    return {
+      ok: false,
+      error: "Bundle URL must be a valid URL (include https://)",
+    };
+  }
+  if (!CUSTODY_ALLOWED_BUNDLE_SCHEMES.has(parsed.protocol)) {
+    return {
+      ok: false,
+      error: "Bundle URL must use https:// (per CUSTODY wire spec)",
+    };
+  }
+  if (isPrivateOrLocalHost(parsed.hostname)) {
+    return {
+      ok: false,
+      error:
+        "Bundle URL cannot point at localhost, private, or link-local addresses.",
+    };
+  }
+  if (expectedVendor.length > 0 && !isValidCustodyExpectedVendor(expectedVendor)) {
+    return {
+      ok: false,
+      error:
+        "Expected vendor must be a public hostname (e.g. 'openai.com'); no IPs, no localhost, no scheme, no path.",
+    };
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// MOLE — single source of truth for seal-canary payload rules.
+//
+// Mirrors the legacy /api/bureau/mole/run route's body validation so
+// /v1/runs callers can't slip past program-specific rules (canaryId
+// grammar, https-only canaryUrl, private-IP block, fingerprint phrase
+// length + count bounds, auth-ack) by hitting the unified surface
+// directly.
+//
+// PRIVACY INVARIANT (defense-in-depth): the canary BODY never enters the
+// Studio request boundary. This validator REJECTS any payload carrying
+// `canaryBody` or `canaryContent`. The receipt schema already excludes
+// these fields; the validator backstops the wire.
+// ---------------------------------------------------------------------------
+
+const MOLE_ALLOWED_CANARY_SCHEMES = new Set(["https:"]);
+
+export interface MolePayload {
+  canaryId: string;
+  canaryUrl: string;
+  fingerprintPhrases: string;
+  authorizationAcknowledged: true;
+}
+
+/**
+ * Validate a `bureau:mole` seal-canary payload. Identical to the rules
+ * the legacy `/api/bureau/mole/run` route enforces — both call sites
+ * share THIS function so the contract cannot drift.
+ */
+export function validateMolePayload(payload: unknown): ValidatorResult {
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+  const body = payload as Record<string, unknown>;
+
+  // Privacy invariant: the canary body is NEVER published. Reject any
+  // payload that supplies `canaryBody` or `canaryContent` so a misbuilt
+  // client can't accidentally leak the body into the Studio surface.
+  // Receipt schema already drops these fields; this is the wire-layer
+  // backstop.
+  if ("canaryBody" in body || "canaryContent" in body) {
+    return {
+      ok: false,
+      error:
+        "MOLE never accepts canary body content on the wire. Only canaryUrl + sha256-hashed fingerprint phrases enter the public log.",
+    };
+  }
+
+  const canaryId =
+    typeof body.canaryId === "string" ? body.canaryId.trim().toLowerCase() : "";
+  const canaryUrl =
+    typeof body.canaryUrl === "string" ? body.canaryUrl.trim() : "";
+  const fingerprintPhrases =
+    typeof body.fingerprintPhrases === "string"
+      ? body.fingerprintPhrases.trim()
+      : "";
+
+  if (!isValidCanaryId(canaryId)) {
+    return {
+      ok: false,
+      error:
+        "Canary ID must be a short lowercase slug (e.g. 'nyt-2024-01-15')",
+    };
+  }
+  if (!canaryUrl) {
+    return {
+      ok: false,
+      error: "Canary URL is required (https:// only)",
+    };
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(canaryUrl);
+  } catch {
+    return {
+      ok: false,
+      error: "Canary URL must be a valid URL (include https://)",
+    };
+  }
+  if (!MOLE_ALLOWED_CANARY_SCHEMES.has(parsed.protocol)) {
+    return {
+      ok: false,
+      error: "Canary URL must use https://",
+    };
+  }
+  if (isPrivateOrLocalHost(parsed.hostname)) {
+    return {
+      ok: false,
+      error:
+        "Canary URL cannot point at localhost, private, or link-local addresses.",
+    };
+  }
+  const { phrases, outOfBounds } = parseFingerprintPhrases(fingerprintPhrases);
+  if (outOfBounds.length > 0) {
+    return {
+      ok: false,
+      error: `Fingerprint phrases must be ${FINGERPRINT_BOUNDS.MIN_LENGTH}–${FINGERPRINT_BOUNDS.MAX_LENGTH} chars; out-of-bounds: ${outOfBounds.join(" | ")}`,
+    };
+  }
+  if (phrases.length === 0) {
+    return {
+      ok: false,
+      error: "At least one fingerprint phrase is required",
+    };
+  }
+  if (phrases.length > FINGERPRINT_BOUNDS.MAX_COUNT) {
+    return {
+      ok: false,
+      error: `Maximum ${FINGERPRINT_BOUNDS.MAX_COUNT} fingerprint phrases (got ${phrases.length})`,
+    };
+  }
+  if (body.authorizationAcknowledged !== true) {
+    return {
+      ok: false,
+      error:
+        "You must acknowledge the canary-content-stays-private posture and authorization to seal.",
+    };
   }
 
   return { ok: true };

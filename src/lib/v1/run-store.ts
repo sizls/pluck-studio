@@ -205,6 +205,45 @@ function runIdForBureau(
   if (vendorDomain !== null) {
     return generateScopedPhraseId(`https://${vendorDomain}`);
   }
+  // MOLE carries `canaryId` — the seal URL self-discloses *which*
+  // canary was sealed, never the body. Phrase shape:
+  // `<canaryId-slug>-<adj>-<noun>-NNNN`. Resolved BEFORE `vendor` so
+  // the canary identity wins over any incidental vendor field.
+  const canaryId =
+    typeof payload.canaryId === "string" && payload.canaryId.length > 0
+      ? payload.canaryId
+      : null;
+
+  if (canaryId !== null) {
+    return generateScopedPhraseId(`https://${canaryId}.example`);
+  }
+  // FINGERPRINT carries `vendor` (slug like "openai") — receipt URL
+  // self-discloses the scanned vendor. Promote to a URL for
+  // generateScopedPhraseId so the phrase shape matches DRAGNET/OATH
+  // (`openai-swift-falcon-3742`).
+  const vendor =
+    typeof payload.vendor === "string" && payload.vendor.length > 0
+      ? payload.vendor
+      : null;
+
+  if (vendor !== null) {
+    return generateScopedPhraseId(`https://${vendor}.example`);
+  }
+  // CUSTODY carries `bundleUrl` (when no expectedVendor is set) — fall
+  // back to the bundle hostname for the phrase prefix so the receipt
+  // URL still self-discloses the target. Note: CUSTODY's expectedVendor
+  // is optional; when provided the validator already promotes it to
+  // vendorDomain-shaped scoping above (see CUSTODY field aliasing in
+  // the legacy route's dual-write, where expectedVendor populates
+  // vendorDomain at the store boundary).
+  const bundleUrl =
+    typeof payload.bundleUrl === "string" && payload.bundleUrl.length > 0
+      ? payload.bundleUrl
+      : null;
+
+  if (bundleUrl !== null) {
+    return generateScopedPhraseId(bundleUrl);
+  }
   // NUCLEI carries `author` — same intent: the receipt URL self-discloses
   // the publishing operator. Phrase shape: `<author>-<adj>-<noun>-NNNN`.
   const author =

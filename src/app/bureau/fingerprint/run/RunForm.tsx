@@ -1,7 +1,13 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// FINGERPRINT Run form — third program through the Studio activation pattern
+// FINGERPRINT Run form — Wave-2 migration to /v1/runs
+// ---------------------------------------------------------------------------
+//
+// FINGERPRINT is the fourth program migrated to the unified /v1/runs
+// surface (after DRAGNET, NUCLEI, OATH). The legacy
+// /api/bureau/fingerprint/run route stays alive as a deprecated alias
+// for callers that haven't migrated; new client code POSTs here.
 // ---------------------------------------------------------------------------
 
 import { createSystem } from "@directive-run/core";
@@ -35,9 +41,24 @@ import {
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/fingerprint/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors the legacy synthesized key — both surfaces dedupe to the same
+ * stored record for the same payload.
+ */
+function idempotencyKeyFor(vendor: string, model: string): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `fingerprint:${vendor}:${model}:${minuteBucket}`;
 }
 
 function isClientSideBadVendor(raw: string): string | null {
@@ -133,13 +154,20 @@ export function FingerprintRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/fingerprint/run", {
+      const normalizedVendor = (vendor ?? "").trim().toLowerCase();
+      const normalizedModel = (model ?? "").trim().toLowerCase();
+
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          vendor: vendor?.trim().toLowerCase(),
-          model: model?.trim().toLowerCase(),
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:fingerprint",
+          payload: {
+            vendor: normalizedVendor,
+            model: normalizedModel,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(normalizedVendor, normalizedModel),
         }),
       });
 
@@ -150,7 +178,7 @@ export function FingerprintRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Scan failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -158,11 +186,11 @@ export function FingerprintRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
 
-      router.push(`/bureau/fingerprint/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/fingerprint/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

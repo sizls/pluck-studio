@@ -1,11 +1,22 @@
 // ---------------------------------------------------------------------------
-// POST /api/bureau/fingerprint/run — contract tests
+// POST /api/bureau/fingerprint/run — contract tests (deprecated alias)
+// ---------------------------------------------------------------------------
+//
+// Wave-2 migration: the legacy route now delegates to the shared
+// `validateFingerprintPayload` and dual-writes into the v1 store. These
+// tests lock the new contract:
+//   - runId === phraseId (single primitive, mirrors DRAGNET M5)
+//   - RFC 8594 Deprecation/Sunset/Link headers
+//   - Idempotency dedupe within the minute bucket
+//   - Cross-route convergence with /v1/runs
 // ---------------------------------------------------------------------------
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetRateLimit } from "../../../../../../lib/rate-limit.js";
+import { __resetForTests } from "../../../../../../lib/v1/run-store.js";
 import { POST } from "../route.js";
+import { POST as POST_V1 } from "../../../../v1/runs/route.js";
 
 interface SuccessBody {
   runId: string;
@@ -52,6 +63,7 @@ function validBody(overrides: Record<string, unknown> = {}): unknown {
 
 beforeEach(() => {
   resetRateLimit();
+  __resetForTests();
 });
 
 afterEach(() => {
@@ -111,7 +123,7 @@ describe("POST /api/bureau/fingerprint/run — body validation", () => {
     expect(body.error).toMatch(/short lowercase slug/);
   });
 
-  it("rejects unsupported vendor slugs", async () => {
+  it("rejects unsupported vendor slugs and echoes supportedVendors", async () => {
     const res = await POST(
       buildRequest({
         headers: SAME_SITE_AUTHED_HEADERS,
@@ -208,7 +220,7 @@ describe("POST /api/bureau/fingerprint/run — body validation", () => {
 });
 
 describe("POST /api/bureau/fingerprint/run — success path", () => {
-  it("returns vendor-scoped phrase ID + scan-pending status", async () => {
+  it("returns vendor-scoped phrase ID; runId === phraseId post-migration", async () => {
     const res = await POST(
       buildRequest({
         headers: SAME_SITE_AUTHED_HEADERS,
@@ -217,7 +229,10 @@ describe("POST /api/bureau/fingerprint/run — success path", () => {
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as SuccessBody;
-    expect(body.runId).toMatch(/^[0-9a-f-]{36}$/);
+    // Post-migration: runId === phraseId — the canonical vendor-scoped
+    // phrase-id-shaped primitive (mirrors DRAGNET M5 unification).
+    expect(body.runId).toBe(body.phraseId);
+    expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
     expect(body.phraseId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
     expect(body.vendor).toBe("openai");
     expect(body.model).toBe("gpt-4o");
@@ -225,17 +240,128 @@ describe("POST /api/bureau/fingerprint/run — success path", () => {
   });
 });
 
+describe("POST /api/bureau/fingerprint/run — RFC 8594 deprecation signaling", () => {
+  it("emits Deprecation, Sunset, and Link successor-version headers", async () => {
+    const res = await POST(
+      buildRequest({
+        headers: SAME_SITE_AUTHED_HEADERS,
+        body: validBody(),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Deprecation")).toBe("true");
+    const sunset = res.headers.get("Sunset");
+    expect(sunset).not.toBeNull();
+    expect(Number.isFinite(Date.parse(sunset ?? ""))).toBe(true);
+    expect(res.headers.get("Link")).toMatch(
+      /<\/api\/v1\/runs>;\s*rel="successor-version"/,
+    );
+  });
+
+  it("includes deprecated: true + replacement in the response body", async () => {
+    const res = await POST(
+      buildRequest({
+        headers: SAME_SITE_AUTHED_HEADERS,
+        body: validBody(),
+      }),
+    );
+    const b = (await res.json()) as SuccessBody & {
+      deprecated?: boolean;
+      replacement?: string;
+    };
+    expect(b.deprecated).toBe(true);
+    expect(b.replacement).toBe("/api/v1/runs");
+  });
+});
+
+describe("POST /api/bureau/fingerprint/run — idempotency dedupe", () => {
+  it("two same-payload posts within the minute bucket return the SAME phraseId", async () => {
+    const r1 = (await (
+      await POST(
+        buildRequest({
+          headers: SAME_SITE_AUTHED_HEADERS,
+          body: validBody(),
+        }),
+      )
+    ).json()) as SuccessBody;
+    const r2 = (await (
+      await POST(
+        buildRequest({
+          headers: SAME_SITE_AUTHED_HEADERS,
+          body: validBody(),
+        }),
+      )
+    ).json()) as SuccessBody;
+    expect(r2.phraseId).toBe(r1.phraseId);
+  });
+
+  it("legacy callers + /v1/runs callers with the same payload converge on the SAME phraseId", async () => {
+    // Cross-route dedupe — proves the synthesized key matches what the
+    // RunForm sends to /v1/runs. Pin the clock so the legacy route's
+    // internal Date.now() and our minute-bucket calculation cannot
+    // straddle a minute boundary.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-04T12:00:30.000Z"));
+    try {
+      const legacy = (await (
+        await POST(
+          buildRequest({
+            headers: SAME_SITE_AUTHED_HEADERS,
+            body: validBody(),
+          }),
+        )
+      ).json()) as SuccessBody;
+
+      const minuteBucket = Math.floor(Date.now() / 60_000);
+      const v1Body = {
+        pipeline: "bureau:fingerprint",
+        payload: {
+          vendor: "openai",
+          model: "gpt-4o",
+          authorizationAcknowledged: true,
+        },
+        idempotencyKey: `fingerprint:openai:gpt-4o:${minuteBucket}`,
+      };
+      const v1 = (await (
+        await POST_V1(
+          new Request("http://localhost:3030/api/v1/runs", {
+            method: "POST",
+            headers: SAME_SITE_AUTHED_HEADERS,
+            body: JSON.stringify(v1Body),
+          }),
+        )
+      ).json()) as { runId: string; reused: boolean };
+
+      expect(v1.runId).toBe(legacy.phraseId);
+      expect(v1.reused).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("POST /api/bureau/fingerprint/run — rate-limit shared bucket", () => {
-  it("DRAGNET + OATH + FINGERPRINT share the same per-IP bucket", async () => {
+  it("FINGERPRINT shares the global per-IP+session bucket", async () => {
     const headers = {
       ...SAME_SITE_AUTHED_HEADERS,
       "x-forwarded-for": "203.0.113.99",
     };
     for (let i = 0; i < 10; i++) {
-      const res = await POST(buildRequest({ headers, body: validBody() }));
+      // Vary minute-bucket per request via vendor/model rotation so
+      // idempotency dedupe doesn't return reused records inside a
+      // single bucket. The rate limit fires on the network attempt
+      // independently of dedupe.
+      const res = await POST(
+        buildRequest({
+          headers,
+          body: validBody({ model: `gpt-4o-${i}` }),
+        }),
+      );
       expect(res.status).toBe(200);
     }
-    const overflow = await POST(buildRequest({ headers, body: validBody() }));
+    const overflow = await POST(
+      buildRequest({ headers, body: validBody({ model: "gpt-4o-overflow" }) }),
+    );
     expect(overflow.status).toBe(429);
   });
 });

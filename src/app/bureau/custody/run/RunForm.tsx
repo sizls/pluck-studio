@@ -1,7 +1,13 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// CUSTODY Run form — fourth program through the activation pattern
+// CUSTODY Run form — Wave-2 migration to /v1/runs
+// ---------------------------------------------------------------------------
+//
+// CUSTODY is the fifth program migrated to the unified /v1/runs surface
+// (after DRAGNET, NUCLEI, OATH, FINGERPRINT). The legacy
+// /api/bureau/custody/run route stays alive as a deprecated alias for
+// callers that haven't migrated; new client code POSTs here.
 // ---------------------------------------------------------------------------
 
 import { createSystem } from "@directive-run/core";
@@ -29,13 +35,29 @@ import { custodyRunFormModule } from "../../../../lib/custody/run-form-module";
 
 interface RunResponse {
   runId?: string;
+  /** Legacy /api/bureau/custody/run shape. */
   phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
   signInUrl?: string;
   error?: string;
 }
 
 const VENDOR_PATTERN =
   /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * `vendorOrUnknown` is the operator-supplied expectedVendor when present,
+ * else "unknown" so generic bundles still have a stable dedupe shape.
+ * Mirrors the legacy synthesized key.
+ */
+function idempotencyKeyFor(vendorOrUnknown: string, bundleUrl: string): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `custody:${vendorOrUnknown}:${bundleUrl}:${minuteBucket}`;
+}
 
 function isClientSideBadBundleUrl(raw: string): string | null {
   const trimmed = raw.trim();
@@ -144,15 +166,31 @@ export function CustodyRunForm(): ReactNode {
     system.facts.submitStatus = "submitting";
 
     try {
-      const res = await fetch("/api/bureau/custody/run", {
+      const normalizedBundleUrl = (bundleUrl ?? "").trim();
+      const explicitVendor = (expectedVendor ?? "").trim().toLowerCase();
+      const vendorOrUnknown =
+        explicitVendor.length > 0 ? explicitVendor : "unknown";
+
+      // Form omits `expectedVendor` from the payload when empty so
+      // canonicalJson() drops the field — legacy + /v1/runs callers
+      // hash identically and dedupe converges. The legacy alias also
+      // promotes expectedVendor → vendorDomain for vendor-scoped phrase
+      // generation; we mirror that promotion here so the runId prefix
+      // matches across both surfaces.
+      const res = await fetch("/api/v1/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          bundleUrl: bundleUrl?.trim(),
-          expectedVendor: expectedVendor && expectedVendor.length > 0
-            ? expectedVendor.trim().toLowerCase()
-            : undefined,
-          authorizationAcknowledged: authAck,
+          pipeline: "bureau:custody",
+          payload: {
+            bundleUrl: normalizedBundleUrl,
+            vendorDomain:
+              explicitVendor.length > 0 ? explicitVendor : undefined,
+            expectedVendor:
+              explicitVendor.length > 0 ? explicitVendor : undefined,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(vendorOrUnknown, normalizedBundleUrl),
         }),
       });
 
@@ -163,7 +201,7 @@ export function CustodyRunForm(): ReactNode {
         system.facts.submitStatus = "failed";
         return;
       }
-      if (!res.ok || !body.runId || !body.phraseId) {
+      if (!res.ok || !body.runId) {
         system.facts.errorMessage =
           body.error ?? `Verify failed (HTTP ${res.status})`;
         system.facts.submitStatus = "failed";
@@ -171,11 +209,11 @@ export function CustodyRunForm(): ReactNode {
       }
       system.facts.lastResult = {
         runId: body.runId,
-        phraseId: body.phraseId,
+        phraseId: body.runId,
       };
       system.facts.submitStatus = "succeeded";
 
-      router.push(`/bureau/custody/runs/${body.phraseId}`);
+      router.push(body.receiptUrl ?? `/bureau/custody/runs/${body.runId}`);
     } catch (err) {
       system.facts.errorMessage =
         err instanceof Error ? err.message : "Network error";

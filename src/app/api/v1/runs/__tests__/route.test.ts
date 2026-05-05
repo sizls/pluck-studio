@@ -490,17 +490,159 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
 });
 
 describe("POST /api/v1/runs — bureau pipelines without targetUrl", () => {
-  it("accepts bureau:custody with an empty payload (slug-prefixed runId)", async () => {
+  it("accepts bureau:whistle with a passthrough payload (slug-prefixed runId)", async () => {
+    // WHISTLE is still a stub validator — accepts any object. CUSTODY,
+    // which previously stood in for this test, is now a real validator
+    // that rejects payloads missing bundleUrl. WHISTLE preserves the
+    // "slug-prefixed runId fallback" coverage.
     const res = await POST(
       postReq({
-        pipeline: "bureau:custody",
+        pipeline: "bureau:whistle",
         payload: { incidentTitle: "test-incident" },
       }),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
-    expect(body.runId).toMatch(/^custody-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.runId).toMatch(/^whistle-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/whistle/runs/${body.runId}`);
+  });
+});
+
+describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/MOLE)", () => {
+  it("FINGERPRINT — accepts a fully-formed payload + assigns vendor-scoped runId", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:fingerprint",
+        payload: {
+          vendor: "openai",
+          model: "gpt-4o",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/fingerprint/runs/${body.runId}`);
+  });
+
+  it("FINGERPRINT — rejects unsupported vendor slug", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:fingerprint",
+        payload: {
+          vendor: "acme",
+          model: "gpt-4o",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/not yet supported/);
+  });
+
+  it("CUSTODY — accepts a fully-formed payload with expectedVendor (vendor-scoped runId)", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:custody",
+        payload: {
+          bundleUrl: "https://chat.openai.com/bundle.json",
+          vendorDomain: "openai.com",
+          expectedVendor: "openai.com",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    // expectedVendor is promoted to vendorDomain so the run-store
+    // assigns a vendor-scoped phrase rather than the bundle hostname.
+    expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
     expect(body.receiptUrl).toBe(`/bureau/custody/runs/${body.runId}`);
+  });
+
+  it("CUSTODY — falls back to bundleUrl hostname when no expectedVendor", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:custody",
+        payload: {
+          bundleUrl: "https://example.com/bundle.json",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    expect(body.runId).toMatch(/^example-[a-z]+-[a-z]+-\d{4}$/);
+  });
+
+  it("CUSTODY — rejects http:// bundleUrl", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:custody",
+        payload: {
+          bundleUrl: "http://example.com/bundle.json",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("MOLE — accepts a fully-formed payload + assigns canary-id-scoped runId", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:mole",
+        payload: {
+          canaryId: "nyt-2024-01-15",
+          canaryUrl: "https://example.com/canary.txt",
+          fingerprintPhrases:
+            "first unique-enough fingerprint phrase, second unique-enough phrase",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PostSuccessBody;
+    // Phrase prefix is the canaryId with hyphens stripped per slug
+    // normalization (nyt-2024-01-15 → nyt20240115).
+    expect(body.runId).toMatch(/^nyt20240115-[a-z]+-[a-z]+-\d{4}$/);
+    expect(body.receiptUrl).toBe(`/bureau/mole/runs/${body.runId}`);
+  });
+
+  it("MOLE — PRIVACY INVARIANT: rejects payloads with canaryBody", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:mole",
+        payload: {
+          canaryId: "nyt-2024-01-15",
+          canaryUrl: "https://example.com/canary.txt",
+          canaryBody: "the secret canary text",
+          fingerprintPhrases: "first unique-enough fingerprint phrase",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/never accepts canary body content/i);
+  });
+
+  it("MOLE — PRIVACY INVARIANT: rejects payloads with canaryContent", async () => {
+    const res = await POST(
+      postReq({
+        pipeline: "bureau:mole",
+        payload: {
+          canaryId: "nyt-2024-01-15",
+          canaryUrl: "https://example.com/canary.txt",
+          canaryContent: "alternative leak channel",
+          fingerprintPhrases: "first unique-enough fingerprint phrase",
+          authorizationAcknowledged: true,
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
   });
 });
 

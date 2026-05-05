@@ -15,7 +15,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   PIPELINE_VALIDATORS,
+  validateCustodyPayload,
   validateDragnetPayload,
+  validateFingerprintPayload,
+  validateMolePayload,
   validateNucleiPayload,
   validateOathPayload,
 } from "../pipeline-validators.js";
@@ -165,16 +168,17 @@ describe("PIPELINE_VALIDATORS registry", () => {
   });
 
   it("stub validators accept any non-array object", () => {
-    // OATH and NUCLEI are no longer stubs — they do real grammar
-    // checking. See the dedicated describe blocks below.
-    expect(PIPELINE_VALIDATORS["bureau:mole"]({})).toEqual({ ok: true });
-    expect(PIPELINE_VALIDATORS["bureau:fingerprint"]({})).toEqual({ ok: true });
+    // DRAGNET/NUCLEI/OATH/FINGERPRINT/CUSTODY/MOLE are no longer stubs
+    // — they do real grammar checking. The remaining stubs (whistle,
+    // bounty, sbom-ai, rotate, tripwire) still passthrough for now.
+    expect(PIPELINE_VALIDATORS["bureau:whistle"]({})).toEqual({ ok: true });
+    expect(PIPELINE_VALIDATORS["bureau:bounty"]({})).toEqual({ ok: true });
   });
 
   it("stub validators reject arrays + primitives", () => {
-    expect(PIPELINE_VALIDATORS["bureau:mole"]([]).ok).toBe(false);
-    expect(PIPELINE_VALIDATORS["bureau:mole"]("hi").ok).toBe(false);
-    expect(PIPELINE_VALIDATORS["bureau:mole"](null).ok).toBe(false);
+    expect(PIPELINE_VALIDATORS["bureau:whistle"]([]).ok).toBe(false);
+    expect(PIPELINE_VALIDATORS["bureau:whistle"]("hi").ok).toBe(false);
+    expect(PIPELINE_VALIDATORS["bureau:whistle"](null).ok).toBe(false);
   });
 
   it("NUCLEI entry IS the exported validateNucleiPayload (single source of truth)", () => {
@@ -183,6 +187,18 @@ describe("PIPELINE_VALIDATORS registry", () => {
 
   it("OATH entry IS the exported validateOathPayload (single source of truth)", () => {
     expect(PIPELINE_VALIDATORS["bureau:oath"]).toBe(validateOathPayload);
+  });
+
+  it("FINGERPRINT entry IS the exported validateFingerprintPayload (single source of truth)", () => {
+    expect(PIPELINE_VALIDATORS["bureau:fingerprint"]).toBe(validateFingerprintPayload);
+  });
+
+  it("CUSTODY entry IS the exported validateCustodyPayload (single source of truth)", () => {
+    expect(PIPELINE_VALIDATORS["bureau:custody"]).toBe(validateCustodyPayload);
+  });
+
+  it("MOLE entry IS the exported validateMolePayload (single source of truth)", () => {
+    expect(PIPELINE_VALIDATORS["bureau:mole"]).toBe(validateMolePayload);
   });
 });
 
@@ -404,5 +420,336 @@ describe("validateOathPayload", () => {
       hostingOrigin: "https://localhost",
     });
     expect(r.ok).toBe(false);
+  });
+});
+
+const validFingerprint = {
+  vendor: "openai",
+  model: "gpt-4o",
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateFingerprintPayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateFingerprintPayload(validFingerprint)).toEqual({ ok: true });
+  });
+
+  it("rejects non-objects", () => {
+    expect(validateFingerprintPayload(null).ok).toBe(false);
+    expect(validateFingerprintPayload("hi").ok).toBe(false);
+    expect(validateFingerprintPayload([]).ok).toBe(false);
+  });
+
+  it("rejects missing vendor + model", () => {
+    const r = validateFingerprintPayload({ authorizationAcknowledged: true });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/Vendor and Model are required/);
+    }
+  });
+
+  it("rejects vendor with dots", () => {
+    const r = validateFingerprintPayload({
+      ...validFingerprint,
+      vendor: "openai.com",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/short lowercase slug/);
+    }
+  });
+
+  it("rejects vendor with slash", () => {
+    const r = validateFingerprintPayload({
+      ...validFingerprint,
+      vendor: "openai/foo",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects oversized vendor (>32 chars)", () => {
+    const r = validateFingerprintPayload({
+      ...validFingerprint,
+      vendor: "a".repeat(33),
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects unsupported vendor slugs (hosted-mode allowlist)", () => {
+    const r = validateFingerprintPayload({
+      ...validFingerprint,
+      vendor: "acme",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/not yet supported/);
+    }
+  });
+
+  it("accepts a multi-component model slug", () => {
+    const r = validateFingerprintPayload({
+      ...validFingerprint,
+      vendor: "anthropic",
+      model: "claude-3-5-sonnet",
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("accepts a model slug with dots (llama-3.1-70b)", () => {
+    const r = validateFingerprintPayload({
+      ...validFingerprint,
+      vendor: "meta",
+      model: "llama-3.1-70b",
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("rejects model with spaces", () => {
+    const r = validateFingerprintPayload({
+      ...validFingerprint,
+      model: "gpt 4o",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects when authorization not acknowledged", () => {
+    const r = validateFingerprintPayload({
+      ...validFingerprint,
+      authorizationAcknowledged: false,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/authorized to scan/);
+    }
+  });
+});
+
+const validCustody = {
+  bundleUrl: "https://example.com/bundle.intoto.jsonl",
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateCustodyPayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateCustodyPayload(validCustody)).toEqual({ ok: true });
+  });
+
+  it("accepts a fully-formed payload with expectedVendor", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      expectedVendor: "openai.com",
+    });
+    expect(r).toEqual({ ok: true });
+  });
+
+  it("rejects non-objects", () => {
+    expect(validateCustodyPayload(null).ok).toBe(false);
+    expect(validateCustodyPayload("hi").ok).toBe(false);
+    expect(validateCustodyPayload([]).ok).toBe(false);
+  });
+
+  it("rejects missing bundleUrl", () => {
+    const r = validateCustodyPayload({ authorizationAcknowledged: true });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/Bundle URL is required/);
+    }
+  });
+
+  it("rejects http:// (HTTPS-only per CUSTODY spec)", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      bundleUrl: "http://example.com/bundle.json",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/https:\/\//);
+    }
+  });
+
+  it("rejects localhost bundleUrl", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      bundleUrl: "https://localhost/bundle.json",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects RFC1918 bundleUrl host", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      bundleUrl: "https://10.0.0.1/bundle.json",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects link-local bundleUrl host", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      bundleUrl: "https://169.254.169.254/",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects malformed bundleUrl", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      bundleUrl: "not-a-url",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects expectedVendor with scheme", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      expectedVendor: "https://openai.com",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects expectedVendor that is localhost", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      expectedVendor: "localhost",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects when authorization not acknowledged", () => {
+    const r = validateCustodyPayload({
+      ...validCustody,
+      authorizationAcknowledged: false,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/authorized to fetch this bundle/);
+    }
+  });
+});
+
+const validMole = {
+  canaryId: "nyt-2024-01-15",
+  canaryUrl: "https://example.com/canary.txt",
+  fingerprintPhrases:
+    "first unique-enough fingerprint phrase, second unique-enough phrase",
+  authorizationAcknowledged: true as const,
+};
+
+describe("validateMolePayload", () => {
+  it("accepts a fully-formed payload", () => {
+    expect(validateMolePayload(validMole)).toEqual({ ok: true });
+  });
+
+  it("rejects non-objects", () => {
+    expect(validateMolePayload(null).ok).toBe(false);
+    expect(validateMolePayload("hi").ok).toBe(false);
+    expect(validateMolePayload([]).ok).toBe(false);
+  });
+
+  it("rejects malformed canaryId", () => {
+    const r = validateMolePayload({ ...validMole, canaryId: "NYT 2024" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects missing canaryUrl", () => {
+    const r = validateMolePayload({ ...validMole, canaryUrl: "" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects http:// canaryUrl", () => {
+    const r = validateMolePayload({
+      ...validMole,
+      canaryUrl: "http://example.com/canary.txt",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects localhost canaryUrl", () => {
+    const r = validateMolePayload({
+      ...validMole,
+      canaryUrl: "https://localhost/canary.txt",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects link-local canaryUrl", () => {
+    const r = validateMolePayload({
+      ...validMole,
+      canaryUrl: "https://169.254.169.254/canary.txt",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects empty fingerprint phrases", () => {
+    const r = validateMolePayload({
+      ...validMole,
+      fingerprintPhrases: "",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects out-of-bounds (too short) phrases", () => {
+    const r = validateMolePayload({
+      ...validMole,
+      fingerprintPhrases: "short",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects > 7 phrases", () => {
+    const tooMany = Array(8)
+      .fill("a unique-enough fingerprint phrase")
+      .join(",");
+    const r = validateMolePayload({
+      ...validMole,
+      fingerprintPhrases: tooMany,
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects when authorization not acknowledged", () => {
+    const r = validateMolePayload({
+      ...validMole,
+      authorizationAcknowledged: false,
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("PRIVACY INVARIANT — rejects payloads carrying canaryBody", () => {
+    const r = validateMolePayload({
+      ...validMole,
+      canaryBody: "the secret canary text",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/never accepts canary body content/i);
+    }
+  });
+
+  it("PRIVACY INVARIANT — rejects payloads carrying canaryContent", () => {
+    const r = validateMolePayload({
+      ...validMole,
+      canaryContent: "alternative leak channel",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toMatch(/never accepts canary body content/i);
+    }
+  });
+
+  it("PRIVACY INVARIANT — rejects even when canaryBody is empty/null", () => {
+    // Defense-in-depth: even an explicit `canaryBody: null` indicates a
+    // misbuilt client. Reject so the operator gets a hard error rather
+    // than a quiet pass-through that might encourage future "let me set
+    // canaryBody=…" usage.
+    expect(
+      validateMolePayload({ ...validMole, canaryBody: null }).ok,
+    ).toBe(false);
+    expect(
+      validateMolePayload({ ...validMole, canaryBody: "" }).ok,
+    ).toBe(false);
+    expect(
+      validateMolePayload({ ...validMole, canaryContent: undefined }).ok,
+    ).toBe(false);
   });
 });
