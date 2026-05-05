@@ -16,7 +16,7 @@
 // Receipt: stub page at /bureau/dragnet/runs/[id] shows "pending".
 // ---------------------------------------------------------------------------
 
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { DragnetRunForm } from "./RunForm";
 
 export const metadata = {
@@ -46,7 +46,14 @@ export default function DragnetRunPage(): ReactNode {
 
       <section>
         <h2 style={SectionHeadingStyle}>Cycle parameters</h2>
-        <DragnetRunForm />
+        {/*
+         * Suspense wraps the form so `useSearchParams()` (used to pre-fill
+         * from /extract → ?vendor=&assertion=) doesn't bail Next.js into
+         * dynamic-render-without-suspense errors at build time.
+         */}
+        <Suspense fallback={null}>
+          <DragnetRunForm />
+        </Suspense>
       </section>
 
       <section>

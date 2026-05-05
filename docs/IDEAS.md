@@ -18,11 +18,11 @@ Captured by the AE Review Loop. Game changers that pass the "FUCK YES, build tha
    - Buildable in: 1 day.
    - Status: deferred to R2 — needs SSE endpoint + typewriter component, lands when pluck-api stub events are real.
 
-3. **Paste-a-screenshot probe extractor** — drop a screenshot of a vendor's marketing claim, vision-LLM extracts testable assertion
+3. **Paste-a-screenshot probe extractor** — drop a screenshot of a vendor's marketing claim, vision-LLM extracts testable assertion **(SHIPPED v3-R1 Backlog #8)**
    - Why it's a game changer: "I screenshotted OpenAI's homepage and DRAGNET caught them in 12 seconds." Best-in-building demo. Zero-friction onboarding for non-CLI users.
    - Compound effect: medium — opens consumer surface, but the extractor lives outside core engine.
    - Buildable in: 2 days.
-   - Status: deferred — gate behind human-confirmation step to avoid hallucinated probes / defamation. Probably the #1 acquisition loop once core works.
+   - Status: shipped at `/extract` — UI shell + hand-curated stub extractor (real vision-LLM swap is a follow-on commit; same pattern as `/vendor` preview data). Defamation guard locked: every claim renders `(illustrative — verify before probing)`, "Probe with DRAGNET" CTA pre-fills the run form via `?vendor=&assertion=` query params and the operator must still review + click submit (auth-ack required). Privacy posture: screenshot processed CLIENT-SIDE — no upload, no /api/* call, surfaced verbatim on the page.
 
 4. **"Second this receipt" co-signing** — any visitor with a Sigstore identity co-signs your receipt
    - Why it's a game changer: turns receipts into social objects. Sigstore + social proof has never been combined. Karpathy co-signs one → it trends.

@@ -268,11 +268,71 @@ export default function WhatWeDontKnowPage(): ReactNode {
         })}
       </section>
 
+      <section>
+        <h2 style={SectionHeadingStyle}>Cross-cutting tools</h2>
+        <article style={CardStyle} data-testid="posture-extract">
+          <header style={CardHeaderStyle}>
+            <span style={SlugDotStyle} aria-hidden="true" />
+            <h3 style={ProgramNameStyle}>EXTRACT</h3>
+            <span style={SlugStyle}>extract</span>
+          </header>
+          <div style={TwoColumnStyle}>
+            <div data-testid="posture-extract-knowsNot">
+              <p style={ColumnLabelKnowsNotStyle}>We do not know</p>
+              <ul style={ListStyle}>
+                <li style={KnowsNotItemStyle}>
+                  <span style={KnowsNotPrefixStyle} aria-hidden="true">
+                    —
+                  </span>
+                  your screenshot — extraction runs CLIENT-SIDE only, no
+                  server upload, no /api/* call, no persistence
+                </li>
+                <li style={KnowsNotItemStyle}>
+                  <span style={KnowsNotPrefixStyle} aria-hidden="true">
+                    —
+                  </span>
+                  the assertions extracted — they live only in your
+                  browser tab until you explicitly pre-fill DRAGNET
+                </li>
+                <li style={KnowsNotItemStyle}>
+                  <span style={KnowsNotPrefixStyle} aria-hidden="true">
+                    —
+                  </span>
+                  any vendor identity until you click "Probe with DRAGNET"
+                  and submit the run form (extraction never auto-fires)
+                </li>
+              </ul>
+            </div>
+            <div data-testid="posture-extract-knows">
+              <p style={ColumnLabelKnowsStyle}>We do know</p>
+              <ul style={ListStyle}>
+                <li style={KnowsItemStyle}>
+                  <span style={PrefixStyle} aria-hidden="true">
+                    +
+                  </span>
+                  the static page assets you load (Next.js bundle, like
+                  any other Studio page)
+                </li>
+                <li style={KnowsItemStyle}>
+                  <span style={PrefixStyle} aria-hidden="true">
+                    +
+                  </span>
+                  whatever the operator subsequently puts into a DRAGNET
+                  run form (if they choose to run a probe)
+                </li>
+              </ul>
+            </div>
+          </div>
+        </article>
+      </section>
+
       <p style={FooterStyle} data-testid="negative-knowledge-footer">
         The phrase-ID schema is the proof — if Studio knew it, it would
         be in the URL. Read{" "}
         <a href="/runs">the activations directory</a> for what Studio
-        does anchor, and <a href="/privacy">/privacy</a> for the broader
+        does anchor,{" "}
+        <a href="/extract">/extract</a> for the screenshot probe
+        extractor, and <a href="/privacy">/privacy</a> for the broader
         posture statement.
       </p>
     </>

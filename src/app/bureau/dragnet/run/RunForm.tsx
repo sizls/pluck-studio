@@ -16,7 +16,7 @@
 
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -130,14 +130,57 @@ function isClientSideBadTarget(raw: string): string | null {
   return null;
 }
 
+/**
+ * Map a vendor slug from `?vendor=<slug>` (set by /extract's "Probe with
+ * DRAGNET" CTA) to a sensible default target URL. Studio only knows the
+ * slug at extraction time — this mapping turns the slug into the public
+ * API endpoint a probe-pack would actually hit. Unrecognized slugs fall
+ * through (the operator fills in the URL).
+ *
+ * Kept tiny and inline because the mapping is documented in IDEAS.md +
+ * tested at the e2e layer; a full vendor-endpoint registry is a future
+ * concern (probably belongs in `lib/programs/registry.ts` next to the
+ * vendor honesty index queries).
+ */
+function vendorSlugToDefaultUrl(slug: string): string | null {
+  const lower = slug.trim().toLowerCase();
+  if (lower === "openai" || lower === "chatgpt" || lower === "gpt") {
+    return "https://api.openai.com/v1/chat/completions";
+  }
+  if (lower === "anthropic" || lower === "claude") {
+    return "https://api.anthropic.com/v1/messages";
+  }
+  if (lower === "google" || lower === "gemini" || lower === "bard") {
+    return "https://generativelanguage.googleapis.com/v1/models";
+  }
+
+  return null;
+}
+
 export function DragnetRunForm(): ReactNode {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillVendor = searchParams.get("vendor");
+  const prefillAssertion = searchParams.get("assertion");
+  const isPrefilledFromExtract = prefillVendor !== null || prefillAssertion !== null;
+
   const system = useMemo(() => {
     const sys = createSystem({ module: dragnetRunFormModule });
     sys.start();
+    // Pre-fill from /extract → DRAGNET handoff. The operator must STILL
+    // review + click submit (auth-ack required); pre-filling is just a
+    // convenience hop, never an auto-submit. See IDEAS.md R1 idea 3
+    // ("gate behind human-confirmation step to avoid hallucinated probes
+    // / defamation").
+    if (prefillVendor !== null) {
+      const defaultUrl = vendorSlugToDefaultUrl(prefillVendor);
+      if (defaultUrl !== null) {
+        sys.facts.targetUrl = defaultUrl;
+      }
+    }
 
     return sys;
-  }, []);
+  }, [prefillVendor]);
 
   const targetUrl = useFact(system, "targetUrl");
   const probePackId = useFact(system, "probePackId");
@@ -255,6 +298,42 @@ export function DragnetRunForm(): ReactNode {
 
   return (
     <form onSubmit={onSubmit} data-testid="dragnet-run-form">
+      {isPrefilledFromExtract ? (
+        <div
+          data-testid="dragnet-prefill-banner"
+          role="status"
+          aria-live="polite"
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            fontFamily: "var(--bureau-mono)",
+            fontSize: 13,
+            color: "var(--bureau-fg)",
+            border: "1px dashed var(--bureau-fg-dim)",
+            borderRadius: 4,
+            background: "rgba(255, 255, 255, 0.02)",
+          }}
+        >
+          Probe pre-filled from{" "}
+          <a href="/extract" style={{ textDecoration: "underline" }}>
+            screenshot extraction
+          </a>{" "}
+          — review and submit to run.
+          {prefillAssertion ? (
+            <p
+              data-testid="dragnet-prefill-assertion"
+              style={{
+                marginTop: 8,
+                fontSize: 12,
+                color: "var(--bureau-fg-dim)",
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>Assertion:</strong> {prefillAssertion}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <BureauLabel text="Target endpoint">
         <BureauInput
           type="url"

@@ -208,6 +208,16 @@ export default function RunsPage(): ReactNode {
       )}
 
       <section>
+        <h2 style={SectionHeadingStyle}>Screenshot probe extractor</h2>
+        <p style={{ marginTop: 8 }} data-testid="extract-cross-link">
+          New: paste a screenshot of a vendor's marketing claim and Studio
+          will extract testable assertions, one click pre-fills DRAGNET.
+          Your screenshot stays in your browser —{" "}
+          <a href="/extract">try the screenshot extractor</a>.
+        </p>
+      </section>
+
+      <section>
         <h2 style={SectionHeadingStyle}>NUCLEI monitors</h2>
         <p style={{ marginTop: 8 }} data-testid="monitors-cross-link">
           Watch upcoming fires across the registry —{" "}
