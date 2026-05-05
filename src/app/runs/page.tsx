@@ -214,6 +214,14 @@ export default function RunsPage(): ReactNode {
           every related receipt across all 11 programs — same vendor,
           same partner, same platform. The keystone search experience.
         </p>
+        <p
+          style={{ marginTop: 8, color: "var(--bureau-fg-dim)", fontSize: 13 }}
+          data-testid="open-cross-link"
+        >
+          Speed-dial: paste any phrase ID into <a href="/open">/open/&lt;phrase&gt;</a>{" "}
+          (or the short-form <code>/o/&lt;phrase&gt;</code>) and you'll
+          jump straight to the canonical receipt.
+        </p>
       </section>
 
       <section>

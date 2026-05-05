@@ -30,6 +30,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     { url: `${BASE_URL}/runs`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     { url: `${BASE_URL}/search`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    // /open is the speed-dial index page only — every /open/<phrase>
+    // variant is a redirect carrying its own X-Robots-Tag noindex
+    // header, so we deliberately do NOT enumerate phrase variants here.
+    {
+      url: `${BASE_URL}/open`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
     {
       url: `${BASE_URL}/today`,
       lastModified: now,

@@ -503,6 +503,34 @@ programs out. The receipt URL becomes a discoverable nexus.
   `src/app/search/__tests__/page.test.tsx` (server-render),
   `e2e/search.spec.ts` (e2e).
 
+### `/open/<phrase>` + `/o/<phrase>` — Phrase-ID Speed-Dial
+
+URL-bar shortcut that resolves any phrase ID to its canonical receipt
+page across every Bureau program. PhraseIds become a global namespace —
+`studio.pluck.run/open/openai-bold-marlin-1188` 302-redirects to
+whichever program owns it; no UUID lookup, no menu navigation.
+
+- **Resolver** — `resolvePhraseSpeedDial(phrase)` at
+  `src/lib/speed-dial.ts`. Pure + side-effect-free. Lookup order:
+  parsePhraseId → v1 store `getRun` → `searchPhraseId` directMatch →
+  `/search?q=<input>` fallback (so misses still land somewhere
+  productive instead of a dead-end 404). 128-char cap mirrors the v1
+  GET handler.
+- **Long-form route** — `src/app/open/[phrase]/route.ts`. Server-side
+  302 with `Cache-Control: private, no-store` (live-resolve every
+  time) + `X-Robots-Tag: noindex, nofollow`.
+- **Short-form alias** — `src/app/o/[phrase]/route.ts` re-exports the
+  exact same GET handler so behavior cannot drift between `/open` and
+  `/o`.
+- **Index page** — `src/app/open/page.tsx` explains the speed-dial,
+  links to a few round-trip-safe sample IDs, cross-links to `/search`.
+  Listed in the sitemap; the `/open/<phrase>` redirect variants are
+  not (refused by `X-Robots-Tag`).
+- **Tests** — `src/app/open/[phrase]/__tests__/route.test.ts` (unit,
+  shared across both routes via `describe.each`),
+  `src/app/open/__tests__/page.test.tsx` (server-render),
+  `e2e/open-speed-dial.spec.ts` (e2e).
+
 ### `/monitors` — cron timeline of upcoming pack fires
 
 Aggregate 24h timeline of every published NUCLEI pack's fires. Driven

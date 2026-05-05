@@ -58,11 +58,11 @@ Captured by the AE Review Loop. Game changers that pass the "FUCK YES, build tha
    - Buildable in: 2 days.
    - Status: deferred to R3 — needs two real receipts of the same vendor first.
 
-4. **Phrase-ID Speed-Dial** — `pluck open swift-falcon-3742` + `pf:swift-falcon-3742` URL bar handler
-   - Why: phrase ID becomes a global namespace. `pluck open swift-falcon-3742` beats every UUID-based tool.
-   - Compound: medium-high — habit-forming.
-   - Buildable in: hours (URL bar handler) / 1 day (CLI).
-   - Status: deferred to R3 — cheap polish.
+4. **Phrase-ID Speed-Dial** — `studio.pluck.run/open/<phrase>` + `/o/<phrase>` URL-bar handler **(SHIPPED R2)**
+   - Why: phrase ID becomes a global namespace. `/open/openai-bold-marlin-1188` redirects to whichever program owns the receipt — no UUID lookup, no menu navigation, paste-and-go.
+   - Compound: medium-high — habit-forming. Every receipt URL ever shared inherits this addressing model.
+   - Buildable in: hours.
+   - Status: shipped. `/open/<phrase>` route handler at `src/app/open/[phrase]/route.ts`, short-form `/o/<phrase>` re-exports the same GET (no behavioral drift). Resolution pure-fn `resolvePhraseSpeedDial` at `src/lib/speed-dial.ts` checks the v1 store first, then `searchPhraseId` directMatch, then falls back to `/search?q=<input>` (graceful — operator sees decomposition + related-by-scope grid). `/open` index page at `src/app/open/page.tsx` explains the speed-dial with sample links. Cache-Control `private, no-store` + X-Robots-Tag noindex on every redirect. Sitemap lists only the `/open` index. Tests: `src/app/open/[phrase]/__tests__/route.test.ts`, `src/app/open/__tests__/page.test.tsx`, `e2e/open-speed-dial.spec.ts`.
 
 ## R3 Deferred Items (tracked, not built this round)
 
