@@ -105,11 +105,11 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
    - Risk: defamation surface for unverified prefixes — gate to vetted prefix allowlist (R3 deferred item — pull forward).
    - Status: **FUCK YES tier — top priority for next build phase.**
 
-2. **Phrase-ID Auto-Stitch Search** — paste any phrase ID, see the receipt graph
+2. **Phrase-ID Auto-Stitch Search** — paste any phrase ID, see the receipt graph **(SHIPPED v3-R1 Backlog #2)**
    - Why: single search bar; paste `openai-swift-falcon-3742`; get every related receipt across all 11 programs (same vendor, same operator, BOUNTY/DRAGNET parent-child links).
    - Compound: high — every new program inherits search for free. Becomes the default landing page when someone receives a phrase ID cold.
    - Buildable in: 1 day. Index implicit in prefix scheme; `/search?q=swift-falcon-3742` does prefix decomposition + fan-out.
-   - Status: **FUCK YES tier — pairs with #1.**
+   - Status: **SHIPPED — `/search` page renders form + decomposition + direct match + related-by-scope grid; runs against vendor-preview today, swaps to `pluck-api /v1/runs?phraseIdPrefix=` when live data lands. Pure aggregator at `src/lib/search/phrase-stitch.ts`; parser at `src/lib/phrase-id.ts` exports `parsePhraseId`.**
 
 3. **NUCLEI ↔ SBOM-AI Auto-Link CTA** — supply-chain loop close
    - Why: SBOM-AI receipts show "Publish to NUCLEI registry →" with rekor-uuid pre-filled. NUCLEI receipts back-link the SBOM-AI parent.

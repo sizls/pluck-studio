@@ -344,3 +344,96 @@ function randomBytes(n: number): Uint8Array {
 }
 
 export const PHRASE_ID_VOCAB_SIZE = ADJECTIVES.length * ANIMALS.length * 10_000;
+
+// ---------------------------------------------------------------------------
+// Phrase-ID decomposition
+// ---------------------------------------------------------------------------
+//
+// Used by /search to fan out from one phrase ID to every related receipt
+// across all 11 programs. The 4-part scoped form
+// (`<scope>-<adj>-<noun>-<NNNN>`) is the canonical decomposable shape.
+// The 3-part bare form (`<adj>-<noun>-<NNNN>`) is grandfathered: still
+// parseable but yields an empty scope (search treats those as
+// scope-less).
+// ---------------------------------------------------------------------------
+
+export interface ParsedPhraseId {
+  /** Lowercased + trimmed input. */
+  readonly normalized: string;
+  /** True when input matches the canonical 4-part scoped shape. */
+  readonly valid: boolean;
+  /** Scope label (e.g. "openai", "hackerone", "compromised"); "" for bare. */
+  readonly scope: string;
+  readonly adjective: string;
+  readonly noun: string;
+  /** 4-digit collision-avoidance serial; "" when unparseable. */
+  readonly serial: string;
+  /** Reason the input is invalid; null when valid. */
+  readonly error: string | null;
+}
+
+/**
+ * Decompose a phrase ID into its (scope, adjective, noun, serial) parts.
+ *
+ * Accepts only the 4-part scoped form as `valid` — that's the
+ * canonical shape every shipped Bureau program emits. The 3-part bare
+ * form is parsed (callers can still display the parts) but flagged
+ * invalid so search refuses to fan out on a scope-less phrase.
+ *
+ * Pure + side-effect-free — never reads global state, never throws.
+ */
+export function parsePhraseId(input: string): ParsedPhraseId {
+  const normalized = (input ?? "").trim().toLowerCase();
+
+  if (normalized.length === 0) {
+    return {
+      normalized,
+      valid: false,
+      scope: "",
+      adjective: "",
+      noun: "",
+      serial: "",
+      error: "Phrase ID is empty.",
+    };
+  }
+
+  if (SCOPED_PHRASE_PATTERN.test(normalized)) {
+    const parts = normalized.split("-");
+    const [scope, adjective, noun, serial] = parts;
+
+    return {
+      normalized,
+      valid: true,
+      scope: scope ?? "",
+      adjective: adjective ?? "",
+      noun: noun ?? "",
+      serial: serial ?? "",
+      error: null,
+    };
+  }
+
+  if (PHRASE_PATTERN.test(normalized)) {
+    const [adjective, noun, serial] = normalized.split("-");
+
+    return {
+      normalized,
+      valid: false,
+      scope: "",
+      adjective: adjective ?? "",
+      noun: noun ?? "",
+      serial: serial ?? "",
+      error:
+        "Bare 3-part phrase ID — search needs the scoped form (`<scope>-<adj>-<noun>-<NNNN>`).",
+    };
+  }
+
+  return {
+    normalized,
+    valid: false,
+    scope: "",
+    adjective: "",
+    noun: "",
+    serial: "",
+    error: `Phrase IDs follow \`<scope>-<adj>-<noun>-<NNNN>\` format. Got: ${normalized}`,
+  };
+}

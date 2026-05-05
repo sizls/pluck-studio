@@ -5,6 +5,7 @@ import {
   generateScopedPhraseId,
   isPhraseId,
   isUuid,
+  parsePhraseId,
   phraseFromBytes,
   PHRASE_ID_VOCAB_SIZE,
   vendorFromPhrase,
@@ -167,6 +168,65 @@ describe("vendorFromPhrase", () => {
     expect(vendorFromPhrase("")).toBeNull();
     expect(vendorFromPhrase("not-a-phrase")).toBeNull();
     expect(vendorFromPhrase("openai-swift-falcon-37")).toBeNull();
+  });
+});
+
+describe("parsePhraseId", () => {
+  it("decomposes a canonical scoped phrase ID into 4 parts", () => {
+    const parsed = parsePhraseId("openai-bold-marlin-1188");
+    expect(parsed.valid).toBe(true);
+    expect(parsed.scope).toBe("openai");
+    expect(parsed.adjective).toBe("bold");
+    expect(parsed.noun).toBe("marlin");
+    expect(parsed.serial).toBe("1188");
+    expect(parsed.error).toBeNull();
+  });
+
+  it("normalizes input — trims whitespace + lowercases", () => {
+    const parsed = parsePhraseId("  OPENAI-Bold-Marlin-1188  ");
+    expect(parsed.valid).toBe(true);
+    expect(parsed.normalized).toBe("openai-bold-marlin-1188");
+    expect(parsed.scope).toBe("openai");
+  });
+
+  it("flags bare 3-part phrase IDs as invalid (no scope)", () => {
+    const parsed = parsePhraseId("bold-marlin-1188");
+    expect(parsed.valid).toBe(false);
+    expect(parsed.scope).toBe("");
+    expect(parsed.adjective).toBe("bold");
+    expect(parsed.noun).toBe("marlin");
+    expect(parsed.serial).toBe("1188");
+    expect(parsed.error).not.toBeNull();
+  });
+
+  it("rejects empty / whitespace-only input", () => {
+    const parsed = parsePhraseId("");
+    expect(parsed.valid).toBe(false);
+    expect(parsed.error).toContain("empty");
+
+    const parsed2 = parsePhraseId("   ");
+    expect(parsed2.valid).toBe(false);
+  });
+
+  it("rejects malformed shapes (UUID, missing serial, wrong serial length)", () => {
+    expect(
+      parsePhraseId("0c2d8a4e-3f4a-4cf8-9c9c-c8b1c4f0c2d8").valid,
+    ).toBe(false);
+    expect(parsePhraseId("openai-bold-marlin-12").valid).toBe(false);
+    expect(parsePhraseId("openai-bold-marlin").valid).toBe(false);
+    expect(parsePhraseId("openai_bold_marlin_1188").valid).toBe(false);
+  });
+
+  it("yields a helpful error message for unparseable input", () => {
+    const parsed = parsePhraseId("garbage");
+    expect(parsed.valid).toBe(false);
+    expect(parsed.error).toMatch(/follow `<scope>-<adj>-<noun>-<NNNN>`/);
+  });
+
+  it("is deterministic — same input → same output", () => {
+    const a = parsePhraseId("hackerone-quiet-otter-2210");
+    const b = parsePhraseId("hackerone-quiet-otter-2210");
+    expect(a).toEqual(b);
   });
 });
 

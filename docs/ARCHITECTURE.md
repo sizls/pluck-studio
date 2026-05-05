@@ -378,7 +378,7 @@ before this; aliases are removed at the same time.
 
 ## 7. Cross-cutting surfaces
 
-Beyond the per-program activation routes, Studio renders six
+Beyond the per-program activation routes, Studio renders seven
 cross-cutting routes that aggregate or invert across programs.
 
 ### `/runs` — by-program activation directory
@@ -466,6 +466,40 @@ honesty signal.
 - **Tests** — `src/lib/programs/__tests__/today-rollup.test.ts`
   (unit), `src/app/today/__tests__/page.test.tsx` (server-render),
   `e2e/today.spec.ts` (e2e — OG image PNG magic-bytes check).
+
+### `/search` — Phrase-ID Auto-Stitch Search
+
+Paste any phrase ID. Get every related receipt across all 11 Bureau
+programs out. The receipt URL becomes a discoverable nexus.
+
+- **Parser** — `parsePhraseId(input)` in `src/lib/phrase-id.ts`.
+  Decomposes a 4-part scoped phrase ID (`<scope>-<adj>-<noun>-<NNNN>`)
+  into its parts; bare 3-part R1-form phrase IDs flagged invalid since
+  search needs the scope to fan out.
+- **Aggregator** — `searchPhraseId(query)` in
+  `src/lib/search/phrase-stitch.ts`. Pure + deterministic. Returns
+  `{ parsed, directMatch, relatedByScope, totalCount }`. directMatch is
+  the exact phraseId; relatedByScope is every other receipt sharing the
+  scope, sorted newest-first, deduped against the directMatch.
+- **Stub-era data source** — vendor-preview.ts. When pluck-api lands,
+  the aggregator swaps to a real
+  `listRuns({ phraseIdPrefix: parsed.scope })` query — the public
+  `searchPhraseId` signature stays stable.
+- **Page** — server-rendered at `src/app/search/page.tsx`. Form posts
+  via GET to `/search?q=...` (works without JS). Renders the
+  decomposition card (scope/adj/noun/serial with the
+  `PHRASE_ID_PREFIX_CONVENTIONS` semantic label), direct-match tile,
+  and related-by-scope grid.
+- **Empty / invalid / not-found states** — empty query renders sample
+  links (round-tripped via `sampleSearchablePhraseIds()`); invalid
+  format renders an inline error + sample fallback; valid scope with
+  no matches renders the decomposition + a clear "no receipts yet"
+  callout.
+- **Cross-link** — `/runs` carries a `data-testid="search-cross-link"`
+  pointer.
+- **Tests** — `src/lib/search/__tests__/phrase-stitch.test.ts` (unit),
+  `src/app/search/__tests__/page.test.tsx` (server-render),
+  `e2e/search.spec.ts` (e2e).
 
 ### `/monitors` — cron timeline of upcoming pack fires
 

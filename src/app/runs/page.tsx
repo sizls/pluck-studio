@@ -208,6 +208,15 @@ export default function RunsPage(): ReactNode {
       )}
 
       <section>
+        <h2 style={SectionHeadingStyle}>Search by phrase ID</h2>
+        <p style={{ marginTop: 8 }} data-testid="search-cross-link">
+          Paste any phrase ID at <a href="/search">/search</a> and see
+          every related receipt across all 11 programs — same vendor,
+          same partner, same platform. The keystone search experience.
+        </p>
+      </section>
+
+      <section>
         <h2 style={SectionHeadingStyle}>Daily roll-up</h2>
         <p style={{ marginTop: 8 }} data-testid="today-cross-link">
           The shareable daily honesty card.{" "}
