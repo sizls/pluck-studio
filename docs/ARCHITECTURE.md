@@ -12,7 +12,8 @@ This document is the higher-level "how the system is built" companion to
 `docs/V1_API.md` (which specifies the wire contract). Read this when
 you're a new contributor or AI agent landing in the codebase cold and
 need a load-bearing mental model before opening files. State as of
-commit `64f5a23` — 902 unit tests + 82 Playwright specs passing.
+commit `86817e7` — 902 unit tests across 46 files + 82 Playwright
+test cases across 16 spec files, all green.
 
 ---
 
@@ -396,8 +397,8 @@ vendor's permanent URL.
 
 - **Vendor allowlist** — `src/lib/programs/vendor-registry.ts`. 10
   curated vendors today (OpenAI, Anthropic, Google, Meta, Mistral,
-  Cohere, AI21, Together, Perplexity, xAI). Unknown slugs return 404
-  via `notFound()`. Vetted-allowlist gate is load-bearing for
+  Cohere, Perplexity, DeepSeek, xAI, Microsoft). Unknown slugs return
+  404 via `notFound()`. Vetted-allowlist gate is load-bearing for
   brand-safety since arbitrary slugs would be a defamation surface.
 - **Stub data** — `src/lib/programs/vendor-preview.ts` until pluck-api
   wires real receipts. Per-vendor Atom feed at
@@ -691,6 +692,7 @@ without modification.
 
 ---
 
-*Last reviewed: commit `64f5a23` — wide-R1 doc-gap fix. 902 unit tests
-+ 82 Playwright tests passing. 11/11 alpha programs migrated to
-`/v1/runs`. Runner GA + alias sunset target: 31 Dec 2026.*
+*Last reviewed: commit `86817e7` — wide-R1 doc-gap fix. 902 unit
+tests across 46 files + 82 Playwright test cases across 16 spec
+files, all green. 11/11 alpha programs migrated to `/v1/runs`.
+Runner GA + alias sunset target: 31 Dec 2026.*
