@@ -223,6 +223,15 @@ status. As each program migrates, its payload reference moves from
 }
 ```
 
+> **Security note (pre-pluck-api).** The `author` handle is
+> operator-asserted, NOT bound to the authenticated user identity.
+> Anyone authenticated can submit any handle and reserve the slug —
+> the phrase-ID prefix bakes the handle into the public receipt URL,
+> which becomes an impersonation primitive once the registry goes
+> public. This will be bound to authenticated identity at NUCLEI v1.0
+> GA. See the SECURITY block in
+> `src/app/api/bureau/nuclei/run/route.ts` (AE R1 finding S1).
+
 The runId is **author-scoped** (`alice-swift-falcon-3742`) — receipt URL
 self-discloses the publishing operator. Idempotency key shape used by
 the RunForm + legacy alias:

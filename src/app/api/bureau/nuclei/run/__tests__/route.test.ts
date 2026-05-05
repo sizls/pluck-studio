@@ -213,28 +213,37 @@ describe("POST /api/bureau/nuclei/run — idempotency dedupe", () => {
 
   it("legacy callers + /v1/runs callers with the same payload converge on the SAME phraseId", async () => {
     // Cross-route dedupe — proves the synthesized key matches what the
-    // RunForm sends to /v1/runs.
-    const legacy = (await (
-      await POST(buildRequest(valid()))
-    ).json()) as SuccessBody;
+    // RunForm sends to /v1/runs. Pin the clock so the legacy route's
+    // internal Date.now() and our minute-bucket calculation below cannot
+    // straddle a minute boundary (~3ms apart in real time, but enough to
+    // flake).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-04T12:00:30.000Z"));
+    try {
+      const legacy = (await (
+        await POST(buildRequest(valid()))
+      ).json()) as SuccessBody;
 
-    const minuteBucket = Math.floor(Date.now() / 60_000);
-    const v1Body = {
-      pipeline: "bureau:nuclei",
-      payload: valid(),
-      idempotencyKey: `nuclei:alice:canon-honesty@0.1:${"a".repeat(64)}:${minuteBucket}`,
-    };
-    const v1 = (await (
-      await POST_V1(
-        new Request("http://localhost:3030/api/v1/runs", {
-          method: "POST",
-          headers: HEADERS,
-          body: JSON.stringify(v1Body),
-        }),
-      )
-    ).json()) as { runId: string; reused: boolean };
+      const minuteBucket = Math.floor(Date.now() / 60_000);
+      const v1Body = {
+        pipeline: "bureau:nuclei",
+        payload: valid(),
+        idempotencyKey: `nuclei:alice:canon-honesty@0.1:${"a".repeat(64)}:${minuteBucket}`,
+      };
+      const v1 = (await (
+        await POST_V1(
+          new Request("http://localhost:3030/api/v1/runs", {
+            method: "POST",
+            headers: HEADERS,
+            body: JSON.stringify(v1Body),
+          }),
+        )
+      ).json()) as { runId: string; reused: boolean };
 
-    expect(v1.runId).toBe(legacy.phraseId);
-    expect(v1.reused).toBe(true);
+      expect(v1.runId).toBe(legacy.phraseId);
+      expect(v1.reused).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
