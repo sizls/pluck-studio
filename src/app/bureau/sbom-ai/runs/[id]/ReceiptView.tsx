@@ -16,6 +16,7 @@ import {
   formatCassetteHash,
   sbomAiRunReceiptModule,
 } from "../../../../../lib/sbom-ai/run-receipt-module";
+import { NucleiPublishCta } from "./NucleiPublishCta";
 
 const SectionHeadingStyle = {
   fontFamily: "var(--bureau-mono)",
@@ -326,6 +327,12 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
           </>
         ) : null}
       </section>
+
+      <NucleiPublishCta
+        artifactKind={artifactKind ?? null}
+        isPending={Boolean(isPending)}
+        rekorUuid={rekorUuid ?? null}
+      />
 
       <section>
         <h2 style={SectionHeadingStyle}>Next</h2>

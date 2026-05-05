@@ -111,11 +111,11 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
    - Buildable in: 1 day. Index implicit in prefix scheme; `/search?q=swift-falcon-3742` does prefix decomposition + fan-out.
    - Status: **SHIPPED — `/search` page renders form + decomposition + direct match + related-by-scope grid; runs against vendor-preview today, swaps to `pluck-api /v1/runs?phraseIdPrefix=` when live data lands. Pure aggregator at `src/lib/search/phrase-stitch.ts`; parser at `src/lib/phrase-id.ts` exports `parsePhraseId`.**
 
-3. **NUCLEI ↔ SBOM-AI Auto-Link CTA** — supply-chain loop close
+3. **NUCLEI ↔ SBOM-AI Auto-Link CTA** — supply-chain loop close **(SHIPPED v3-R1 Backlog #3)**
    - Why: SBOM-AI receipts show "Publish to NUCLEI registry →" with rekor-uuid pre-filled. NUCLEI receipts back-link the SBOM-AI parent.
    - Compound: medium — strengthens supply-chain narrative; necessary but not viral solo.
    - Buildable in: 1 day. Both programs ship; just CTA + back-link section.
-   - Status: BUILD — closes the unblocked supply-chain story.
+   - Status: **SHIPPED — `NucleiPublishCta` on SBOM-AI receipt (gated to `artifactKind === "probe-pack"`, greyed-out while pending), `?sbomRekorUuid=&packName=` query-param prefill on NUCLEI RunForm with banner, "Source artifact" section on NUCLEI receipt with rekor UUID + cosign verify-blob command. `/runs` callout. E2E in `e2e/nuclei-sbom-ai-loop.spec.ts`. See `docs/ARCHITECTURE.md` → "Cross-program flows" and `docs/V1_API.md` → "Cross-publish to NUCLEI" / "Pre-fill via query params".**
 
 4. **Daily Roll-Up OG Card** — `/today/opengraph-image` shows one tile per program color-coded by today's verdict density **(SHIPPED v3-R1 Backlog #3)**
    - Why: the daily-tweet asset; one shareable image summarizes Pluck's last 24h across all 11 programs.

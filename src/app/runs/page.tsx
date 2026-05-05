@@ -237,6 +237,18 @@ export default function RunsPage(): ReactNode {
       </section>
 
       <section>
+        <h2 style={SectionHeadingStyle}>Supply-chain loop: SBOM-AI → NUCLEI</h2>
+        <p style={{ marginTop: 8 }} data-testid="sbom-ai-nuclei-loop-cross-link">
+          Publish a probe-pack via{" "}
+          <a href="/bureau/sbom-ai/run">/bureau/sbom-ai/run</a> and the
+          receipt surfaces a "Publish to NUCLEI registry →" CTA with
+          your rekor UUID pre-filled. NUCLEI receipts back-link the
+          SBOM-AI source artifact so the provenance chain is one
+          click away in either direction.
+        </p>
+      </section>
+
+      <section>
         <h2 style={SectionHeadingStyle}>NUCLEI monitors</h2>
         <p style={{ marginTop: 8 }} data-testid="monitors-cross-link">
           Watch upcoming fires across the registry —{" "}

@@ -531,6 +531,36 @@ server-render; no state.
 `ACTIVE_PROGRAMS` and `VENDOR_REGISTRY` so every program landing + run
 page + every vendor profile + every Atom feed lands in the index.
 
+### Cross-program flows — SBOM-AI ↔ NUCLEI auto-link
+
+The supply-chain trust loop closes with a query-param prefill hop
+between SBOM-AI receipts and the NUCLEI run form. No new routes —
+just two component additions and a banner.
+
+- **SBOM-AI receipt → NUCLEI form.** When `artifactKind === "probe-pack"`
+  the receipt renders a "Publish to NUCLEI registry →" CTA at
+  `src/app/bureau/sbom-ai/runs/[id]/NucleiPublishCta.tsx`. The CTA
+  links to `/bureau/nuclei/run?sbomRekorUuid=<uuid>`. While the
+  SBOM-AI publish is still pending the CTA renders greyed out so the
+  operator sees the next step early but can't accidentally publish
+  with a placeholder UUID. `model-card` and `mcp-server` artifacts
+  do NOT show the CTA — NUCLEI registry only accepts probe-pack
+  artifacts.
+- **NUCLEI form prefill.** `RunForm.tsx` reads `?sbomRekorUuid=` and
+  `?packName=` via `useSearchParams()` on first mount and seeds the
+  Directive form module facts. The "nuclei-prefill-banner" data-testid
+  fires when either param is present. Mirrors the DRAGNET
+  `?vendor=&assertion=` pattern from `/extract`.
+- **NUCLEI receipt → SBOM-AI back-link.** The NUCLEI receipt renders
+  a "Source artifact" section
+  (`src/app/bureau/nuclei/runs/[id]/SbomAiSourceArtifact.tsx`) with the
+  rekor UUID as a code block plus the offline `cosign verify-blob`
+  command. We deliberately don't resolve the rekor UUID to a phraseId
+  — that would require a new route and the cosign command itself
+  demonstrates the trust chain.
+
+E2E coverage: `e2e/nuclei-sbom-ai-loop.spec.ts`.
+
 ### `/openapi.json` — machine-readable spec
 
 `src/app/openapi.json/route.ts` serves a static OpenAPI 3.1 document

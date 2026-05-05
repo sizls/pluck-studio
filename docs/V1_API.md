@@ -565,6 +565,23 @@ self-discloses the publishing operator. Idempotency key shape used by
 the RunForm + legacy alias:
 `nuclei:<author>:<packName>:<sbomRekorUuid>:<minute-bucket>`.
 
+#### Pre-fill via query params (SBOM-AI cross-publish)
+
+The NUCLEI run form (`/bureau/nuclei/run`) accepts two optional
+query params for handoff from the SBOM-AI receipt CTA:
+
+| Param | Form field | Notes |
+|---|---|---|
+| `sbomRekorUuid` | `sbomRekorUuid` | Lowercased + trimmed; must still satisfy the 64–80 hex validator |
+| `packName` | `packName` | Trimmed; must still match `<slug>@<version>` |
+
+When either is present, a "Pre-filled from SBOM-AI receipt" banner
+renders above the form and the operator must STILL review + click
+submit (auth-ack required). Mirrors the DRAGNET `?vendor=&assertion=`
+prefill pattern from `/extract`. The NUCLEI receipt back-links to the
+SBOM-AI source artifact via the rekor UUID code block + cosign verify
+command in the "Source artifact" section.
+
 ### `bureau:oath` payload
 
 ```ts
@@ -752,6 +769,22 @@ The legacy alias additionally echoes `runId === phraseId`,
 `artifactKind`, `artifactUrl`, `expectedSha256` (or null),
 `status: "publish pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
+
+#### Cross-publish to NUCLEI
+
+When `artifactKind === "probe-pack"` and the SBOM-AI receipt has
+anchored, the receipt surfaces a **"Publish to NUCLEI registry →"**
+CTA. The CTA links to:
+
+```
+/bureau/nuclei/run?sbomRekorUuid=<rekorUuid>
+```
+
+The NUCLEI form pre-fills the `sbomRekorUuid` field from the query
+param so operators don't retype the cross-reference. `model-card`
+and `mcp-server` artifacts do NOT show the CTA — NUCLEI registry
+only accepts probe-pack artifacts. Mirrors the DRAGNET
+`?vendor=&assertion=` prefill pattern from the `/extract` integration.
 
 ### `bureau:rotate` payload
 

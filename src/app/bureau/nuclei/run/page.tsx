@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { NucleiRunForm } from "./RunForm";
 
@@ -32,7 +32,15 @@ export default function NucleiRunPage(): ReactNode {
 
       <section>
         <h2 style={SectionHeadingStyle}>Registry parameters</h2>
-        <NucleiRunForm />
+        {/*
+         * Suspense wraps the form so `useSearchParams()` (used to pre-fill
+         * from the SBOM-AI receipt CTA — `?sbomRekorUuid=&packName=`)
+         * doesn't bail Next.js into dynamic-render-without-suspense
+         * errors at build time. Mirrors the DRAGNET run page pattern.
+         */}
+        <Suspense fallback={null}>
+          <NucleiRunForm />
+        </Suspense>
       </section>
 
       <section>

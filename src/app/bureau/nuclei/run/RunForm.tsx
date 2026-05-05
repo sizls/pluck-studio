@@ -2,7 +2,7 @@
 
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -65,12 +65,64 @@ const LICENSE_OPTIONS = ALLOWED_LICENSES.map((l) => ({
   testId: `license-${l.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
 }));
 
+/**
+ * Pure prefill extractor for the SBOM-AI → NUCLEI handoff. Surfaced as a
+ * named export so the unit test can pin the contract without a Next router
+ * harness. Returns the trimmed (and lowercased, for the rekor UUID) values
+ * plus a `wasPrefilled` flag the banner uses to decide visibility.
+ *
+ * Called once at form mount; re-running on every searchParams tick would
+ * blow away whatever the operator typed.
+ */
+export interface NucleiPrefill {
+  sbomRekorUuid: string | null;
+  packName: string | null;
+  wasPrefilled: boolean;
+}
+export function extractNucleiPrefill(
+  searchParams: Pick<URLSearchParams, "get">,
+): NucleiPrefill {
+  const rawRekor = searchParams.get("sbomRekorUuid");
+  const rawPack = searchParams.get("packName");
+  const sbomRekorUuid =
+    rawRekor !== null && rawRekor.length > 0
+      ? rawRekor.trim().toLowerCase()
+      : null;
+  const packName =
+    rawPack !== null && rawPack.length > 0 ? rawPack.trim() : null;
+
+  return {
+    sbomRekorUuid,
+    packName,
+    wasPrefilled: rawRekor !== null || rawPack !== null,
+  };
+}
+
 export function NucleiRunForm(): ReactNode {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Prefill from SBOM-AI receipt CTA. Mirrors DRAGNET's ?vendor=&assertion=
+  // pattern from /extract → DRAGNET. Operator must STILL review + click
+  // submit (auth-ack required); pre-filling is just a convenience hop.
+  const prefill = useMemo(
+    () => extractNucleiPrefill(searchParams),
+    [searchParams],
+  );
+  const isPrefilledFromSbomAi = prefill.wasPrefilled;
+
   const system = useMemo(() => {
     const sys = createSystem({ module: nucleiRunFormModule });
     sys.start();
+    if (prefill.sbomRekorUuid !== null) {
+      sys.facts.sbomRekorUuid = prefill.sbomRekorUuid;
+    }
+    if (prefill.packName !== null) {
+      sys.facts.packName = prefill.packName;
+    }
     return sys;
+    // Prefill only on first mount; navigating between query strings
+    // shouldn't blow away whatever the operator has typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const author = useFact(system, "author");
@@ -241,6 +293,29 @@ export function NucleiRunForm(): ReactNode {
 
   return (
     <form onSubmit={onSubmit} data-testid="nuclei-run-form">
+      {isPrefilledFromSbomAi ? (
+        <div
+          data-testid="nuclei-prefill-banner"
+          role="status"
+          aria-live="polite"
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            fontFamily: "var(--bureau-mono)",
+            fontSize: 13,
+            color: "var(--bureau-fg)",
+            border: "1px dashed var(--bureau-fg-dim)",
+            borderRadius: 4,
+            background: "rgba(255, 255, 255, 0.02)",
+          }}
+        >
+          Pre-filled from{" "}
+          <a href="/bureau/sbom-ai" style={{ textDecoration: "underline" }}>
+            SBOM-AI receipt
+          </a>{" "}
+          — sbomRekorUuid + packName already locked. Review the rest and submit.
+        </div>
+      ) : null}
       <BureauLabel text="Author">
         <BureauInput
           type="text"

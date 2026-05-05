@@ -16,6 +16,7 @@ import {
 import { V1RunStatusBanner } from "../../../../../components/bureau-ui/V1RunStatusBanner.js";
 import { PhraseSigil } from "../../../../../components/bureau-ui/PhraseSigil.js";
 import { isPhraseId } from "../../../../../lib/phrase-id";
+import { SbomAiSourceArtifact } from "./SbomAiSourceArtifact";
 
 const SectionHeadingStyle = {
   fontFamily: "var(--bureau-mono)",
@@ -346,6 +347,8 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
           </p>
         ) : null}
       </section>
+
+      <SbomAiSourceArtifact sbomRekorUuid={sbomRekorUuid ?? null} />
 
       <section>
         <h2 style={SectionHeadingStyle}>Verification</h2>
