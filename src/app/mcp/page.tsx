@@ -22,6 +22,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
+import packageJson from "../../../package.json";
 import { buildManifest } from "../../lib/mcp/build-manifest";
 
 export const metadata = {
@@ -29,6 +30,12 @@ export const metadata = {
   description:
     "Wire Pluck Studio into Claude Desktop, Cursor, or any Model Context Protocol client. Discover resources, call tools, fetch signed receipts.",
 };
+
+// `STUDIO_BASE_URL` lets local dev / preview deploys override the
+// production URL surfaced inside the rendered manifest. Documented in
+// docs/ARCHITECTURE.md.
+const STUDIO_BASE_URL =
+  process.env.STUDIO_BASE_URL ?? "https://studio.pluck.run";
 
 const SectionHeadingStyle: CSSProperties = {
   fontFamily: "var(--bureau-mono)",
@@ -55,6 +62,20 @@ const CalloutStyle: CSSProperties = {
   border: "1px dashed var(--bureau-fg-dim)",
   borderRadius: 4,
   background: "rgba(255,255,255,0.02)",
+};
+
+// Amber/warning visual for the "preview / not yet published" callout.
+// Distinguishable from the neutral CalloutStyle so operators understand
+// the snippet underneath isn't yet runnable.
+const WarningCalloutStyle: CSSProperties = {
+  marginTop: 16,
+  padding: "12px 16px",
+  fontFamily: "var(--bureau-mono)",
+  fontSize: 13,
+  color: "rgb(255, 200, 120)",
+  border: "1px solid rgb(220, 150, 60)",
+  borderRadius: 4,
+  background: "rgba(220, 150, 60, 0.08)",
 };
 
 const PreStyle: CSSProperties = {
@@ -88,11 +109,30 @@ const DimStyle: CSSProperties = {
   lineHeight: 1.55,
 };
 
-const MANIFEST_URL = "https://studio.pluck.run/api/mcp/manifest.json";
+const MANIFEST_URL = `${STUDIO_BASE_URL}/api/mcp/manifest.json`;
 const SPEC_URL = "https://modelcontextprotocol.io";
 const BRIDGE_PACKAGE = "@sizls/pluck-mcp";
 
 const CURL_SNIPPET = `curl -s ${MANIFEST_URL} | jq .`;
+
+// Working alternative — direct HTTP loop against the discovery
+// document + /v1/runs. Shipped as a stop-gap until @sizls/pluck-mcp
+// is published; lets operators experiment with Studio today.
+const CURL_LOOP_SNIPPET = `# 1. Inspect the discovery document.
+curl -s ${MANIFEST_URL} | jq .
+
+# 2. Pick a Bureau pipeline from the pluck.run tool's enum, then
+#    POST a run directly. (Auth: bearer or Supabase JWT cookie.)
+curl -s -X POST ${STUDIO_BASE_URL}/api/v1/runs \\
+  -H 'content-type: application/json' \\
+  -H "authorization: Bearer $PLUCK_STUDIO_TOKEN" \\
+  -d '{
+    "pipeline": "bureau:dragnet",
+    "payload": { /* per-pipeline shape — see /openapi.json */ }
+  }' | jq .
+
+# 3. Fetch the resulting signed receipt by phrase ID (public-read).
+curl -s ${STUDIO_BASE_URL}/api/v1/runs/<phrase-id> | jq .`;
 
 const MCP_CONFIG_SNIPPET = `{
   "mcpServers": {
@@ -100,7 +140,7 @@ const MCP_CONFIG_SNIPPET = `{
       "command": "npx",
       "args": ["-y", "${BRIDGE_PACKAGE}"],
       "env": {
-        "PLUCK_STUDIO_URL": "https://studio.pluck.run",
+        "PLUCK_STUDIO_URL": "${STUDIO_BASE_URL}",
         "PLUCK_STUDIO_TOKEN": "<your-bearer-token>"
       }
     }
@@ -109,8 +149,8 @@ const MCP_CONFIG_SNIPPET = `{
 
 export default function McpPage(): ReactNode {
   const manifest = buildManifest({
-    baseUrl: "https://studio.pluck.run",
-    version: "0.1.1",
+    baseUrl: STUDIO_BASE_URL,
+    version: packageJson.version,
   });
 
   return (
@@ -133,32 +173,70 @@ export default function McpPage(): ReactNode {
           <a href={SPEC_URL} target="_blank" rel="noopener noreferrer">
             Model Context Protocol
           </a>{" "}
-          is an open standard for letting AI agents discover and
-          call external tools and resources. Studio publishes a
-          manifest describing its <code>/v1/runs</code> surface;
-          the external{" "}
-          <code>{BRIDGE_PACKAGE}</code> server reads the manifest
-          and exposes the MCP wire protocol so any compatible client
-          (Claude Desktop, Cursor, custom hosts) can list, fetch,
-          and execute Pluck Bureau programs natively.
+          is a JSON-RPC <em>runtime</em> protocol for letting AI
+          agents discover and call external tools and resources
+          (<code>initialize</code> → <code>serverInfo</code> +{" "}
+          <code>capabilities</code>, then{" "}
+          <code>tools/list</code>, <code>resources/list</code>, and so
+          on). Studio publishes a Studio-invented{" "}
+          <strong>discovery document</strong> describing its{" "}
+          <code>/v1/runs</code> surface as MCP-compatible resource +
+          tool URIs; the external <code>{BRIDGE_PACKAGE}</code> server
+          consumes that document and exposes the live MCP JSON-RPC
+          runtime so any compatible client (Claude Desktop, Cursor,
+          custom hosts) can list, fetch, and execute Pluck Bureau
+          programs natively.
         </p>
         <div style={CalloutStyle}>
           Studio does <strong>not</strong> implement the MCP wire
-          protocol itself — this page is the discovery surface, like
-          robots.txt or openapi.json. The external{" "}
-          <code>{BRIDGE_PACKAGE}</code> bridge does the protocol work.
+          protocol itself — this page is a discovery surface, like
+          robots.txt or openapi.json. The discovery document is{" "}
+          <em>not</em> an MCP-spec conformant manifest (the spec
+          defines a runtime protocol, not a static schema). The
+          external <code>{BRIDGE_PACKAGE}</code> bridge does the
+          protocol work.
         </div>
       </section>
 
       <section data-testid="mcp-quickstart">
         <h2 style={SectionHeadingStyle}>Quick start</h2>
 
-        <h3 style={SubHeadingStyle}>1. Fetch the manifest</h3>
+        <div
+          style={WarningCalloutStyle}
+          data-testid="mcp-preview-callout"
+        >
+          <strong>Preview</strong> —{" "}
+          <code>{BRIDGE_PACKAGE}</code> is not yet published to npm.
+          The <code>mcp.config.json</code> snippet below is the
+          target wiring; until the bridge ships, use the direct
+          <code> curl</code> loop in step 2 to talk to Studio's HTTP
+          surface today.
+        </div>
+
+        <h3 style={SubHeadingStyle}>1. Fetch the discovery document</h3>
         <pre style={PreStyle}>
           <code>{CURL_SNIPPET}</code>
         </pre>
 
-        <h3 style={SubHeadingStyle}>2. Add Studio to your MCP client</h3>
+        <h3 style={SubHeadingStyle}>
+          2. Working alternative — direct HTTP loop
+        </h3>
+        <p style={DimStyle}>
+          The bridge package is a convenience; nothing about Studio's
+          surface requires it. Operators can call{" "}
+          <code>/api/mcp/manifest.json</code> +{" "}
+          <code>/api/v1/runs</code> directly today. This won't
+          replace the MCP integration once the bridge ships, but it
+          lets you experiment immediately.
+        </p>
+        <pre style={PreStyle} data-testid="mcp-curl-loop">
+          <code>{CURL_LOOP_SNIPPET}</code>
+        </pre>
+
+        <h3 style={SubHeadingStyle}>
+          3. Add Studio to your MCP client (when{" "}
+          <code>{BRIDGE_PACKAGE}</code> ships, this snippet will work)
+        </h3>
         <p style={DimStyle}>
           Drop this into{" "}
           <code>~/.config/claude-desktop/mcp.config.json</code> (or
@@ -170,7 +248,7 @@ export default function McpPage(): ReactNode {
           <code>{MCP_CONFIG_SNIPPET}</code>
         </pre>
 
-        <h3 style={SubHeadingStyle}>3. Authenticate</h3>
+        <h3 style={SubHeadingStyle}>4. Authenticate</h3>
         <p style={DimStyle}>
           GET access to receipts is public-read by phrase ID — no
           token required. POSTing a run (the <code>pluck.run</code>{" "}

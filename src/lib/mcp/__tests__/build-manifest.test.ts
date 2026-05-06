@@ -2,19 +2,24 @@
 // build-manifest — unit + invariant tests
 // ---------------------------------------------------------------------------
 //
-// The MCP manifest is a public contract — once `pluck://program/<slug>`
-// URIs ship, every external MCP client binds to them. These tests lock:
+// The Studio MCP discovery document is a public contract — once
+// `pluck://program/<slug>` URIs ship, every external MCP client binds
+// to them. These tests lock:
 //
 //   - Determinism: same opts → byte-identical manifest (snapshot).
 //   - Coverage: every ACTIVE_PROGRAMS entry has a matching resource.
 //   - Tools: pluck.search, pluck.diff, pluck.run all present.
 //   - Tools: the pluck.run pipeline enum tracks BUREAU_PIPELINES.
+//   - Tools: every inputSchema compiles under a real JSON-Schema
+//     validator (ajv) and accepts the SHAPES it's meant to. Catches
+//     typos that would otherwise slip past visual review.
 //   - Auth: non-empty (operators MUST know how to authenticate).
 //
 // Adding a new Bureau program means the snapshot rebases; the
 // per-slug invariant catches drift even if you forget to rebase.
 // ---------------------------------------------------------------------------
 
+import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
 
 import { ACTIVE_PROGRAMS } from "../../programs/registry";
@@ -38,14 +43,25 @@ describe("buildManifest", () => {
     expect(buildManifest(OPTS)).toMatchSnapshot();
   });
 
-  it("declares the MCP $schema URL", () => {
+  it("declares specReference (MCP homepage, NOT a schema URL)", () => {
     const m = buildManifest(OPTS);
 
-    expect(m.$schema).toBe(
-      "https://modelcontextprotocol.io/schemas/manifest/v0.1.json",
-    );
+    // NOT https://modelcontextprotocol.io/schemas/... — that path
+    // doesn't resolve. MCP is a JSON-RPC runtime protocol; it
+    // doesn't ship a static manifest schema. We link the homepage
+    // so consumers can find the bridge docs.
+    expect(m.specReference).toBe("https://modelcontextprotocol.io");
+    expect(m).not.toHaveProperty("$schema");
     expect(m.name).toBe("pluck-studio");
     expect(m.version).toBe("0.1.1");
+  });
+
+  it("description frames the document as Studio-invented discovery, not MCP-spec", () => {
+    const m = buildManifest(OPTS);
+
+    expect(m.description).toMatch(/Studio MCP discovery document/);
+    expect(m.description).toMatch(/@sizls\/pluck-mcp/);
+    expect(m.description).toMatch(/JSON-RPC runtime protocol/);
   });
 
   it("homepage + openapi URLs derive from baseUrl", () => {
@@ -53,6 +69,16 @@ describe("buildManifest", () => {
 
     expect(m.homepage).toBe("https://studio.pluck.run");
     expect(m.openapi).toBe("https://studio.pluck.run/openapi.json");
+  });
+
+  it("baseUrl is honoured when overridden (local dev / preview)", () => {
+    const local = buildManifest({
+      baseUrl: "http://localhost:3030",
+      version: "0.1.1",
+    });
+
+    expect(local.homepage).toBe("http://localhost:3030");
+    expect(local.openapi).toBe("http://localhost:3030/openapi.json");
   });
 });
 
@@ -126,6 +152,82 @@ describe("buildManifest — tools", () => {
       expect(Array.isArray(tool.inputSchema.required)).toBe(true);
       expect((tool.inputSchema.required as unknown[]).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
+  // `strict: false` lets ajv tolerate JSON-Schema-draft-2020-12 quirks
+  // we don't need to police here (the goal is catching typos, not
+  // enforcing a particular dialect).
+  const ajv = new Ajv({ strict: false, allErrors: true });
+
+  it("compiles every tool's inputSchema cleanly", () => {
+    const m = buildManifest(OPTS);
+
+    for (const tool of m.tools) {
+      // Throwing here means the schema has a structural typo.
+      expect(() => ajv.compile(tool.inputSchema)).not.toThrow();
+    }
+  });
+
+  it("pluck.search accepts a phraseId-only payload + rejects unknown keys", () => {
+    const m = buildManifest(OPTS);
+    const search = m.tools.find((t) => t.name === "pluck.search");
+    expect(search).toBeDefined();
+    const validate = ajv.compile(search!.inputSchema);
+
+    expect(validate({ phraseId: "openai-swift-falcon-3742" })).toBe(true);
+    expect(validate({ phraseId: "openai-swift-falcon-3742", limit: 10 })).toBe(
+      true,
+    );
+    expect(validate({})).toBe(false); // missing required phraseId
+    expect(validate({ phraseId: "x", unknownField: 1 })).toBe(false);
+    expect(validate({ phraseId: "x", limit: 0 })).toBe(false); // < minimum
+    expect(validate({ phraseId: "x", limit: 1000 })).toBe(false); // > maximum
+  });
+
+  it("pluck.diff accepts both phrase IDs + rejects partial payloads", () => {
+    const m = buildManifest(OPTS);
+    const diff = m.tools.find((t) => t.name === "pluck.diff");
+    expect(diff).toBeDefined();
+    const validate = ajv.compile(diff!.inputSchema);
+
+    expect(
+      validate({
+        basePhraseId: "openai-swift-falcon-3742",
+        sincePhraseId: "openai-swift-falcon-9999",
+      }),
+    ).toBe(true);
+    expect(validate({ basePhraseId: "x" })).toBe(false); // missing sincePhraseId
+    expect(validate({ sincePhraseId: "x" })).toBe(false); // missing basePhraseId
+    expect(validate({})).toBe(false);
+  });
+
+  it("pluck.run enum matches BUREAU_PIPELINES and accepts every pipeline", () => {
+    const m = buildManifest(OPTS);
+    const run = m.tools.find((t) => t.name === "pluck.run");
+    expect(run).toBeDefined();
+    const validate = ajv.compile(run!.inputSchema);
+
+    // Every BUREAU_PIPELINES value MUST be acceptable to the schema —
+    // proves the enum literal in the manifest matches the runtime
+    // taxonomy used by the pipeline validators.
+    for (const pipeline of BUREAU_PIPELINES) {
+      expect(validate({ pipeline, payload: {} })).toBe(true);
+    }
+
+    expect(validate({ pipeline: "bureau:not-a-real-program", payload: {} })).toBe(
+      false,
+    );
+    expect(validate({ pipeline: "bureau:dragnet" })).toBe(false); // missing payload
+    expect(validate({ payload: {} })).toBe(false); // missing pipeline
+    expect(
+      validate({
+        pipeline: "bureau:dragnet",
+        payload: {},
+        idempotencyKey: "abc",
+      }),
+    ).toBe(true);
   });
 });
 

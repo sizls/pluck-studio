@@ -1,14 +1,23 @@
 // ---------------------------------------------------------------------------
-// MCP manifest builder — pure function over the program registry
+// Studio MCP discovery document — pure function over the program registry
 // ---------------------------------------------------------------------------
 //
 // Studio is the operator-facing surface for the Pluck Bureau. AI agents
 // (Claude Desktop, Cursor, custom MCP clients) discover Studio through
-// a Model Context Protocol manifest — a JSON document describing the
-// resources, tools, and prompts the external `@sizls/pluck-mcp` server
-// will expose against /v1/runs.
+// this discovery document — a JSON file describing the resources,
+// tools, and prompts the external `@sizls/pluck-mcp` server exposes
+// against /v1/runs.
 //
-// This builder is pure: same registry input → same manifest output.
+// Important framing: MCP itself is a JSON-RPC RUNTIME protocol
+// (`initialize` → `serverInfo` + `capabilities`, then `tools/list`,
+// `resources/list`, etc.). It does NOT specify a static manifest
+// schema. The shape below is Studio-invented for discovery — a
+// convenient catalogue for operators and the bridge package — and
+// intentionally does NOT claim MCP-spec conformance. The bridge
+// package `@sizls/pluck-mcp` consumes this document and translates
+// it into the live MCP JSON-RPC runtime protocol.
+//
+// This builder is pure: same registry input → same discovery output.
 // No `Math.random`, no `Date.now`, no clock dependence — every resource
 // URI and tool input-schema is derived from the static program registry
 // and the BUREAU_PIPELINES enum. That determinism is what lets the
@@ -29,19 +38,27 @@
 //     the in-toto/DSSE specification — that's the canonical mimeType
 //     for any `pluck://run/...` resource.
 //
-// Studio does NOT implement the MCP protocol itself. The manifest is
-// purely informational discovery, like robots.txt or openapi.json. The
-// external `@sizls/pluck-mcp` server reads /v1/runs and exposes the
-// MCP wire protocol; this manifest tells operators how to wire the two
-// together.
+// Studio does NOT implement the MCP wire protocol itself. This
+// document is purely informational discovery, like robots.txt or
+// openapi.json. The external `@sizls/pluck-mcp` server reads /v1/runs
+// and exposes the MCP JSON-RPC runtime protocol; this document tells
+// operators how to wire the two together.
 // ---------------------------------------------------------------------------
 
 import { ACTIVE_PROGRAMS } from "../programs/registry";
 import { BUREAU_PIPELINES } from "../v1/run-spec";
 
-/** Manifest-shape root — see https://modelcontextprotocol.io. */
+/**
+ * Manifest-shape root — Studio-invented discovery document.
+ *
+ * NOTE: this is NOT an MCP-spec conformant manifest (the spec defines
+ * a JSON-RPC runtime protocol, not a static manifest schema). The
+ * `specReference` field links to the protocol homepage so consumers
+ * can find the bridge documentation; the `description` field spells
+ * out the framing.
+ */
 export interface McpManifest {
-  readonly $schema: string;
+  readonly specReference: string;
   readonly name: string;
   readonly version: string;
   readonly description: string;
@@ -83,16 +100,24 @@ export interface BuildManifestOpts {
   readonly version: string;
 }
 
-const MCP_SCHEMA_URL = "https://modelcontextprotocol.io/schemas/manifest/v0.1.json";
+/** Homepage of the Model Context Protocol — not a schema URL. */
+const MCP_SPEC_REFERENCE = "https://modelcontextprotocol.io";
+
+/**
+ * Top-level description, surfaced inside the JSON document so anyone
+ * reading the raw bytes understands the framing without external docs.
+ */
+const MANIFEST_DESCRIPTION =
+  "Studio MCP discovery document — describes Studio's HTTP API (`/openapi.json`) translated into MCP-compatible resource + tool URIs. The bridge package @sizls/pluck-mcp consumes this manifest to expose Studio over the MCP JSON-RPC runtime protocol.";
 
 /** Canonical mimeType for in-toto DSSE-signed envelopes (the receipt shape). */
 const DSSE_MIME = "application/vnd.in-toto+dsse+json";
 const JSON_MIME = "application/json";
 
 /**
- * Build the MCP manifest for Studio. Pure function — same input always
- * produces byte-identical output (lets the route cache + the snapshot
- * test lock the shape).
+ * Build the Studio MCP discovery document. Pure function — same input
+ * always produces byte-identical output (lets the route cache + the
+ * snapshot test lock the shape).
  */
 export function buildManifest(opts: BuildManifestOpts): McpManifest {
   const { baseUrl, version } = opts;
@@ -239,11 +264,10 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
   };
 
   return {
-    $schema: MCP_SCHEMA_URL,
+    specReference: MCP_SPEC_REFERENCE,
     name: "pluck-studio",
     version,
-    description:
-      "Pluck Studio — operator-facing surface for the Pluck Bureau. 11 alpha programs (DRAGNET, OATH, FINGERPRINT, CUSTODY, WHISTLE, BOUNTY, SBOM-AI, ROTATE, TRIPWIRE, NUCLEI, MOLE) wired through a unified /v1/runs activation pattern, each emitting Sigstore-Rekor-anchored DSSE-signed receipts.",
+    description: MANIFEST_DESCRIPTION,
     homepage: baseUrl,
     openapi: `${baseUrl}/openapi.json`,
     resources,

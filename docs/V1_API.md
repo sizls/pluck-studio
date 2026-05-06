@@ -497,34 +497,52 @@ the per-pipeline validators in `src/lib/v1/pipeline-validators.ts`.
 
 ### MCP integration — `/api/mcp/manifest.json` + `/mcp`
 
-The /v1/runs surface is also published as a Model Context Protocol
-manifest at [`/api/mcp/manifest.json`](https://studio.pluck.run/api/mcp/manifest.json).
-The manifest declares the 11 Bureau programs as `pluck://program/<slug>`
-resources, the canonical `pluck.search` / `pluck.diff` / `pluck.run`
-tools (with JSON-Schema input shapes), and the bearer-or-cookie auth
-posture. AI agents discover Studio through this manifest; the external
-`@sizls/pluck-mcp` package implements the MCP wire protocol against
-/v1/runs and binds its tool catalog to the manifest's tool list.
+The /v1/runs surface is also published as a **Studio MCP discovery
+document** at [`/api/mcp/manifest.json`](https://studio.pluck.run/api/mcp/manifest.json).
+The document declares the 11 Bureau programs as
+`pluck://program/<slug>` resources, the canonical `pluck.search` /
+`pluck.diff` / `pluck.run` tools (with JSON-Schema input shapes), and
+the bearer-or-cookie auth posture. AI agents discover Studio through
+this document; the external `@sizls/pluck-mcp` package consumes it and
+exposes the MCP JSON-RPC runtime protocol against /v1/runs, binding
+its tool catalog to the document's tool list.
+
+**Framing — this is NOT an MCP-spec conformant manifest.** MCP itself
+is a JSON-RPC RUNTIME protocol (`initialize` → `serverInfo` +
+`capabilities`, then `tools/list`, `resources/list`, etc.) — it does
+not specify a static manifest schema. The shape Studio publishes is
+Studio-invented for discovery convenience. We deliberately do NOT
+emit a `$schema` field; the document carries `specReference:
+"https://modelcontextprotocol.io"` (the protocol homepage, not a
+schema URL) and a top-level `description` spelling out the framing.
+The bridge package is what speaks MCP; this document just tells the
+bridge — and operators — what's behind /v1/runs.
 
 The operator-facing wiring page lives at
 [`/mcp`](https://studio.pluck.run/mcp) — copy-pastable
 `mcp.config.json` snippets for Claude Desktop / Cursor, plus an
-inline render of the manifest data the JSON endpoint serves. Same
+inline render of the document data the JSON endpoint serves. Same
 public-read posture as `/openapi.json` (no auth, same-site CSRF +
 rate-limit gates apply, 5-minute cache).
 
-The manifest is built by `src/lib/mcp/build-manifest.ts` — pure
+Until `@sizls/pluck-mcp` is published to npm, the page also shows a
+direct `curl` loop against `/api/mcp/manifest.json` + `/api/v1/runs`
+so operators can experiment today.
+
+The document is built by `src/lib/mcp/build-manifest.ts` — pure
 function over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Adding a new
 Bureau program auto-extends the resources list and the
 `pluck.run` tool's pipeline enum; a snapshot test locks the
-deterministic output. The `pluck://` URI namespace is stable —
+deterministic output, and an ajv-backed test compiles every
+inputSchema against a real JSON-Schema validator (catches typos
+visual review would miss). The `pluck://` URI namespace is stable —
 once a resource ships, its URI shape is locked.
 
 ```bash
-# Fetch the manifest
+# Fetch the discovery document
 curl https://studio.pluck.run/api/mcp/manifest.json | jq .
 
-# Add Studio to Claude Desktop
+# Add Studio to Claude Desktop (when @sizls/pluck-mcp ships, this works)
 cat <<'EOF' > ~/.config/claude-desktop/mcp.config.json
 {
   "mcpServers": {
@@ -542,7 +560,7 @@ EOF
 ```
 
 Studio does NOT implement the MCP wire protocol itself — the
-manifest is purely informational discovery, like robots.txt or
+document is purely informational discovery, like robots.txt or
 openapi.json. External clients use the `@sizls/pluck-mcp` bridge.
 
 ---

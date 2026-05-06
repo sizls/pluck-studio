@@ -2,14 +2,13 @@
 
 exports[`buildManifest > matches the manifest snapshot 1`] = `
 {
-  "$schema": "https://modelcontextprotocol.io/schemas/manifest/v0.1.json",
   "auth": {
     "bearerEnv": "PLUCK_STUDIO_TOKEN",
     "cookieName": "sb-test-auth-token (dev) / sb-{project}-auth-token (prod)",
     "note": "GET /v1/runs/{id} is public-read by phrase ID — no auth required for resource fetches. POST /v1/runs (the pluck.run tool) requires a Supabase JWT cookie OR a dev-mode Bearer token.",
     "type": "bearer-or-cookie",
   },
-  "description": "Pluck Studio — operator-facing surface for the Pluck Bureau. 11 alpha programs (DRAGNET, OATH, FINGERPRINT, CUSTODY, WHISTLE, BOUNTY, SBOM-AI, ROTATE, TRIPWIRE, NUCLEI, MOLE) wired through a unified /v1/runs activation pattern, each emitting Sigstore-Rekor-anchored DSSE-signed receipts.",
+  "description": "Studio MCP discovery document — describes Studio's HTTP API (\`/openapi.json\`) translated into MCP-compatible resource + tool URIs. The bridge package @sizls/pluck-mcp consumes this manifest to expose Studio over the MCP JSON-RPC runtime protocol.",
   "homepage": "https://studio.pluck.run",
   "name": "pluck-studio",
   "openapi": "https://studio.pluck.run/openapi.json",
@@ -115,6 +114,7 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
       "uri": "pluck://today",
     },
   ],
+  "specReference": "https://modelcontextprotocol.io",
   "tools": [
     {
       "description": "Search by phrase ID — decompose the slug into vendor + adjective + noun + serial, fan out across all 11 programs and return every receipt that shares any component.",

@@ -6,12 +6,13 @@
 // (Claude Desktop, Cursor, custom hosts via @sizls/pluck-mcp) bind
 // against:
 //
-//   1. GET /api/mcp/manifest.json → 200 + valid JSON with the seven
-//      load-bearing fields ($schema, name, version, resources, tools,
-//      prompts, auth).
+//   1. GET /api/mcp/manifest.json → 200 + valid JSON with the
+//      load-bearing fields (specReference, name, version, description,
+//      resources, tools, prompts, auth) and NO `$schema` (intentional —
+//      MCP doesn't ship a static manifest schema).
 //   2. GET /mcp → operator-facing wiring docs render with the
 //      load-bearing sections (quickstart, resources, tools, auth,
-//      manifest link).
+//      manifest link, preview callout).
 //   3. /runs → /mcp cross-link round-trip — reachable from the
 //      activations hub the way every other cross-cutting surface is.
 // ---------------------------------------------------------------------------
@@ -33,7 +34,9 @@ test.describe("MCP integration scaffold", () => {
     expect(res.headers()["cache-control"]).toBe("public, max-age=300");
 
     const body = await res.json();
-    expect(body.$schema).toMatch(/modelcontextprotocol/);
+    expect(body.specReference).toBe("https://modelcontextprotocol.io");
+    expect(body.$schema).toBeUndefined();
+    expect(body.description).toMatch(/Studio MCP discovery document/);
     expect(body.name).toBe("pluck-studio");
     expect(typeof body.version).toBe("string");
     expect(Array.isArray(body.resources)).toBe(true);
@@ -45,6 +48,20 @@ test.describe("MCP integration scaffold", () => {
     expect(toolNames).toContain("pluck.search");
     expect(toolNames).toContain("pluck.diff");
     expect(toolNames).toContain("pluck.run");
+  });
+
+  test("/mcp page surfaces the preview callout for the unpublished bridge", async ({
+    page,
+  }) => {
+    await page.goto("/mcp");
+    const callout = page.getByTestId("mcp-preview-callout");
+    await expect(callout).toBeVisible();
+    await expect(callout).toContainText("@sizls/pluck-mcp");
+    await expect(callout).toContainText(/not yet published/i);
+
+    // The working alternative — direct curl loop — must be visible
+    // alongside, so operators have something to run today.
+    await expect(page.getByTestId("mcp-curl-loop")).toBeVisible();
   });
 
   test("/mcp page renders with quickstart + resources + tools + auth visible", async ({
