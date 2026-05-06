@@ -501,11 +501,24 @@ The /v1/runs surface is also published as a **Studio MCP discovery
 document** at [`/api/mcp/manifest.json`](https://studio.pluck.run/api/mcp/manifest.json).
 The document declares the 11 Bureau programs as
 `pluck://program/<slug>` resources, the canonical `pluck.search` /
-`pluck.diff` / `pluck.run` tools (with JSON-Schema input shapes), and
-the bearer-or-cookie auth posture. AI agents discover Studio through
+`pluck.diff` / `pluck.run` / `pluck.list` / `pluck.get` tools (with
+JSON-Schema input shapes), the cross-cutting `pluck://phrase/<id>`
+and `pluck://diff/<base>/<target>` resource URIs, and the
+bearer-or-cookie auth posture. AI agents discover Studio through
 this document; the external `@sizls/pluck-mcp` package consumes it and
 exposes the MCP JSON-RPC runtime protocol against /v1/runs, binding
 its tool catalog to the document's tool list.
+
+The tool list pairs **resource fetch** (`pluck.get` for one receipt by
+phraseId, `pluck.list` for cursor-paginated enumeration) with
+**execute** (`pluck.run`) and **investigate** (`pluck.search`,
+`pluck.diff`). Splitting fetch from execute keeps Bureau-aware agents
+inside the MCP `tools/call` lane instead of conflating it with
+`resources/read` — most MCP clients trip over that conflation.
+
+The prompt catalog now includes a third Bureau-canonical verb,
+`pluck.compare-cycles`, which drives the /diff page across two
+cycles of the same vendor.
 
 **Framing — this is NOT an MCP-spec conformant manifest.** MCP itself
 is a JSON-RPC RUNTIME protocol (`initialize` → `serverInfo` +

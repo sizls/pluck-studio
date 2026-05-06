@@ -146,12 +146,12 @@ function ChangesPanel({ diff }: { diff: ReceiptDiff }): ReactNode {
         {diff.timeDeltaMs === 0 ? (
           <>Captured at the same instant.</>
         ) : (
-          <>Captured {formatTimeDelta(diff.timeDeltaMs)} · {Math.abs(diff.timeDeltaMs)}ms apart.</>
+          <>Captured {formatTimeDelta(diff.timeDeltaMs)}.</>
         )}
       </p>
       {!diff.sameProgram ? (
         <p style={{ ...S.meta, marginTop: 8 }} data-testid="diff-cross-program">
-          Different programs probed the same vendor — useful for triangulation.{" "}
+          Different programs probed the same vendor — useful for cross-program corroboration.{" "}
           {diff.base.programName} on the left, {diff.target.programName} on the right.
         </p>
       ) : null}

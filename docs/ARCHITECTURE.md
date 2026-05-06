@@ -12,8 +12,8 @@ This document is the higher-level "how the system is built" companion to
 `docs/V1_API.md` (which specifies the wire contract). Read this when
 you're a new contributor or AI agent landing in the codebase cold and
 need a load-bearing mental model before opening files. State as of
-commit `86817e7` — 902 unit tests across 46 files + 82 Playwright
-test cases across 16 spec files, all green.
+commit `360bbce` — 1199 unit tests across 70 files + 115 Playwright
+test cases across 24 spec files, all green.
 
 ---
 
@@ -100,7 +100,7 @@ src/
 │   ├── CalendarStrip.tsx                  cron next-N visualisation
 │   └── V1RunStatusBanner.tsx              the Strict-Mode-safe locale-formatted banner
 │
-e2e/                                     16 Playwright specs covering the activation pattern
+e2e/                                     24 Playwright specs covering the activation pattern
 │   ├── <program>-activation.spec.ts       one per program (11)
 │   ├── runs-directory.spec.ts             /runs hub
 │   ├── vendor-index.spec.ts               VHI
@@ -114,9 +114,9 @@ docs/
 └── ARCHITECTURE.md                      this file
 ```
 
-902 unit tests across `src/lib/**/__tests__` and
-`src/components/bureau-ui/__tests__`; 82 Playwright tests across `e2e/`.
-Both suites green at `64f5a23`.
+1199 unit tests across `src/lib/**/__tests__` and
+`src/components/bureau-ui/__tests__`; 115 Playwright tests across `e2e/`.
+Both suites green at `360bbce`.
 
 ---
 
@@ -249,6 +249,7 @@ src/lib/v1/run-store.ts → createRun(spec)
 | `src/app/api/v1/runs/route.ts` + `[id]/route.ts` + `[id]/events/route.ts` | Security gates (CSRF / rate-limit / auth) + delegation. Zero business logic — they call `validateRunSpec`, `PIPELINE_VALIDATORS[…]`, `createRun`/`getRun`/`listRuns`/`cancelRun`/`subscribeToRun`, and `redactPayloadForGet`. The events route additionally manages the SSE stream lifecycle (heartbeat, terminal-state close, 5min cap). Replaceable as a unit when pluck-api lands. |
 | `src/lib/security/request-guards.ts` | `isAuthed`, `isSameSiteRequest`, `rateLimitOk`, `isPrivateOrLocalHost`. Shared by `/v1/runs` and the 11 legacy aliases. |
 | `src/lib/mcp/build-manifest.ts` | **Auto-generator — parallel to OpenAPI.** Pure function `buildManifest({ baseUrl, version })` over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Emits a Studio-invented MCP **discovery document** (NOT an MCP-spec conformant manifest — MCP is a JSON-RPC runtime protocol, not a static schema): `pluck://program/<slug>` resources, `pluck.search` / `pluck.diff` / `pluck.run` tools with JSON-Schema input shapes, prompts, auth. Top-level fields: `specReference` (protocol homepage), `description` (framing), `name`, `version`, `homepage`, `openapi`, `resources`, `tools`, `prompts`, `auth` — deliberately no `$schema`. Deterministic; snapshot-tested; ajv-tested (every inputSchema compiles + accepts the shapes it's meant to). Adding a Bureau program auto-extends the document. The route at `src/app/api/mcp/manifest.json/route.ts` serves it under the same public-read posture as `/openapi.json` (5-min cache, same-site CSRF + rate-limit, no auth) and derives `baseUrl` from `req.nextUrl.origin` so local dev / preview deploys advertise their own host. The `/mcp` operator page reads `STUDIO_BASE_URL` from the environment (defaulting to `https://studio.pluck.run`) for the same reason. |
+| `src/lib/diff/receipt-diff.ts` | **Pure aggregator behind `/diff/<base>?since=<target>`.** `diffReceipts(basePhraseId, targetPhraseId)` returns a `DiffResult` discriminated union (`ok` \| `invalid-phrase` \| `not-found` \| `different-vendors`); cross-program same-vendor diffs flag `sameProgram: false` for cross-program corroboration copy. The internal `resolveSide()` helper is the **single seam to swap** when /v1/runs Realtime lands — today it falls through `getRun` (v1 store) → `searchPhraseId` directMatch (vendor-preview), tomorrow it queries `/v1/runs?phraseIdPrefix=<scope>`. The public `diffReceipts()` signature stays stable across the swap. Persistence-agnostic; no coupling to the v1 route handlers. |
 
 **Environment** — `STUDIO_BASE_URL` (optional). Production default
 `https://studio.pluck.run`. Set to override the URL surfaced by the
@@ -527,8 +528,8 @@ vendor.
   today, real `/v1/runs?phraseIdPrefix=<scope>` when pluck-api lands).
 - **Cross-program semantics** — same-vendor cross-program diffs are
   ALLOWED (DRAGNET-vs-FINGERPRINT for `openai`); the diff envelope
-  flags `sameProgram: false` so the page can render triangulation
-  copy. Different-vendor diffs are rejected with a distinct kind
+  flags `sameProgram: false` so the page can render cross-program
+  corroboration copy. Different-vendor diffs are rejected with a distinct kind
   (not an error — diffing OpenAI vs Anthropic just doesn't make
   sense).
 - **Page** — server-rendered at `src/app/diff/[id]/page.tsx`. Path
@@ -663,6 +664,44 @@ cannot drift from the runtime taxonomy without failing the
 `pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators
 / redactor change. See `docs/V1_API.md` → "Machine-readable spec".
 
+### `/mcp` + `/api/mcp/manifest.json` — MCP integration scaffold
+
+The MCP integration scaffold — a Studio-invented **discovery document**
+(NOT a strict MCP-spec manifest; MCP is a JSON-RPC runtime protocol,
+not a static schema) that drives the `@sizls/pluck-mcp` bridge. Parallel
+shape to `/openapi.json` but oriented at MCP clients.
+
+- **Generator** — `src/lib/mcp/build-manifest.ts`. Pure function
+  `buildManifest({ baseUrl, version })` over `ACTIVE_PROGRAMS` +
+  `BUREAU_PIPELINES`. Auto-extends when a Bureau program is added —
+  no hand-edits, no per-program scaffolding. Deterministic;
+  snapshot-tested; ajv-tested (every `inputSchema` compiles + accepts
+  the shapes it advertises).
+- **Manifest shape** — top-level fields: `specReference` (protocol
+  homepage), `description`, `name`, `version` (sourced from
+  `package.json`), `homepage`, `openapi` (cross-link to
+  `/openapi.json`), `resources` (`pluck://program/<slug>` per active
+  program), `tools` (`pluck.search` / `pluck.diff` / `pluck.run` with
+  JSON-Schema `inputSchema` shapes), `prompts`, `auth`. Deliberately
+  omits `$schema` since no canonical schema URL exists for the
+  Studio-invented shape (the R1 critical fix that closed the fake
+  `$schema` claim).
+- **Manifest route** — `src/app/api/mcp/manifest.json/route.ts`. Same
+  public-read posture as `/openapi.json` (5-min cache, same-site CSRF
+  + rate-limit, no auth). Derives `baseUrl` from `req.nextUrl.origin`
+  so local dev / preview deploys advertise their own host.
+- **Operator page** — `src/app/mcp/page.tsx`. Server-rendered explainer
+  page with the manifest URL, an MCP-client config snippet, and a
+  "preview" callout flagging that the bridge package is not yet
+  published. Reads `STUDIO_BASE_URL` from the environment (defaulting
+  to `https://studio.pluck.run`) so the displayed URL matches the
+  origin the operator is browsing from when Studio sits behind a
+  proxy.
+- **Tests** — `src/lib/mcp/__tests__/build-manifest.test.ts` (unit +
+  ajv compile + snapshot),
+  `src/app/api/mcp/manifest.json/__tests__/route.test.ts` (route
+  contract), `e2e/mcp.spec.ts` (operator page + manifest discovery).
+
 ---
 
 ## 8. Adding a new program — the cookbook
@@ -762,10 +801,10 @@ entries.
 
 ## 9. Testing strategy
 
-**902 unit tests** across `src/lib/**/__tests__/` and
+**1199 unit tests** across `src/lib/**/__tests__/` and
 `src/components/bureau-ui/__tests__/` — Vitest, run with
-`pnpm test --run`. **82 Playwright tests** across `e2e/` — run with
-`pnpm test:e2e`. Both suites green at commit `64f5a23`.
+`pnpm test --run`. **115 Playwright tests** across `e2e/` — run with
+`pnpm test:e2e`. Both suites green at commit `360bbce`.
 
 ### Unit tests
 
@@ -787,16 +826,26 @@ POST/GET-list/GET-by-id/DELETE handlers have parallel coverage.
 
 ### E2E tests (Playwright)
 
-Sixteen specs in `e2e/`:
+Twenty-four specs in `e2e/`:
 
 - 11 `<program>-activation.spec.ts` — one per program, exercising
   the canonical landing → form → API → receipt → OG flow.
 - `runs-directory.spec.ts` — `/runs` hub.
 - `vendor-index.spec.ts` — VHI.
+- `vendor-feed.spec.ts` — Atom feed.
 - `calendar-strip.spec.ts` — cron preview.
 - `negative-knowledge.spec.ts` — `/what-we-dont-know`.
 - `v1-runs.spec.ts` — `/v1/runs` cross-cutting (idempotency,
   pagination, cancellation).
+- `extract.spec.ts` — DRAGNET pre-fill flow.
+- `today.spec.ts` — Daily Roll-Up + OG image.
+- `search.spec.ts` — phrase-ID auto-stitch search.
+- `open-speed-dial.spec.ts` — `/open/<phrase>` + `/o/<phrase>` redirects.
+- `phrase-sigil.spec.ts` — sigil determinism + render.
+- `verdict-badge.spec.ts` — verdict-badge variants across programs.
+- `nuclei-sbom-ai-loop.spec.ts` — supply-chain trust loop.
+- `receipt-diff.spec.ts` — `/diff/<base>?since=<target>` time-machine.
+- `mcp.spec.ts` — `/mcp` operator page + manifest discovery.
 
 ### Convergence tests
 
@@ -891,6 +940,14 @@ contract was designed for replacement from day one.
   They call `createRun` / `getRun` / `listRuns` / `cancelRun` and
   `redactPayloadForGet` only. Replacing the store is a one-import
   change in `run-store.ts`.
+- **`receipt-diff.ts::resolveSide()` is the single seam for the diff
+  surface swap.** Today it falls through `getRun` (v1 store) →
+  `searchPhraseId` directMatch (vendor-preview). When pluck-api
+  Realtime lands, `resolveSide()` swaps to a real
+  `/v1/runs?phraseIdPrefix=<scope>` query — `diffReceipts()` and the
+  `/diff/<base>?since=<target>` page contract stay stable across the
+  swap. The `DiffResult` discriminated union and every
+  `data-testid` hook are persistence-agnostic.
 
 **What lands at swap time**
 
@@ -928,7 +985,7 @@ without modification.
 
 ---
 
-*Last reviewed: commit `86817e7` — wide-R1 doc-gap fix. 902 unit
-tests across 46 files + 82 Playwright test cases across 16 spec
-files, all green. 11/11 alpha programs migrated to `/v1/runs`.
-Runner GA + alias sunset target: 31 Dec 2026.*
+*Last reviewed: commit `360bbce` — Receipt Diff + MCP discovery
+landed. 1199 unit tests across 70 files + 115 Playwright test cases
+across 24 spec files, all green. 11/11 alpha programs migrated to
+`/v1/runs`. Runner GA + alias sunset target: 31 Dec 2026.*

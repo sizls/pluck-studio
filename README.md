@@ -33,13 +33,14 @@ pnpm build
 
 See [DEPLOY.md](./DEPLOY.md). Vercel project: `pluck-studio` in the `directives` scope.
 
-## Public API
+## Docs
 
-The `/v1/runs` surface is documented in [`docs/V1_API.md`](./docs/V1_API.md)
-and published as an auto-generated OpenAPI 3.1 spec at
-[`/openapi.json`](https://studio.pluck.run/openapi.json). Re-run
-`pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators
-/ redactor change.
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — read when wiring a new program or understanding cross-cutting structure (the load-bearing mental model + cookbook).
+- [`docs/V1_API.md`](./docs/V1_API.md) — read when integrating against `/v1/runs` (full wire contract + payload schemas + curl examples).
+- [`docs/IDEAS.md`](./docs/IDEAS.md) — read when looking for the innovation backlog or shipped game-changers (R1/R2/R3 + v3 tracks).
+- [DEPLOY.md](./DEPLOY.md) — read when shipping to Vercel or rotating env config.
+- [`/openapi.json`](https://studio.pluck.run/openapi.json) — read when generating SDKs against `/v1/runs` (auto-generated OpenAPI 3.1; re-run `pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators / redactor change).
+- [`/api/mcp/manifest.json`](https://studio.pluck.run/api/mcp/manifest.json) — read when writing MCP bridges (auto-generated discovery document parallel to OpenAPI; drives `@sizls/pluck-mcp`).
 
 ## Source for the Bureau programs
 

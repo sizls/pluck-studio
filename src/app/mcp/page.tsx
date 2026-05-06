@@ -161,8 +161,8 @@ export default function McpPage(): ReactNode {
           Wire Pluck Studio into Claude Desktop, Cursor, or any
           Model Context Protocol client. Discover the 11 Bureau
           programs as MCP resources, call <code>pluck.*</code> tools
-          from the agent, fetch signed Sigstore-Rekor-anchored
-          receipts by phrase ID.
+          from the agent, fetch signed receipts (anchored in Rekor)
+          by phrase ID.
         </p>
       </section>
 
@@ -334,8 +334,6 @@ export default function McpPage(): ReactNode {
           <br />
           <strong>Bearer env var:</strong>{" "}
           <code>{manifest.auth.bearerEnv}</code>
-          <br />
-          <strong>Cookie:</strong> <code>{manifest.auth.cookieName}</code>
         </p>
         <p style={DimStyle}>{manifest.auth.note}</p>
       </section>

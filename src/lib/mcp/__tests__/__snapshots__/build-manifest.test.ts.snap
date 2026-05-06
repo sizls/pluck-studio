@@ -4,7 +4,6 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
 {
   "auth": {
     "bearerEnv": "PLUCK_STUDIO_TOKEN",
-    "cookieName": "sb-test-auth-token (dev) / sb-{project}-auth-token (prod)",
     "note": "GET /v1/runs/{id} is public-read by phrase ID — no auth required for resource fetches. POST /v1/runs (the pluck.run tool) requires a Supabase JWT cookie OR a dev-mode Bearer token.",
     "type": "bearer-or-cookie",
   },
@@ -21,10 +20,14 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
       "description": "Extract a testable claim from a screenshot or quoted text, run a DRAGNET probe against the named vendor, return a signed receipt with the contradiction count and verdict tier.",
       "name": "pluck.verify-claim",
     },
+    {
+      "description": "Compare two cycles of the same vendor side-by-side via /diff/<base>?since=<target>. Surfaces verdict transitions, summary diffs, time deltas, and cross-program corroboration when both cycles span different programs.",
+      "name": "pluck.compare-cycles",
+    },
   ],
   "resources": [
     {
-      "description": "DSSE-signed in-toto envelope for one Bureau program run. The {id} is the phrase ID (e.g. \`openai-swift-falcon-3742\`) returned by /v1/runs POST. Anchor on Sigstore Rekor; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
+      "description": "DSSE-signed in-toto envelope for one Bureau program run. The {id} is the phrase ID (e.g. \`openai-swift-falcon-3742\`) returned by /v1/runs POST. Anchored in the Sigstore Rekor transparency log; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
       "mimeType": "application/vnd.in-toto+dsse+json",
       "name": "A single signed run receipt",
       "uri": "pluck://run/{id}",
@@ -108,7 +111,19 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
       "uri": "pluck://program/mole",
     },
     {
-      "description": "Per-program 24-hour verdict density tile set used by /today. One entry per program with a signed Sigstore-Rekor-anchored summary count.",
+      "description": "Resolve a phraseId to its canonical receipt URL across any program. Mirrors /open/<phrase> + /o/<phrase> web routes.",
+      "mimeType": "application/json",
+      "name": "Canonical phrase resolution surface",
+      "uri": "pluck://phrase/{id}",
+    },
+    {
+      "description": "A specific diff between two phraseIds for the same vendor. Maps to /diff/<base>?since=<target>.",
+      "mimeType": "application/json",
+      "name": "Cite-able diff URL between two cycles",
+      "uri": "pluck://diff/{base}/{target}",
+    },
+    {
+      "description": "Per-program 24-hour verdict density tile set used by /today. One entry per program with a signed summary count anchored in Rekor.",
       "mimeType": "application/json",
       "name": "Today's daily roll-up",
       "uri": "pluck://today",
@@ -208,6 +223,79 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
         "type": "object",
       },
       "name": "pluck.run",
+    },
+    {
+      "description": "Enumerate recent runs from \`/api/v1/runs\` with optional filters (pipeline, since timestamp, status, limit, cursor). Returns the same shape as the GET endpoint — RunRecord[] with redacted payloads.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "description": "Opaque pagination cursor returned by the previous /api/v1/runs response.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "limit": {
+            "description": "Maximum number of runs to return.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "pipeline": {
+            "description": "Filter by Bureau pipeline slug. Adding a new program auto-extends this enum.",
+            "enum": [
+              "bureau:dragnet",
+              "bureau:oath",
+              "bureau:fingerprint",
+              "bureau:custody",
+              "bureau:whistle",
+              "bureau:bounty",
+              "bureau:sbom-ai",
+              "bureau:rotate",
+              "bureau:tripwire",
+              "bureau:nuclei",
+              "bureau:mole",
+            ],
+            "type": "string",
+          },
+          "since": {
+            "description": "ISO-8601 timestamp lower bound; only runs created after this point are returned.",
+            "format": "date-time",
+            "type": "string",
+          },
+          "status": {
+            "description": "Filter by run status. Tracks RUN_STATUSES exactly.",
+            "enum": [
+              "pending",
+              "running",
+              "anchored",
+              "failed",
+              "cancelled",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "pluck.list",
+    },
+    {
+      "description": "Fetch a single run record by phraseId. Returns the same RunRecord as \`GET /api/v1/runs/{id}\` with per-pipeline payload redaction applied.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "phraseId": {
+            "description": "Phrase ID returned by POST /api/v1/runs (e.g. \`openai-swift-falcon-3742\`).",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "phraseId",
+        ],
+        "type": "object",
+      },
+      "name": "pluck.get",
     },
   ],
   "version": "0.1.1",

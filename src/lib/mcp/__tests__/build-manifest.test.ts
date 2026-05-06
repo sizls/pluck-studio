@@ -23,7 +23,7 @@ import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
 
 import { ACTIVE_PROGRAMS } from "../../programs/registry";
-import { BUREAU_PIPELINES } from "../../v1/run-spec";
+import { BUREAU_PIPELINES, RUN_STATUSES } from "../../v1/run-spec";
 import { buildManifest } from "../build-manifest";
 
 const OPTS = {
@@ -83,7 +83,7 @@ describe("buildManifest", () => {
 });
 
 describe("buildManifest — resources", () => {
-  it("includes the four well-known cross-program URIs", () => {
+  it("includes the well-known cross-program URIs", () => {
     const m = buildManifest(OPTS);
     const uris = m.resources.map((r) => r.uri);
 
@@ -91,6 +91,17 @@ describe("buildManifest — resources", () => {
     expect(uris).toContain("pluck://runs/recent");
     expect(uris).toContain("pluck://vendor/{slug}");
     expect(uris).toContain("pluck://today");
+    expect(uris).toContain("pluck://phrase/{id}");
+    expect(uris).toContain("pluck://diff/{base}/{target}");
+  });
+
+  it("resource count = N(cross-program) + N(programs)", () => {
+    const m = buildManifest(OPTS);
+
+    // 6 cross-program URIs (run, runs/recent, vendor, today, phrase, diff)
+    // + 1 per ACTIVE_PROGRAMS entry.
+    const expected = 6 + ACTIVE_PROGRAMS.length;
+    expect(m.resources.length).toBe(expected);
   });
 
   it("includes a pluck://program/<slug> resource for every ACTIVE_PROGRAMS entry", () => {
@@ -123,13 +134,15 @@ describe("buildManifest — resources", () => {
 });
 
 describe("buildManifest — tools", () => {
-  it("declares pluck.search, pluck.diff, pluck.run", () => {
+  it("declares the five canonical pluck.* tools", () => {
     const m = buildManifest(OPTS);
     const names = m.tools.map((t) => t.name);
 
     expect(names).toContain("pluck.search");
     expect(names).toContain("pluck.diff");
     expect(names).toContain("pluck.run");
+    expect(names).toContain("pluck.list");
+    expect(names).toContain("pluck.get");
   });
 
   it("pluck.run input-schema enum matches BUREAU_PIPELINES exactly", () => {
@@ -144,13 +157,31 @@ describe("buildManifest — tools", () => {
     expect(pipelineEnum).toEqual([...BUREAU_PIPELINES]);
   });
 
-  it("every tool has a JSON-Schema input shape with required[]", () => {
+  it("pluck.list input-schema status enum matches RUN_STATUSES exactly", () => {
+    const m = buildManifest(OPTS);
+    const list = m.tools.find((t) => t.name === "pluck.list");
+    const props = list?.inputSchema.properties as
+      | Record<string, { enum?: unknown[] }>
+      | undefined;
+
+    expect(props?.pipeline?.enum).toEqual([...BUREAU_PIPELINES]);
+    expect(props?.status?.enum).toEqual([...RUN_STATUSES]);
+  });
+
+  it("every tool's inputSchema is a JSON-Schema object with additionalProperties:false", () => {
     const m = buildManifest(OPTS);
 
     for (const tool of m.tools) {
       expect(tool.inputSchema.type).toBe("object");
-      expect(Array.isArray(tool.inputSchema.required)).toBe(true);
-      expect((tool.inputSchema.required as unknown[]).length).toBeGreaterThan(0);
+      expect(tool.inputSchema.additionalProperties).toBe(false);
+      // `required` is optional (pluck.list has no required fields), but
+      // when present must be a non-empty array.
+      if ("required" in tool.inputSchema) {
+        expect(Array.isArray(tool.inputSchema.required)).toBe(true);
+        expect(
+          (tool.inputSchema.required as unknown[]).length,
+        ).toBeGreaterThan(0);
+      }
     }
   });
 });
@@ -229,6 +260,66 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
       }),
     ).toBe(true);
   });
+
+  it("pluck.list accepts an empty payload + every filter combination", () => {
+    const m = buildManifest(OPTS);
+    const list = m.tools.find((t) => t.name === "pluck.list");
+    expect(list).toBeDefined();
+    const validate = ajv.compile(list!.inputSchema);
+
+    // No filters — fetches the most recent runs across all programs.
+    expect(validate({})).toBe(true);
+
+    // Each filter independently.
+    expect(validate({ pipeline: "bureau:dragnet" })).toBe(true);
+    expect(validate({ since: "2026-05-04T00:00:00Z" })).toBe(true);
+    expect(validate({ limit: 25 })).toBe(true);
+    expect(validate({ cursor: "opaque-cursor-abc" })).toBe(true);
+    expect(validate({ status: "anchored" })).toBe(true);
+
+    // All filters at once.
+    expect(
+      validate({
+        pipeline: "bureau:oath",
+        since: "2026-01-01T00:00:00Z",
+        limit: 10,
+        cursor: "abc",
+        status: "running",
+      }),
+    ).toBe(true);
+
+    // Every RUN_STATUSES value MUST be acceptable.
+    for (const status of RUN_STATUSES) {
+      expect(validate({ status })).toBe(true);
+    }
+
+    // Every BUREAU_PIPELINES value MUST be acceptable.
+    for (const pipeline of BUREAU_PIPELINES) {
+      expect(validate({ pipeline })).toBe(true);
+    }
+
+    // Reject bogus inputs.
+    expect(validate({ unknownField: 1 })).toBe(false);
+    expect(validate({ pipeline: "bureau:not-a-real-program" })).toBe(false);
+    expect(validate({ status: "not-a-status" })).toBe(false);
+    expect(validate({ limit: 0 })).toBe(false); // < minimum
+    expect(validate({ limit: 1000 })).toBe(false); // > maximum
+    expect(validate({ limit: 1.5 })).toBe(false); // non-integer
+  });
+
+  it("pluck.get requires phraseId and rejects everything else", () => {
+    const m = buildManifest(OPTS);
+    const get = m.tools.find((t) => t.name === "pluck.get");
+    expect(get).toBeDefined();
+    const validate = ajv.compile(get!.inputSchema);
+
+    expect(validate({ phraseId: "openai-swift-falcon-3742" })).toBe(true);
+    expect(validate({})).toBe(false); // missing required phraseId
+    expect(validate({ phraseId: "" })).toBe(false); // < minLength
+    expect(validate({ phraseId: "x".repeat(129) })).toBe(false); // > maxLength
+    expect(validate({ phraseId: "x", unknownField: 1 })).toBe(false);
+    expect(validate({ phraseId: 42 })).toBe(false); // wrong type
+  });
 });
 
 describe("buildManifest — prompts + auth", () => {
@@ -238,14 +329,15 @@ describe("buildManifest — prompts + auth", () => {
 
     expect(names).toContain("pluck.investigate-vendor");
     expect(names).toContain("pluck.verify-claim");
+    expect(names).toContain("pluck.compare-cycles");
   });
 
-  it("auth section is non-empty and names the bearer env + cookie", () => {
+  it("auth section is non-empty and names the bearer env", () => {
     const m = buildManifest(OPTS);
 
     expect(m.auth.type.length).toBeGreaterThan(0);
     expect(m.auth.bearerEnv).toBe("PLUCK_STUDIO_TOKEN");
-    expect(m.auth.cookieName.length).toBeGreaterThan(0);
     expect(m.auth.note.length).toBeGreaterThan(0);
+    expect((m.auth as { cookieName?: string }).cookieName).toBeUndefined();
   });
 });

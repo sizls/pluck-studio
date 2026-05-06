@@ -7,7 +7,7 @@
 // (vendor-preview today, real `/v1/runs?phraseIdPrefix=` when
 // pluck-api lands). Cross-program comparison ALLOWED when scopes
 // match — `sameProgram: false` flags the case so the page can render
-// triangulation copy. Pure + side-effect-free.
+// cross-program corroboration copy. Pure + side-effect-free.
 // ---------------------------------------------------------------------------
 
 import { parsePhraseId } from "../phrase-id.js";

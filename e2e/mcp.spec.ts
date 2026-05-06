@@ -48,6 +48,17 @@ test.describe("MCP integration scaffold", () => {
     expect(toolNames).toContain("pluck.search");
     expect(toolNames).toContain("pluck.diff");
     expect(toolNames).toContain("pluck.run");
+    expect(toolNames).toContain("pluck.list");
+    expect(toolNames).toContain("pluck.get");
+
+    const resourceUris = body.resources.map(
+      (r: { uri: string }) => r.uri,
+    );
+    expect(resourceUris).toContain("pluck://phrase/{id}");
+    expect(resourceUris).toContain("pluck://diff/{base}/{target}");
+
+    const promptNames = body.prompts.map((p: { name: string }) => p.name);
+    expect(promptNames).toContain("pluck.compare-cycles");
   });
 
   test("/mcp page surfaces the preview callout for the unpublished bridge", async ({
@@ -77,12 +88,14 @@ test.describe("MCP integration scaffold", () => {
     await expect(page.getByTestId("mcp-manifest-link")).toBeVisible();
   });
 
-  test("/mcp surfaces all three pluck.* tools by name", async ({ page }) => {
+  test("/mcp surfaces all five pluck.* tools by name", async ({ page }) => {
     await page.goto("/mcp");
     const tools = page.getByTestId("mcp-tools-section");
     await expect(tools).toContainText("pluck.search");
     await expect(tools).toContainText("pluck.diff");
     await expect(tools).toContainText("pluck.run");
+    await expect(tools).toContainText("pluck.list");
+    await expect(tools).toContainText("pluck.get");
   });
 
   test("/runs → /mcp cross-link round-trip", async ({ page }) => {

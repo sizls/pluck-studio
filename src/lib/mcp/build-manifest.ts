@@ -46,7 +46,7 @@
 // ---------------------------------------------------------------------------
 
 import { ACTIVE_PROGRAMS } from "../programs/registry";
-import { BUREAU_PIPELINES } from "../v1/run-spec";
+import { BUREAU_PIPELINES, RUN_STATUSES } from "../v1/run-spec";
 
 /**
  * Manifest-shape root — Studio-invented discovery document.
@@ -91,7 +91,6 @@ export interface McpPrompt {
 export interface McpAuth {
   readonly type: string;
   readonly bearerEnv: string;
-  readonly cookieName: string;
   readonly note: string;
 }
 
@@ -134,7 +133,7 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
       uri: "pluck://run/{id}",
       name: "A single signed run receipt",
       description:
-        "DSSE-signed in-toto envelope for one Bureau program run. The {id} is the phrase ID (e.g. `openai-swift-falcon-3742`) returned by /v1/runs POST. Anchor on Sigstore Rekor; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
+        "DSSE-signed in-toto envelope for one Bureau program run. The {id} is the phrase ID (e.g. `openai-swift-falcon-3742`) returned by /v1/runs POST. Anchored in the Sigstore Rekor transparency log; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
       mimeType: DSSE_MIME,
     },
     {
@@ -153,15 +152,30 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
     },
     ...programResources,
     {
+      uri: "pluck://phrase/{id}",
+      name: "Canonical phrase resolution surface",
+      description:
+        "Resolve a phraseId to its canonical receipt URL across any program. Mirrors /open/<phrase> + /o/<phrase> web routes.",
+      mimeType: JSON_MIME,
+    },
+    {
+      uri: "pluck://diff/{base}/{target}",
+      name: "Cite-able diff URL between two cycles",
+      description:
+        "A specific diff between two phraseIds for the same vendor. Maps to /diff/<base>?since=<target>.",
+      mimeType: JSON_MIME,
+    },
+    {
       uri: "pluck://today",
       name: "Today's daily roll-up",
       description:
-        "Per-program 24-hour verdict density tile set used by /today. One entry per program with a signed Sigstore-Rekor-anchored summary count.",
+        "Per-program 24-hour verdict density tile set used by /today. One entry per program with a signed summary count anchored in Rekor.",
       mimeType: JSON_MIME,
     },
   ];
 
   const bureauPipelineEnum = [...BUREAU_PIPELINES];
+  const runStatusEnum = [...RUN_STATUSES];
 
   const tools: McpTool[] = [
     {
@@ -241,6 +255,61 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
         required: ["pipeline", "payload"],
       },
     },
+    {
+      name: "pluck.list",
+      description:
+        "Enumerate recent runs from `/api/v1/runs` with optional filters (pipeline, since timestamp, status, limit, cursor). Returns the same shape as the GET endpoint — RunRecord[] with redacted payloads.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          pipeline: {
+            type: "string",
+            description: "Filter by Bureau pipeline slug. Adding a new program auto-extends this enum.",
+            enum: bureauPipelineEnum,
+          },
+          since: {
+            type: "string",
+            description: "ISO-8601 timestamp lower bound; only runs created after this point are returned.",
+            format: "date-time",
+          },
+          limit: {
+            type: "integer",
+            description: "Maximum number of runs to return.",
+            minimum: 1,
+            maximum: 100,
+          },
+          cursor: {
+            type: "string",
+            description: "Opaque pagination cursor returned by the previous /api/v1/runs response.",
+            minLength: 1,
+          },
+          status: {
+            type: "string",
+            description: "Filter by run status. Tracks RUN_STATUSES exactly.",
+            enum: runStatusEnum,
+          },
+        },
+      },
+    },
+    {
+      name: "pluck.get",
+      description:
+        "Fetch a single run record by phraseId. Returns the same RunRecord as `GET /api/v1/runs/{id}` with per-pipeline payload redaction applied.",
+      inputSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          phraseId: {
+            type: "string",
+            description: "Phrase ID returned by POST /api/v1/runs (e.g. `openai-swift-falcon-3742`).",
+            minLength: 1,
+            maxLength: 128,
+          },
+        },
+        required: ["phraseId"],
+      },
+    },
   ];
 
   const prompts: McpPrompt[] = [
@@ -254,12 +323,16 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
       description:
         "Extract a testable claim from a screenshot or quoted text, run a DRAGNET probe against the named vendor, return a signed receipt with the contradiction count and verdict tier.",
     },
+    {
+      name: "pluck.compare-cycles",
+      description:
+        "Compare two cycles of the same vendor side-by-side via /diff/<base>?since=<target>. Surfaces verdict transitions, summary diffs, time deltas, and cross-program corroboration when both cycles span different programs.",
+    },
   ];
 
   const auth: McpAuth = {
     type: "bearer-or-cookie",
     bearerEnv: "PLUCK_STUDIO_TOKEN",
-    cookieName: "sb-test-auth-token (dev) / sb-{project}-auth-token (prod)",
     note: "GET /v1/runs/{id} is public-read by phrase ID — no auth required for resource fetches. POST /v1/runs (the pluck.run tool) requires a Supabase JWT cookie OR a dev-mode Bearer token.",
   };
 

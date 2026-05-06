@@ -56,7 +56,7 @@ Captured by the AE Review Loop. Game changers that pass the "FUCK YES, build tha
    - Why: turns DRAGNET into a vendor-honesty time machine. Karpathy-quote-tweet candidate: "OpenAI's pricing claim said X on swift-falcon-3742, now says Y on calm-otter-0918."
    - Compound: high — every future receipt diffs against every previous receipt for the same vendor.
    - Buildable in: 2 days.
-   - Status: shipped. Diff aggregator at `src/lib/diff/receipt-diff.ts` — pure + deterministic, v1 store first then `searchPhraseId` directMatch (same swap-target pattern as `/search` and `/open`). Page at `src/app/diff/[id]/page.tsx` with the discriminated `DiffResult` union driving five UI states (instructions / ok / invalid-phrase / not-found / different-vendors). Index at `src/app/diff/page.tsx`. Cross-program comparison ALLOWED when same vendor — `sameProgram: false` flag triggers triangulation copy. DRAGNET ReceiptView gains a "Compare with another cycle →" CTA that lands on `/diff/<phrase-id>` (no `?since=` so the operator hits the instructions state and pastes the second phrase ID); the other 10 ReceiptViews migrate as a follow-on track. Tests: `src/lib/diff/__tests__/receipt-diff.test.ts` (28 unit), `src/app/diff/[id]/__tests__/page.test.tsx` (13 server-render), `e2e/receipt-diff.spec.ts` (6 e2e).
+   - Status: shipped. Diff aggregator at `src/lib/diff/receipt-diff.ts` — pure + deterministic, v1 store first then `searchPhraseId` directMatch (same swap-target pattern as `/search` and `/open`). Page at `src/app/diff/[id]/page.tsx` with the discriminated `DiffResult` union driving five UI states (instructions / ok / invalid-phrase / not-found / different-vendors). Index at `src/app/diff/page.tsx`. Cross-program comparison ALLOWED when same vendor — `sameProgram: false` flag triggers cross-program corroboration copy. DRAGNET ReceiptView gains a "Compare with another cycle →" CTA that lands on `/diff/<phrase-id>` (no `?since=` so the operator hits the instructions state and pastes the second phrase ID); the other 10 ReceiptViews migrate as a follow-on track. Tests: `src/lib/diff/__tests__/receipt-diff.test.ts` (28 unit), `src/app/diff/[id]/__tests__/page.test.tsx` (13 server-render), `e2e/receipt-diff.spec.ts` (6 e2e).
 
 4. **Phrase-ID Speed-Dial** — `studio.pluck.run/open/<phrase>` + `/o/<phrase>` URL-bar handler **(SHIPPED R2)**
    - Why: phrase ID becomes a global namespace. `/open/openai-bold-marlin-1188` redirects to whichever program owns the receipt — no UUID lookup, no menu navigation, paste-and-go.
@@ -174,6 +174,37 @@ Surfaced after R1 hardened the activation surface (D1 license tightening, D3 cro
 3. **Verdict-Verbose Badge** (hours) — fold into next viral compound
 
 All three pass the filter. The Negative-Knowledge Page is the round's standout — TechCrunch headline writes itself ("The first AI-monitoring tool that brags about its own ignorance").
+
+## v4-R1 Game-Changer Ideas (post-MCP-scaffold review)
+
+Surfaced after Receipt Diff + MCP scaffold landed. R1 review found 5 majors (fixed); innovation review surfaced 3 FUCK YES candidates. Deferred — fix-first rule applied. All three remain available as session-scope picks.
+
+### Top 3 Ranked
+
+1. **`/proof` — DSSE-signed attestation of the privacy invariant** (1 day, **HIGH** compound, HIGHEST viral)
+   - Pitch: a signed, timestamped, machine-checkable artifact at `/proof` (HTML page + `/proof.json` + `/proof.svg` badge) that runs the redact-boundary tests live against the deployed build, hashes the 7 boundary test results into a Merkle root, and emits a DSSE-signed `application/vnd.in-toto+attestation` envelope. Uses the existing `redact.ts` test corpus — zero new logic.
+   - Tweet: *"Most companies say they redact PII. We just shipped /proof — a DSSE-signed attestation, regenerated on every build, that proves all 7 redaction boundaries hold. Verify it yourself: `curl pluck.studio/proof.json | dsse verify`. Receipts for the receipt machine."*
+   - Why FUCK YES: Karpathy reposts cryptographic-proof artifacts. Journalists can verify in 30 seconds. Turns the existing privacy invariants into a *shareable cryptographic object*, not a claim. Compounds with every future boundary added.
+   - Compound: every new payload-echoing surface gets enrolled in the proof bundle for free.
+   - Status: **DEFERRED** — fix-first rule (5 R1 majors had to land first); ready to build next round if user picks.
+
+2. **`pluck://` Resolver Protocol Handler + `/r/<uri>` Web Bridge** (1 day, HIGH compound, HIGH viral)
+   - Pitch: the MCP manifest mints `pluck://program/<slug>`, `pluck://run/<id>`, `pluck://phrase/{id}`, `pluck://diff/{base}/{target}` URIs but nothing dereferences them on the web. Ship `/r/[...uri]/page.tsx` that resolves any `pluck://` URI → the human receipt + the DSSE bytes via `Accept` negotiation, plus a `registerProtocolHandler('pluck', ...)` button.
+   - Tweet: *"AI agents now speak pluck://. Paste pluck://run/abc123 into Claude, Cursor, or your terminal and the Bureau resolves it. The first protocol handler for AI-audit receipts. /mcp wired the agents — pluck:// wires the rest of the world."*
+   - Why FUCK YES: first-class URI scheme is a category-creating move (think `magnet:`, `did:`). MCP folks will quote-tweet. Compounds with /diff, /open, Crest — every existing surface gets a canonical address overnight.
+   - Compound: every existing URL primitive (phraseId / diff / vendor / program) gets a stable cite-able machine address.
+   - Status: **DEFERRED** — same fix-first rule.
+
+3. **Crest-as-OG: `/og/crest/<phraseId>.png`** (hours, MEDIUM compound, HIGH viral)
+   - Pitch: the Phrase Crest sigil is currently DOM-only. Mint a Satori/`@vercel/og` route that renders the Crest as a 1200×630 PNG with the verdict color, vendor scope, and phrase ID. Wire it as the default OG image on every receipt, /diff, /search, /vendor page (~6 lines of metadata each).
+   - Tweet: *"Every Pluck phrase ID now has a unique procedural sigil — and now it ships as the OG card. Paste any receipt link in Slack, Discord, X — the Crest shows up. Receipts you can recognize at a glance."*
+   - Why FUCK YES: hours of work, multiplies share-conversion across every existing page, makes the under-leveraged Crest visible everywhere links travel. Sherlock-clever because the *same deterministic sigil* a journalist saw in their feed matches the one on the page they land on — visual continuity = trust.
+   - Compound: medium — every share surface gets richer; existing OG cards already hand-rendered, so this is a recipe upgrade.
+   - Status: **DEFERRED** — same fix-first rule.
+
+### Session-cap recommendation
+
+If the loop converges with 0 critical / 0 major after R2, all three are buildable in <2 days each. Recommend **#1 `/proof`** first — the cryptographic-proof artifact is the strongest viral candidate AND retroactively justifies every "we don't log that" claim across the existing 7 redaction boundaries.
 
 ## R0 (plan-doc) — already captured in `mighty-gliding-swan.md`
 
