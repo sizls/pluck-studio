@@ -73,6 +73,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.6,
     },
+    // MCP integration: operator-facing wiring page + machine-readable
+    // manifest. The manifest URL is a lower-priority entry — it's a
+    // discovery surface for AI clients, not a human destination.
+    {
+      url: `${BASE_URL}/mcp`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: `${BASE_URL}/api/mcp/manifest.json`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.3,
+    },
   ];
 
   const programPages: MetadataRoute.Sitemap = ACTIVE_PROGRAMS.map((program) => ({

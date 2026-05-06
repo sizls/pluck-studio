@@ -1,0 +1,215 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildManifest > matches the manifest snapshot 1`] = `
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/manifest/v0.1.json",
+  "auth": {
+    "bearerEnv": "PLUCK_STUDIO_TOKEN",
+    "cookieName": "sb-test-auth-token (dev) / sb-{project}-auth-token (prod)",
+    "note": "GET /v1/runs/{id} is public-read by phrase ID — no auth required for resource fetches. POST /v1/runs (the pluck.run tool) requires a Supabase JWT cookie OR a dev-mode Bearer token.",
+    "type": "bearer-or-cookie",
+  },
+  "description": "Pluck Studio — operator-facing surface for the Pluck Bureau. 11 alpha programs (DRAGNET, OATH, FINGERPRINT, CUSTODY, WHISTLE, BOUNTY, SBOM-AI, ROTATE, TRIPWIRE, NUCLEI, MOLE) wired through a unified /v1/runs activation pattern, each emitting Sigstore-Rekor-anchored DSSE-signed receipts.",
+  "homepage": "https://studio.pluck.run",
+  "name": "pluck-studio",
+  "openapi": "https://studio.pluck.run/openapi.json",
+  "prompts": [
+    {
+      "description": "Run a multi-program investigation against a vendor: DRAGNET probe-pack run, FINGERPRINT calibration scan, OATH /.well-known verification. Returns three signed receipts plus a synthesized verdict.",
+      "name": "pluck.investigate-vendor",
+    },
+    {
+      "description": "Extract a testable claim from a screenshot or quoted text, run a DRAGNET probe against the named vendor, return a signed receipt with the contradiction count and verdict tier.",
+      "name": "pluck.verify-claim",
+    },
+  ],
+  "resources": [
+    {
+      "description": "DSSE-signed in-toto envelope for one Bureau program run. The {id} is the phrase ID (e.g. \`openai-swift-falcon-3742\`) returned by /v1/runs POST. Anchor on Sigstore Rekor; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
+      "mimeType": "application/vnd.in-toto+dsse+json",
+      "name": "A single signed run receipt",
+      "uri": "pluck://run/{id}",
+    },
+    {
+      "description": "Cursor-paginated list of recent runs across all 11 Bureau programs. Mirrors GET /api/v1/runs. Filters: pipeline, since (ISO timestamp), status. Payloads are GET-redacted per program.",
+      "mimeType": "application/json",
+      "name": "Recent runs across all programs",
+      "uri": "pluck://runs/recent",
+    },
+    {
+      "description": "Vendor Honesty Index profile across the 6 vendor-bearing programs (DRAGNET, OATH, FINGERPRINT, CUSTODY, NUCLEI, MOLE). The {slug} matches the vendor allowlist (openai, anthropic, google, meta, mistral, cohere, perplexity, deepseek, xai, microsoft).",
+      "mimeType": "application/json",
+      "name": "Per-vendor honesty profile",
+      "uri": "pluck://vendor/{slug}",
+    },
+    {
+      "description": "Per-program landing context for DRAGNET: predicate URI https://pluck.run/DragnetCycle/v1, recent run receipts, vendor scope. Output shape — classification counts (contradict / mirror / shadow / snare) + per-cycle TimelineDot color.",
+      "mimeType": "application/json",
+      "name": "DRAGNET program metadata + recent receipts",
+      "uri": "pluck://program/dragnet",
+    },
+    {
+      "description": "Per-program landing context for OATH: predicate URI https://pluck.run/PluckOath/v1, recent run receipts, vendor scope. Output shape — verdict (verified / oath-expired / did-not-commit / signature-failed / origin-mismatch / not-found / fetch-failed) + per-claim list.",
+      "mimeType": "application/json",
+      "name": "OATH program metadata + recent receipts",
+      "uri": "pluck://program/oath",
+    },
+    {
+      "description": "Per-program landing context for FINGERPRINT: predicate URI https://pluck.run/ModelFingerprint/v1, recent run receipts, vendor scope. Output shape — drift classification (stable / minor / major / swap) + drift score + per-probe responses + cassette \`local:<sha256>\`.",
+      "mimeType": "application/json",
+      "name": "FINGERPRINT program metadata + recent receipts",
+      "uri": "pluck://program/fingerprint",
+    },
+    {
+      "description": "Per-program landing context for CUSTODY: predicate URI https://pluck.run/CustodyBundle/v1, recent run receipts, vendor scope. Output shape — binary verdict (compliant / 7 named failure modes) + per-check breakdown + WebAuthn attestation summary.",
+      "mimeType": "application/json",
+      "name": "CUSTODY program metadata + recent receipts",
+      "uri": "pluck://program/custody",
+    },
+    {
+      "description": "Per-program landing context for WHISTLE: predicate URI https://pluck.run/WhistleSubmission/v1, recent run receipts, vendor scope. Output shape — binary verdict (accepted / 5 named failure modes) + per-layer redaction summary + per-partner delivery status.",
+      "mimeType": "application/json",
+      "name": "WHISTLE program metadata + recent receipts",
+      "uri": "pluck://program/whistle",
+    },
+    {
+      "description": "Per-program landing context for BOUNTY: predicate URI https://pluck.run/BountySubmission/v1, recent run receipts, vendor scope. Output shape — verdict (filed / rate-limited / platform-rejected / source-not-found / source-malformed / dispatch-failed) + platform submission ID + bounty amount when claimed.",
+      "mimeType": "application/json",
+      "name": "BOUNTY program metadata + recent receipts",
+      "uri": "pluck://program/bounty",
+    },
+    {
+      "description": "Per-program landing context for SBOM-AI: predicate URI https://pluck.run/SbomAi/ProbePack/v1, recent run receipts, vendor scope. Output shape — binary verdict (published / 5 named failure modes) + canonical sha256 digest + per-kind predicate URI.",
+      "mimeType": "application/json",
+      "name": "SBOM-AI program metadata + recent receipts",
+      "uri": "pluck://program/sbom-ai",
+    },
+    {
+      "description": "Per-program landing context for ROTATE: predicate URI https://pluck.run/KeyRevocation/v1, recent run receipts, vendor scope. Output shape — verdict (rotated / old-key-already-revoked / 4 named failure modes) + count of re-witnessed prior cassettes.",
+      "mimeType": "application/json",
+      "name": "ROTATE program metadata + recent receipts",
+      "uri": "pluck://program/rotate",
+    },
+    {
+      "description": "Per-program landing context for TRIPWIRE: predicate URI https://pluck.run/TripwirePolicy/v1, recent run receipts, vendor scope. Output shape — configuration verdict (configured / machine-already-active / 3 named failure modes) + signed policy + install snippet.",
+      "mimeType": "application/json",
+      "name": "TRIPWIRE program metadata + recent receipts",
+      "uri": "pluck://program/tripwire",
+    },
+    {
+      "description": "Per-program landing context for NUCLEI: predicate URI https://pluck.run/NucleiPackEntry/v1, recent run receipts, vendor scope. Output shape — verdict (published / 5 named failure modes) + trustTier (verified vs ingested) + canonical pack-entry URL.",
+      "mimeType": "application/json",
+      "name": "NUCLEI program metadata + recent receipts",
+      "uri": "pluck://program/nuclei",
+    },
+    {
+      "description": "Per-program landing context for MOLE: predicate URI https://pluck.run/CanaryDocument/v1, recent run receipts, vendor scope. Output shape — binary verdict (sealed / 4 named failure modes) + sha256 + fingerprint phrases (canary body NEVER published).",
+      "mimeType": "application/json",
+      "name": "MOLE program metadata + recent receipts",
+      "uri": "pluck://program/mole",
+    },
+    {
+      "description": "Per-program 24-hour verdict density tile set used by /today. One entry per program with a signed Sigstore-Rekor-anchored summary count.",
+      "mimeType": "application/json",
+      "name": "Today's daily roll-up",
+      "uri": "pluck://today",
+    },
+  ],
+  "tools": [
+    {
+      "description": "Search by phrase ID — decompose the slug into vendor + adjective + noun + serial, fan out across all 11 programs and return every receipt that shares any component.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "phraseId": {
+            "description": "Full or partial phrase ID (e.g. \`openai-swift-falcon-3742\`).",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "phraseId",
+        ],
+        "type": "object",
+      },
+      "name": "pluck.search",
+    },
+    {
+      "description": "Compare two receipts of the same vendor side-by-side. Returns the semantic diff (verdict transitions, per-claim deltas) used by /diff/<base>?since=<target>.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "basePhraseId": {
+            "description": "Phrase ID of the newer receipt (the base).",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string",
+          },
+          "sincePhraseId": {
+            "description": "Phrase ID of the older receipt to diff against.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "basePhraseId",
+          "sincePhraseId",
+        ],
+        "type": "object",
+      },
+      "name": "pluck.diff",
+    },
+    {
+      "description": "Execute a Bureau program through /v1/runs. Returns the runId / phrase ID and the receipt URL. Mirrors POST /api/v1/runs — same idempotency, auth, and per-pipeline payload contract.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotencyKey": {
+            "description": "Caller-supplied idempotency key. Same key + same canonicalised payload returns the same runId.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string",
+          },
+          "payload": {
+            "additionalProperties": true,
+            "description": "Per-pipeline payload — see docs/V1_API.md → 'Per-pipeline payload reference' for the 11 program-specific shapes.",
+            "type": "object",
+          },
+          "pipeline": {
+            "description": "Bureau pipeline slug. Adding a new program auto-extends this enum.",
+            "enum": [
+              "bureau:dragnet",
+              "bureau:oath",
+              "bureau:fingerprint",
+              "bureau:custody",
+              "bureau:whistle",
+              "bureau:bounty",
+              "bureau:sbom-ai",
+              "bureau:rotate",
+              "bureau:tripwire",
+              "bureau:nuclei",
+              "bureau:mole",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "pipeline",
+          "payload",
+        ],
+        "type": "object",
+      },
+      "name": "pluck.run",
+    },
+  ],
+  "version": "0.1.1",
+}
+`;

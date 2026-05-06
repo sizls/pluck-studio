@@ -495,6 +495,56 @@ program-specific shapes. The OpenAPI document treats `payload` as an
 open object so the spec stays under 800 lines and doesn't drift from
 the per-pipeline validators in `src/lib/v1/pipeline-validators.ts`.
 
+### MCP integration — `/api/mcp/manifest.json` + `/mcp`
+
+The /v1/runs surface is also published as a Model Context Protocol
+manifest at [`/api/mcp/manifest.json`](https://studio.pluck.run/api/mcp/manifest.json).
+The manifest declares the 11 Bureau programs as `pluck://program/<slug>`
+resources, the canonical `pluck.search` / `pluck.diff` / `pluck.run`
+tools (with JSON-Schema input shapes), and the bearer-or-cookie auth
+posture. AI agents discover Studio through this manifest; the external
+`@sizls/pluck-mcp` package implements the MCP wire protocol against
+/v1/runs and binds its tool catalog to the manifest's tool list.
+
+The operator-facing wiring page lives at
+[`/mcp`](https://studio.pluck.run/mcp) — copy-pastable
+`mcp.config.json` snippets for Claude Desktop / Cursor, plus an
+inline render of the manifest data the JSON endpoint serves. Same
+public-read posture as `/openapi.json` (no auth, same-site CSRF +
+rate-limit gates apply, 5-minute cache).
+
+The manifest is built by `src/lib/mcp/build-manifest.ts` — pure
+function over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Adding a new
+Bureau program auto-extends the resources list and the
+`pluck.run` tool's pipeline enum; a snapshot test locks the
+deterministic output. The `pluck://` URI namespace is stable —
+once a resource ships, its URI shape is locked.
+
+```bash
+# Fetch the manifest
+curl https://studio.pluck.run/api/mcp/manifest.json | jq .
+
+# Add Studio to Claude Desktop
+cat <<'EOF' > ~/.config/claude-desktop/mcp.config.json
+{
+  "mcpServers": {
+    "pluck-studio": {
+      "command": "npx",
+      "args": ["-y", "@sizls/pluck-mcp"],
+      "env": {
+        "PLUCK_STUDIO_URL": "https://studio.pluck.run",
+        "PLUCK_STUDIO_TOKEN": "<your-bearer-token>"
+      }
+    }
+  }
+}
+EOF
+```
+
+Studio does NOT implement the MCP wire protocol itself — the
+manifest is purely informational discovery, like robots.txt or
+openapi.json. External clients use the `@sizls/pluck-mcp` bridge.
+
 ---
 
 ## Per-pipeline payload reference

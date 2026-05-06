@@ -312,6 +312,21 @@ export default function RunsPage(): ReactNode {
         </ul>
       </section>
 
+      <section data-testid="mcp-cross-link">
+        <h2 style={SectionHeadingStyle}>MCP integration</h2>
+        <p style={{ marginTop: 8 }}>
+          Wire Studio into Claude Desktop, Cursor, or any Model
+          Context Protocol client. Discover Bureau programs as MCP
+          resources and call <code>pluck.*</code> tools from the
+          agent — see <a href="/mcp">/mcp</a> for the quick-start
+          and the canonical manifest at{" "}
+          <a href="/api/mcp/manifest.json">
+            <code>/api/mcp/manifest.json</code>
+          </a>
+          .
+        </p>
+      </section>
+
       <section>
         <h2 style={SectionHeadingStyle}>Privacy posture</h2>
         <p>
