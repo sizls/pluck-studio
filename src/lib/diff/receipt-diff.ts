@@ -182,6 +182,11 @@ export function diffReceipts(basePhraseId: string, targetPhraseId: string): Diff
       target,
       sameVendor: true,
       sameProgram: base.programSlug === target.programSlug,
+      // TODO(diff): when receipts carry a richer `verdict` field beyond verdictColor
+      // (e.g. NUCLEI's `published` vs `published-ingested-only` both green), expand
+      // this check to also detect same-color-different-variant transitions via
+      // verdictToBadgeVariant. Today vendor-preview only carries verdictColor so
+      // this color comparison is sufficient.
       verdictChanged: base.verdictColor !== target.verdictColor,
       summaryChanged: base.summary.trim() !== target.summary.trim(),
       timeDeltaMs: target.capturedAt.getTime() - base.capturedAt.getTime(),
@@ -199,6 +204,9 @@ const MS_PER_DAY = 24 * MS_PER_HOUR;
  * page renders this verbatim so tests can assert against it.
  */
 export function formatTimeDelta(deltaMs: number): string {
+  if (deltaMs === 0) {
+    return "at the same instant";
+  }
   const abs = Math.abs(deltaMs);
   const direction = deltaMs >= 0 ? "later" : "earlier";
 

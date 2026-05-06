@@ -143,7 +143,11 @@ function ChangesPanel({ diff }: { diff: ReceiptDiff }): ReactNode {
         </p>
       ) : null}
       <p style={{ ...S.meta, marginTop: 16 }} data-testid="diff-time-delta">
-        Captured {formatTimeDelta(diff.timeDeltaMs)} · {Math.abs(diff.timeDeltaMs)}ms apart.
+        {diff.timeDeltaMs === 0 ? (
+          <>Captured at the same instant.</>
+        ) : (
+          <>Captured {formatTimeDelta(diff.timeDeltaMs)} · {Math.abs(diff.timeDeltaMs)}ms apart.</>
+        )}
       </p>
       {!diff.sameProgram ? (
         <p style={{ ...S.meta, marginTop: 8 }} data-testid="diff-cross-program">
@@ -271,24 +275,30 @@ function OkState({ diff }: { diff: ReceiptDiff }): ReactNode {
 }
 
 function pickResult(result: DiffResult): ReactNode {
-  if (result.kind === "ok") {
-    return <OkState diff={result.diff} />;
+  // Exhaustive switch over DiffResult.kind so a 5th union member added
+  // later forces this file to handle it (TS `never` check below).
+  switch (result.kind) {
+    case "ok":
+      return <OkState diff={result.diff} />;
+    case "invalid-phrase":
+      return <InvalidPhraseState which={result.which} phraseId={result.phraseId} />;
+    case "not-found":
+      return <NotFoundState which={result.which} phraseId={result.phraseId} />;
+    case "different-vendors":
+      return (
+        <DifferentVendorsState
+          baseScope={result.baseScope}
+          targetScope={result.targetScope}
+          base={result.base}
+          target={result.target}
+        />
+      );
+    default: {
+      const _exhaustive: never = result;
+      void _exhaustive;
+      return null;
+    }
   }
-  if (result.kind === "invalid-phrase") {
-    return <InvalidPhraseState which={result.which} phraseId={result.phraseId} />;
-  }
-  if (result.kind === "not-found") {
-    return <NotFoundState which={result.which} phraseId={result.phraseId} />;
-  }
-
-  return (
-    <DifferentVendorsState
-      baseScope={result.baseScope}
-      targetScope={result.targetScope}
-      base={result.base}
-      target={result.target}
-    />
-  );
 }
 
 interface PageProps {

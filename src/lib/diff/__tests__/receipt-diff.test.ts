@@ -156,8 +156,14 @@ describe("formatTimeDelta", () => {
     expect(formatTimeDelta(-2 * DAY)).toBe("2 days earlier");
   });
 
-  it("clamps to >= 1 minute (never returns 0)", () => {
-    expect(formatTimeDelta(0)).toBe("1 minute later");
+  it("zero-delta returns the special 'at the same instant' copy", () => {
+    expect(formatTimeDelta(0)).toBe("at the same instant");
+  });
+
+  it("sub-minute non-zero deltas clamp to >= 1 minute", () => {
+    expect(formatTimeDelta(1)).toBe("1 minute later");
+    expect(formatTimeDelta(-1)).toBe("1 minute earlier");
+    expect(formatTimeDelta(30 * 1000)).toBe("1 minute later");
   });
 });
 
