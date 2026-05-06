@@ -127,7 +127,7 @@ export default function RunsPage(): ReactNode {
         <p className="bureau-hero-tagline">
           Every Bureau program wired through the Studio activation
           pattern lands here. Pick a program, fill in the form, get a
-          signed Sigstore-Rekor-anchored receipt URL. Each program's
+          signed receipt URL anchored in the Sigstore Rekor transparency log. Each program's
           domain shape differs — but the run → receipt → share loop is
           the same across all of them.
         </p>

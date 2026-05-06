@@ -13,7 +13,7 @@ export async function generateMetadata({
   const { id } = await params;
   const title = `${id} · NUCLEI publish`;
   const description =
-    "NUCLEI registry entry — signed NucleiPackEntry/v1, SBOM-AI cross-referenced, Sigstore-Rekor-anchored.";
+    "NUCLEI registry entry — signed NucleiPackEntry/v1, SBOM-AI cross-referenced, anchored in the Sigstore Rekor transparency log.";
   return {
     title,
     description,

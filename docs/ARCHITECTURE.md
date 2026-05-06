@@ -12,8 +12,8 @@ This document is the higher-level "how the system is built" companion to
 `docs/V1_API.md` (which specifies the wire contract). Read this when
 you're a new contributor or AI agent landing in the codebase cold and
 need a load-bearing mental model before opening files. State as of
-commit `360bbce` — 1199 unit tests across 70 files + 115 Playwright
-test cases across 24 spec files, all green.
+commit `0ac4668` — 1203 unit tests across 70 files + 115 Playwright
+test cases across 26 spec files, all green.
 
 ---
 
@@ -114,9 +114,9 @@ docs/
 └── ARCHITECTURE.md                      this file
 ```
 
-1199 unit tests across `src/lib/**/__tests__` and
+1203 unit tests across `src/lib/**/__tests__` and
 `src/components/bureau-ui/__tests__`; 115 Playwright tests across `e2e/`.
-Both suites green at `360bbce`.
+Both suites green at `0ac4668`.
 
 ---
 
@@ -801,10 +801,10 @@ entries.
 
 ## 9. Testing strategy
 
-**1199 unit tests** across `src/lib/**/__tests__/` and
+**1203 unit tests** across `src/lib/**/__tests__/` and
 `src/components/bureau-ui/__tests__/` — Vitest, run with
 `pnpm test --run`. **115 Playwright tests** across `e2e/` — run with
-`pnpm test:e2e`. Both suites green at commit `360bbce`.
+`pnpm test:e2e`. Both suites green at commit `0ac4668`.
 
 ### Unit tests
 
@@ -826,7 +826,7 @@ POST/GET-list/GET-by-id/DELETE handlers have parallel coverage.
 
 ### E2E tests (Playwright)
 
-Twenty-four specs in `e2e/`:
+Twenty-six specs in `e2e/`:
 
 - 11 `<program>-activation.spec.ts` — one per program, exercising
   the canonical landing → form → API → receipt → OG flow.
@@ -985,7 +985,7 @@ without modification.
 
 ---
 
-*Last reviewed: commit `360bbce` — Receipt Diff + MCP discovery
-landed. 1199 unit tests across 70 files + 115 Playwright test cases
-across 24 spec files, all green. 11/11 alpha programs migrated to
+*Last reviewed: commit `0ac4668` — Receipt Diff + MCP discovery
+landed. 1203 unit tests across 70 files + 115 Playwright test cases
+across 26 spec files, all green. 11/11 alpha programs migrated to
 `/v1/runs`. Runner GA + alias sunset target: 31 Dec 2026.*

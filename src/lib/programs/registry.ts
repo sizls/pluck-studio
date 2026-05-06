@@ -97,7 +97,7 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     name: "CUSTODY",
     actionVerb: "Verify a bundle",
     summary:
-      "Fetch + verify a CustodyBundle URL server-side. Emits a Sigstore-Rekor-anchored FRE 902(13) compliance verdict.",
+      "Fetch + verify a CustodyBundle URL server-side. Emits a Rekor-logged FRE 902(13) compliance verdict.",
     outputShape:
       "binary verdict (compliant / 7 named failure modes) + per-check breakdown + WebAuthn attestation summary",
     predicateUri: "https://pluck.run/CustodyBundle/v1",

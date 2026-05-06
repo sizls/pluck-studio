@@ -17,7 +17,7 @@ export async function generateMetadata({
   const { id } = await params;
   const title = `${id} · FINGERPRINT scan`;
   const description =
-    "Tamper-evident FINGERPRINT model-fingerprint scan. Drift classification (stable/minor/major/swap) signed and Sigstore-Rekor-anchored.";
+    "Tamper-evident FINGERPRINT model-fingerprint scan. Drift classification (stable/minor/major/swap) signed and anchored in the Sigstore Rekor transparency log.";
 
   return {
     title,

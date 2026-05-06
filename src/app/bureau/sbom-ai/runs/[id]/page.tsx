@@ -13,7 +13,7 @@ export async function generateMetadata({
   const { id } = await params;
   const title = `${id} · SBOM-AI publish`;
   const description =
-    "SBOM-AI provenance attestation — canonical-JSON-hashed, DSSE-signed, Sigstore-Rekor-anchored.";
+    "SBOM-AI provenance attestation — canonical-JSON-hashed, DSSE-signed, anchored in the Sigstore Rekor transparency log.";
   return {
     title,
     description,

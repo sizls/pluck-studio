@@ -13,7 +13,7 @@ export async function generateMetadata({
   const { id } = await params;
   const title = `${id} · WHISTLE submission`;
   const description =
-    "Tamper-evident WHISTLE tip-submission receipt — ephemerally-signed, Sigstore-Rekor-anchored, partner-routed.";
+    "Tamper-evident WHISTLE tip-submission receipt — ephemerally-signed, anchored in the Sigstore Rekor transparency log, partner-routed.";
 
   return {
     title,

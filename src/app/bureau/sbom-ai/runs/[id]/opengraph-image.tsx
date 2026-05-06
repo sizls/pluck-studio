@@ -56,7 +56,7 @@ export default async function Image({ params }: OgProps): Promise<Response> {
           ) : null}
           <div style={{ fontSize, fontWeight: 700, lineHeight: 1.05, wordBreak: "break-word", color: FG }}>{id}</div>
           <div style={{ marginTop: 28, fontSize: 28, color: FG_DIM, letterSpacing: "0.06em" }}>
-            publish pending — Sigstore-Rekor-anchored on success
+            publish pending — Rekor-logged on success
           </div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: FG_DIM, fontSize: 20 }}>

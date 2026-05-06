@@ -4,8 +4,8 @@
 //
 // Sibling to /bureau/custody/verify (journalist drag-and-drop, pure
 // client-side, no signed receipt). This route fetches + verifies a
-// bundle URL server-side and emits a Sigstore-Rekor-anchored
-// FRE 902(13) compliance verdict — the receipt URL is the operator's
+// bundle URL server-side and emits an FRE 902(13) compliance verdict
+// anchored in the Sigstore Rekor transparency log — the receipt URL is the operator's
 // permanent, shareable, court-admissible artifact.
 // ---------------------------------------------------------------------------
 

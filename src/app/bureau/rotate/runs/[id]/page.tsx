@@ -13,7 +13,7 @@ export async function generateMetadata({
   const { id } = await params;
   const title = `${id} · ROTATE rotation`;
   const description =
-    "Tamper-evident operator-key rotation receipt — KeyRevocation + ReWitnessReport, both Sigstore-Rekor-anchored.";
+    "Tamper-evident operator-key rotation receipt — KeyRevocation + ReWitnessReport, both anchored in the Sigstore Rekor transparency log.";
   return {
     title,
     description,

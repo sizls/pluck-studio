@@ -13,7 +13,7 @@ export async function generateMetadata({
   const { id } = await params;
   const title = `${id} · TRIPWIRE deployment`;
   const description =
-    "Active TRIPWIRE deployment receipt — signed policy, install snippet, ingestion endpoint, Sigstore-Rekor-anchored.";
+    "Active TRIPWIRE deployment receipt — signed policy, install snippet, ingestion endpoint, anchored in the Sigstore Rekor transparency log.";
   return {
     title,
     description,
