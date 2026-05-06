@@ -222,6 +222,15 @@ export default function RunsPage(): ReactNode {
           (or the short-form <code>/o/&lt;phrase&gt;</code>) and you'll
           jump straight to the canonical receipt.
         </p>
+        <p
+          style={{ marginTop: 8, color: "var(--bureau-fg-dim)", fontSize: 13 }}
+          data-testid="diff-cross-link"
+        >
+          Compare receipts: open{" "}
+          <a href="/diff">/diff/&lt;base&gt;?since=&lt;target&gt;</a> to
+          see what changed between two cycles of the same vendor.
+          Vendor-honesty time machine.
+        </p>
       </section>
 
       <section>

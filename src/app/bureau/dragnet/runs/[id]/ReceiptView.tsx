@@ -389,6 +389,22 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
           >
             Share on X
           </a>
+          {/*
+            Receipt Diff CTA — drops the operator on /diff/<this-phrase-id>
+            (no ?since=) so they land on the instructions page where they
+            paste the second phrase ID. Applied to DRAGNET first as the
+            wedge — migration path for the other 10 ReceiptViews tracked
+            in IDEAS.md / ARCHITECTURE.md.
+          */}
+          {isPhrase ? (
+            <a
+              href={`/diff/${encodeURIComponent(id)}`}
+              style={NextActionStyle}
+              data-testid="next-compare"
+            >
+              Compare with another cycle →
+            </a>
+          ) : null}
         </p>
       </section>
 

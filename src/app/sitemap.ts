@@ -39,6 +39,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.5,
     },
+    // /diff is the index page; /diff/<phrase>?since=... variants refuse
+    // indexing via metadata (per-pair URLs would leak operator workflow
+    // patterns). Same posture as /open + /search.
+    {
+      url: `${BASE_URL}/diff`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
     {
       url: `${BASE_URL}/today`,
       lastModified: now,

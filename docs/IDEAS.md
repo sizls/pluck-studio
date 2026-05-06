@@ -52,11 +52,11 @@ Captured by the AE Review Loop. Game changers that pass the "FUCK YES, build tha
    - Buildable in: 1 day.
    - Status: shipped in `src/app/bureau/dragnet/runs/[id]/opengraph-image.tsx` with stub status (real classification counts come when the runner lands).
 
-3. **Receipt Diff** — `?since=<phrase-id>` shows what changed between two cycles for the same vendor
+3. **Receipt Diff** — `?since=<phrase-id>` shows what changed between two cycles for the same vendor **(SHIPPED R2)**
    - Why: turns DRAGNET into a vendor-honesty time machine. Karpathy-quote-tweet candidate: "OpenAI's pricing claim said X on swift-falcon-3742, now says Y on calm-otter-0918."
    - Compound: high — every future receipt diffs against every previous receipt for the same vendor.
    - Buildable in: 2 days.
-   - Status: deferred to R3 — needs two real receipts of the same vendor first.
+   - Status: shipped. Diff aggregator at `src/lib/diff/receipt-diff.ts` — pure + deterministic, v1 store first then `searchPhraseId` directMatch (same swap-target pattern as `/search` and `/open`). Page at `src/app/diff/[id]/page.tsx` with the discriminated `DiffResult` union driving five UI states (instructions / ok / invalid-phrase / not-found / different-vendors). Index at `src/app/diff/page.tsx`. Cross-program comparison ALLOWED when same vendor — `sameProgram: false` flag triggers triangulation copy. DRAGNET ReceiptView gains a "Compare with another cycle →" CTA that lands on `/diff/<phrase-id>` (no `?since=` so the operator hits the instructions state and pastes the second phrase ID); the other 10 ReceiptViews migrate as a follow-on track. Tests: `src/lib/diff/__tests__/receipt-diff.test.ts` (28 unit), `src/app/diff/[id]/__tests__/page.test.tsx` (13 server-render), `e2e/receipt-diff.spec.ts` (6 e2e).
 
 4. **Phrase-ID Speed-Dial** — `studio.pluck.run/open/<phrase>` + `/o/<phrase>` URL-bar handler **(SHIPPED R2)**
    - Why: phrase ID becomes a global namespace. `/open/openai-bold-marlin-1188` redirects to whichever program owns the receipt — no UUID lookup, no menu navigation, paste-and-go.

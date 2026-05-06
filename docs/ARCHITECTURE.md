@@ -503,6 +503,57 @@ programs out. The receipt URL becomes a discoverable nexus.
   `src/app/search/__tests__/page.test.tsx` (server-render),
   `e2e/search.spec.ts` (e2e).
 
+### `/diff/<base>?since=<target>` — Receipt Diff
+
+Two cycles, one vendor, side-by-side. Vendor-honesty time machine —
+every future receipt diffs against every previous receipt for the same
+vendor.
+
+- **Aggregator** — `diffReceipts(basePhraseId, targetPhraseId)` at
+  `src/lib/diff/receipt-diff.ts`. Pure + deterministic. Returns a
+  discriminated `DiffResult` union: `ok` | `invalid-phrase` |
+  `not-found` | `different-vendors`. Resolution order mirrors
+  `resolvePhraseSpeedDial` — v1 store `getRun` first (canonical source
+  for anchored runs), then `searchPhraseId` directMatch (vendor-preview
+  today, real `/v1/runs?phraseIdPrefix=<scope>` when pluck-api lands).
+- **Cross-program semantics** — same-vendor cross-program diffs are
+  ALLOWED (DRAGNET-vs-FINGERPRINT for `openai`); the diff envelope
+  flags `sameProgram: false` so the page can render triangulation
+  copy. Different-vendor diffs are rejected with a distinct kind
+  (not an error — diffing OpenAI vs Anthropic just doesn't make
+  sense).
+- **Page** — server-rendered at `src/app/diff/[id]/page.tsx`. Path
+  param `id` = BASE phrase ID; query param `?since=<phrase>` = TARGET.
+  Five UI states, each with stable `data-testid` hooks: `diff-page`,
+  `diff-instructions`, `diff-ok-state` (`diff-base-receipt` +
+  `diff-target-receipt` + `diff-changes-panel` +
+  `diff-verdict-changed` + `diff-summary-changed` + `diff-time-delta`
+  + `diff-cross-program` + `diff-sigil-row`),
+  `diff-different-vendors-state`, `diff-invalid-state`,
+  `diff-not-found-state`.
+- **Index** — `src/app/diff/page.tsx` explains the diff with a
+  same-vendor sample link + a cross-vendor (rejected) sample link;
+  cross-links to `/search` for the "I have one phrase ID, find me a
+  second" path.
+- **Cross-link from receipt pages** — DRAGNET ReceiptView (the wedge)
+  surfaces a "Compare with another cycle →" CTA that lands on
+  `/diff/<phrase-id>` (no `?since=`) so the operator hits the
+  instructions page and pastes the second phrase ID. Migrating the
+  other 10 ReceiptViews is a follow-on track tracked in IDEAS.md.
+- **Cross-link from `/runs`** — `data-testid="diff-cross-link"` row
+  in the search/cross-link section.
+- **Privacy posture** — same as `/search`: `noindex, nofollow`,
+  `dynamic = "force-dynamic"`. Per-pair URLs would leak operator
+  workflow patterns if indexed. The redactor at the v1 boundary
+  (`redactPayloadForGet`) is already in force for any v1-store hit.
+- **Reused primitives** — `<PhraseSigil>` (sigil row + each receipt
+  card), `<VerdictBadge>` (verdict transition + each receipt card).
+- **Sitemap** — `/diff` (the index) only; `/diff/<phrase>?since=...`
+  variants refuse indexing via metadata.
+- **Tests** — `src/lib/diff/__tests__/receipt-diff.test.ts` (unit),
+  `src/app/diff/[id]/__tests__/page.test.tsx` (server-render),
+  `e2e/receipt-diff.spec.ts` (e2e).
+
 ### `/open/<phrase>` + `/o/<phrase>` — Phrase-ID Speed-Dial
 
 URL-bar shortcut that resolves any phrase ID to its canonical receipt
