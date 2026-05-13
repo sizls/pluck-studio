@@ -1106,3 +1106,191 @@ The runId / phraseId returned by `POST /v1/runs` remains the share
 credential — bookmark-and-share is still the intended UX for the
 wedge. SSE adds real-time progress on top, without changing the
 share-link primitive.
+
+---
+
+# /v1/watches — periodic semantic monitoring
+
+The `/v1/watches` endpoint is the canonical surface for **periodic** monitoring
+of arbitrary public URLs. Standalone — Watches are NOT Bureau runs. Operators
+describe what to watch in plain language; the agent (Week-2) decides what
+changed. The wedge: **the agent IS the selector** — pages can be rewritten
+and the watch keeps working.
+
+> **Status:** STUB (Week-1). Persistence is an in-memory `Map` in
+> `src/lib/watch/store.ts` mirroring the `run-store.ts` pattern. The
+> public API documented below is what the Week-2 Worker + Supabase swap
+> will implement; clients pay zero migration tax.
+
+## WatchSpec
+
+`POST /api/v1/watches` body:
+
+```ts
+interface WatchSpec {
+  name: string;             // 1..120 chars
+  url: string;              // public http(s) URL, no localhost/private IP
+  cron: string;             // 5-field cron OR @-macro (validated via lib/cron)
+  intent: string;           // 20..2000 chars — natural-language directive
+  fetcherKind: "playwright" | "http" | "browserbase";
+  autonomyMode: "diff-gated" | "full-auto" | "always-agent";
+  alertChannels: AlertChannels;
+  confidenceThreshold?: number;   // 0..1, default 0.75
+  diffThreshold?: number;         // 0..1, default 0.02
+  ignoreSelectors?: string[];     // up to 32 CSS selectors, stripped pre-hash
+  useVisionDefault?: boolean;     // default false
+  dailyBudgetUsd?: number;        // 0..100, default 2.0
+  idempotencyKey?: string;        // 1..256 chars
+}
+
+interface AlertChannels {
+  dashboard: boolean;             // SSE live stream
+  email: string[];                // up to 8 recipients
+  webhook: string[];              // up to 4 public https URLs (HMAC-signed on dispatch)
+  slack: string[];                // up to 4 https incoming-webhook URLs
+  phraseId: boolean;              // mints a Pluck phrase-id receipt per alert
+}
+```
+
+At least ONE channel must be enabled. All operator-supplied URLs (watch
+URL + webhook + slack) pass the SAME hardened public-host guard
+(`src/lib/security/url-guard.ts`) — IPv6 literals + numeric IPv4 +
+trailing-dot + reserved TLDs (`.local`, `.internal`, …) are all rejected
+at POST AND at redirect-follow time.
+
+## Endpoints
+
+| Method | Path | Purpose | Auth | Shape |
+|---|---|---|---|---|
+| `POST` | `/api/v1/watches` | Create | yes | WatchSpec → `{id, watchId, receiptUrl, status, reused}` |
+| `GET` | `/api/v1/watches` | List (paginated) | public-read | `{watches: PublicWatchRecord[], nextCursor, totalCount}` |
+| `GET` | `/api/v1/watches/[id]` | Read single | public-read | `PublicWatchRecord + {observations[], observationCount}` |
+| `PATCH` | `/api/v1/watches/[id]` | Update (subset) | yes | WatchUpdate → `PublicWatchRecord` |
+| `DELETE` | `/api/v1/watches/[id]` | **Archive** (soft delete) | yes | `PublicWatchRecord` |
+| `POST` | `/api/v1/watches/[id]/trigger` | Fire-now (manual) | yes | `ObservationRecord` |
+| `GET` | `/api/v1/watches/[id]/events` | Live SSE stream | public-read | `state` / `observation` / `alert` events |
+
+### DELETE semantics
+
+`DELETE /v1/runs/:id` cancels a pending/running run; `DELETE /v1/watches/:id`
+**archives** the watch (soft delete — the record stays for audit). This
+asymmetry is intentional: Runs are short-lived activations, Watches are
+long-lived monitors. A future "permanently delete" verb lands with the
+Worker; the soft-archive lets observation history survive the operator's
+"this watch is done" gesture.
+
+## PublicWatchRecord (GET-side redaction)
+
+The stored `WatchRecord` carries operator-private fields (`alertChannels.email`,
+`.webhook`, `.slack`) that are PII. Public GET routes — and the SSE
+`state` event — project a redacted view via `redactWatchForGet`:
+
+```ts
+interface PublicWatchRecord {
+  watchId: string;
+  name: string;
+  url: string;
+  cron: string;
+  intent: string;
+  fetcherKind: string;
+  autonomyMode: string;
+  status: "active" | "paused" | "running" | "failed" | "archived";
+  alertChannels: {
+    dashboard: boolean;
+    phraseId: boolean;
+    emailCount: number;
+    webhookCount: number;
+    slackCount: number;
+  };
+  confidenceThreshold: number;
+  diffThreshold: number;
+  ignoreSelectors: readonly string[];
+  useVisionDefault: boolean;
+  dailyBudgetUsd: number;
+  agentTokensSpentTotal: number;
+  agentCostUsdTotal: number;
+  lastObservationId: string | null;
+  lastFiredAt: string | null;        // ISO; null until first fire
+  receiptUrl: string;
+  createdAt: string;                  // ISO
+  updatedAt: string;                  // ISO
+}
+```
+
+Address arrays are replaced with counts. Flag-shaped channels
+(`dashboard`, `phraseId`) stay visible — they reveal capability, not
+destinations.
+
+## Observation
+
+Every fire produces an `ObservationRecord`. The Week-1 stub mints a
+`kind: "baseline"` mock; Week-2 ships the real agent-derived
+`Observation` (Zod-typed: extracted fields, status classification,
+confidence, evidence quote, causal explanation, suggested-next-check ms).
+
+```ts
+interface ObservationRecord {
+  observationId: string;             // UUID
+  phraseId: string;                  // pluck/watch/<watchId>/<YYYY-MM-DD>/observation-NN
+  watchId: string;
+  kind: "baseline" | "no-change" | "observation" | "error";
+  prevObservationId: string | null;  // null on errors and on first run
+  observation: Observation | null;
+  errorMessage: string | null;
+  agentTokensUsed: number;
+  agentCostUsd: number;
+  modelUsed: string | null;
+  fetchedAt: string;
+  createdAt: string;
+}
+```
+
+## Trigger semantics
+
+`POST /api/v1/watches/[id]/trigger` returns:
+
+- `200 ObservationRecord` on success
+- `404` for unknown watchId
+- `409` when paused / archived
+- `429` (with `Retry-After` header) when fired within the per-watch
+  cooldown window (15s — defeats trigger-amplification)
+
+The Week-1 stub does a one-shot HTTP fetch with manual redirect
+following (every `Location` re-validated against the SSRF guard) +
+1 MiB body cap. Week-2 proxies to the Worker (Playwright + agent).
+
+## Idempotency
+
+`idempotencyHashOf({ownerId, name, url, intent, fetcherKind, idempotencyKey})`.
+`ownerId` is stub `"anonymous"` until pluck-api lands. The form mints
+one `crypto.randomUUID()`-based key per mount so double-clicks always
+collapse to one watch.
+
+## Auth posture
+
+| Endpoint | CSRF | Rate-limit | Auth | Body cap |
+|---|---|---|---|---|
+| POST | yes | yes | required (BEFORE parse) | 64 KiB |
+| GET (list / single) | yes | yes | public-read | — |
+| PATCH | yes | yes | required | 64 KiB |
+| DELETE | yes | yes | required | — |
+| trigger | yes | yes | required | — |
+| events (SSE) | yes | yes | public-read | — |
+
+Bearer-token affordance gated on `NODE_ENV ∈ {"test","development"}`
+OR `PLUCK_DEV_BEARER_AUTH=1`. Preview/staging with unset NODE_ENV is
+now auth-locked by default.
+
+## SSE event schema
+
+`GET /api/v1/watches/[id]/events` emits:
+
+- `state` (redacted `PublicWatchRecord`) — every CRUD transition + on connect
+- `observation` (full `ObservationRecord`) — when a new observation is recorded
+- `alert` (`{observationId, channel, status}`) — per-channel dispatch (Week-2+)
+- `heartbeat` (`{ts}`) — every 30s
+- `error` (`{code: "subscriber-cap-reached"}`) — caps hit (100 per watch / 5000 global)
+
+Connection cap 5 minutes; `Last-Event-ID` honored (strict `/^\d{1,8}$/` parse +
+clamp to `[0, 1_000_000]` so a malformed header cannot push the local counter
+past `MAX_SAFE_INTEGER`).

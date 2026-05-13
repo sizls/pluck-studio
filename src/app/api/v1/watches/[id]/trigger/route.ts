@@ -63,6 +63,15 @@ export async function POST(
       { status: 409 },
     );
   }
+  if (result.kind === "cooldown") {
+    return NextResponse.json(
+      {
+        error: `triggered too recently — wait ${Math.ceil(result.waitMs / 1000)}s before firing again`,
+        retryAfterMs: result.waitMs,
+      },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(result.waitMs / 1000)) } },
+    );
+  }
 
   return NextResponse.json(result.observation, { status: 200 });
 }

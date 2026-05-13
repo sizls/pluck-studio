@@ -23,6 +23,7 @@ export type CrossCuttingSurface =
   | "runs"
   | "vendor"
   | "monitors"
+  | "watch"
   | "what-we-dont-know"
   | "privacy";
 
@@ -62,6 +63,7 @@ const CROSS_CUTTING_LINKS: ReadonlyArray<{
 }> = [
   { id: "runs", label: "Runs", href: "/runs" },
   { id: "vendor", label: "Vendors", href: "/vendor" },
+  { id: "watch", label: "Watch", href: "/watch" },
   { id: "monitors", label: "Monitors", href: "/monitors" },
   {
     id: "what-we-dont-know",
@@ -153,6 +155,9 @@ export function BureauChrome({
               </li>
               <li>
                 <a href="/vendor">Vendors</a>
+              </li>
+              <li>
+                <a href="/watch">Watch</a>
               </li>
               <li>
                 <a href="/monitors">Monitors</a>

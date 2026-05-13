@@ -222,9 +222,10 @@ describe("subscribeToWatch", () => {
     const { record } = createWatch(baseSpec);
     const events: WatchEvent[] = [];
     const unsub = subscribeToWatch(record.watchId, (e) => events.push(e));
+    expect(unsub).not.toBeNull();
     pauseWatch(record.watchId);
     resumeWatch(record.watchId);
-    unsub();
+    unsub!();
     expect(events.length).toBeGreaterThanOrEqual(2);
     const states = events.filter((e) => e.kind === "state");
     expect(states[states.length - 1]).toMatchObject({
@@ -252,10 +253,11 @@ describe("subscribeToWatch", () => {
     const unsub = subscribeToWatch(record.watchId, () => {
       count += 1;
     });
+    expect(unsub).not.toBeNull();
     pauseWatch(record.watchId);
     expect(count).toBeGreaterThan(0);
     const seen = count;
-    unsub();
+    unsub!();
     resumeWatch(record.watchId);
     expect(count).toBe(seen);
   });
@@ -304,5 +306,109 @@ describe("triggerWatch (Week-1 mock)", () => {
   it("returns not-found for unknown watchId", async () => {
     const r = await triggerWatch("does-not-exist");
     expect(r.kind).toBe("not-found");
+  });
+
+  it("enforces per-watch cooldown after a successful trigger", async () => {
+    const { record } = createWatch(baseSpec);
+    const mockFetch = vi.fn(async () => new Response("ok", { status: 200 }));
+    const t0 = 1_000_000;
+    const ok = await triggerWatch(record.watchId, mockFetch as typeof fetch, t0);
+    expect(ok.kind).toBe("ok");
+    // Within cooldown window → cooldown.
+    const blocked = await triggerWatch(
+      record.watchId,
+      mockFetch as typeof fetch,
+      t0 + 1_000,
+    );
+    expect(blocked.kind).toBe("cooldown");
+    if (blocked.kind === "cooldown") {
+      expect(blocked.waitMs).toBeGreaterThan(0);
+    }
+    // After the window → succeeds.
+    const after = await triggerWatch(
+      record.watchId,
+      mockFetch as typeof fetch,
+      t0 + 30_000,
+    );
+    expect(after.kind).toBe("ok");
+  });
+
+  it("blocks a redirect to a private IP (SSRF defense)", async () => {
+    const { record } = createWatch(baseSpec);
+    const mockFetch = vi.fn(async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: "http://127.0.0.1/admin" },
+      }),
+    );
+    const r = await triggerWatch(record.watchId, mockFetch as typeof fetch);
+    expect(r.kind).toBe("ok"); // emits error observation, not not-found
+    if (r.kind === "ok") {
+      expect(r.observation.kind).toBe("error");
+      expect(r.observation.errorMessage).toMatch(/redirect blocked/);
+    }
+  });
+
+  it("follows safe redirects up to the cap", async () => {
+    const { record } = createWatch(baseSpec);
+    let hop = 0;
+    const mockFetch = vi.fn(async () => {
+      hop += 1;
+      if (hop === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://example.org/redirected" },
+        });
+      }
+      return new Response("final content", { status: 200 });
+    });
+    const r = await triggerWatch(record.watchId, mockFetch as typeof fetch);
+    expect(r.kind).toBe("ok");
+    if (r.kind === "ok") {
+      expect(r.observation.kind).toBe("baseline");
+    }
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("recordObservation — per-watch FIFO", () => {
+  it("evicts a noisy watch's own oldest, not a quiet watch's baseline", () => {
+    const a = createWatch({ ...baseSpec, idempotencyKey: "a", name: "A" }).record;
+    const b = createWatch({ ...baseSpec, idempotencyKey: "b", name: "B" }).record;
+    const aBaseline = recordObservation({
+      watchId: a.watchId,
+      kind: "baseline",
+      observation: null,
+    });
+    expect(aBaseline).not.toBeNull();
+    for (let i = 0; i < 250; i += 1) {
+      recordObservation({
+        watchId: b.watchId,
+        kind: "observation",
+        observation: null,
+      });
+    }
+    const aHistory = listObservations(a.watchId, 5);
+    expect(aHistory.observations).toHaveLength(1);
+    expect(aHistory.observations[0]?.observationId).toBe(aBaseline!.observationId);
+  });
+});
+
+describe("recordObservation — error observations have null prevObservationId", () => {
+  it("error observations do not chain to the prior successful run", () => {
+    const { record } = createWatch(baseSpec);
+    const ok = recordObservation({
+      watchId: record.watchId,
+      kind: "baseline",
+      observation: null,
+    });
+    const err = recordObservation({
+      watchId: record.watchId,
+      kind: "error",
+      observation: null,
+      errorMessage: "timeout",
+    });
+    expect(ok?.prevObservationId).toBeNull();
+    expect(err?.prevObservationId).toBeNull();
   });
 });

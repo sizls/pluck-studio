@@ -26,6 +26,7 @@ import {
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../lib/security/request-guards";
+import { redactWatchForGet } from "../../../../lib/v1/redact";
 import {
   createWatch,
   listWatches,
@@ -35,6 +36,26 @@ import {
   type WatchStatus,
 } from "../../../../lib/v1/watch-spec";
 import { validateWatchSpec } from "../../../../lib/v1/watch-validators";
+
+/** Reject unauth'd JSON bodies above this size (pre-parse). 64 KiB. */
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+
+async function readBoundedJson(
+  req: Request,
+): Promise<{ ok: true; value: unknown } | { ok: false; error: string; status: number }> {
+  const lenHeader = req.headers.get("content-length");
+  if (lenHeader !== null) {
+    const len = Number.parseInt(lenHeader, 10);
+    if (Number.isFinite(len) && len > MAX_REQUEST_BODY_BYTES) {
+      return { ok: false, error: "request body too large", status: 413 };
+    }
+  }
+  try {
+    return { ok: true, value: await req.json() };
+  } catch {
+    return { ok: false, error: "invalid JSON body", status: 400 };
+  }
+}
 
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
@@ -49,14 +70,8 @@ export async function POST(req: Request): Promise<Response> {
       { status: 429 },
     );
   }
-
-  let raw: unknown;
-  try {
-    raw = await req.json();
-  } catch {
-    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
-  }
-
+  // Auth BEFORE parsing — unauthenticated callers cannot occupy a request
+  // slot doing JSON parse work (SEC-M8). Mirror in [id]/route.ts.
   if (!isAuthed(req)) {
     return NextResponse.json(
       {
@@ -67,7 +82,12 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
-  const validated = validateWatchSpec(raw);
+  const parsed = await readBoundedJson(req);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  }
+
+  const validated = validateWatchSpec(parsed.value);
   if (!validated.ok) {
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
@@ -76,6 +96,10 @@ export async function POST(req: Request): Promise<Response> {
 
   return NextResponse.json(
     {
+      // Canonical `id` field for cross-resource consistency with /v1/runs
+      // (which still ships `runId` for backwards compat). New clients
+      // should read `id`; legacy `watchId` stays for now.
+      id: record.watchId,
       watchId: record.watchId,
       receiptUrl: record.receiptUrl,
       status: record.status,
@@ -119,20 +143,20 @@ function parseListQuery(url: URL): ParsedQuery | ParsedQueryErr {
 
   const status = url.searchParams.get("status");
   if (status !== null) {
-    if (status.length === 0) {
+    if (status.length === 0 || status.length > 128) {
       return {
         ok: false,
-        error: "`status` must be a non-empty WatchStatus or comma-separated list.",
+        error: "`status` must be 1..128 chars (a WatchStatus or comma-separated list).",
       };
     }
     const parts = status
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
-    if (parts.length === 0) {
+    if (parts.length === 0 || parts.length > 10) {
       return {
         ok: false,
-        error: "`status` must be a non-empty WatchStatus or comma-separated list.",
+        error: "`status` must be 1..10 comma-separated WatchStatus values.",
       };
     }
     const accepted: WatchStatus[] = [];
@@ -196,9 +220,11 @@ export async function GET(req: Request): Promise<Response> {
     ...(parsed.cursor !== undefined ? { cursor: parsed.cursor } : {}),
   });
 
+  // GET-side redaction: strip operator address lists from every row. The
+  // stored record is untouched; we project a public view for serialization.
   return NextResponse.json(
     {
-      watches: result.watches,
+      watches: result.watches.map((w) => redactWatchForGet(w)),
       nextCursor: result.nextCursor,
       totalCount: result.totalCount,
     },

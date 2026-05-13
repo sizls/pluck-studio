@@ -20,6 +20,7 @@
 // ---------------------------------------------------------------------------
 
 import { validateCron } from "../cron/validate";
+import { validatePublicUrl as guardPublicUrl } from "../security/url-guard";
 import {
   type AlertChannels,
   isAutonomyMode,
@@ -113,54 +114,20 @@ function isStringArray(v: unknown): v is string[] {
 }
 
 /**
- * Same posture as DRAGNET's target-url guard. Public-host only — no
- * localhost / loopback / RFC1918 / link-local. The Worker is the only
- * thing that fetches; we don't want a Watch pointed at the Worker's own
- * Supabase / internal services. Symmetric with run-form's client-side guard.
+ * Wrapped around `lib/security/url-guard.validatePublicUrl` so this module
+ * keeps the local `Result<string>` shape callers depend on. The shared
+ * guard handles IPv6 literals, mapped/numeric IPv4, trailing-dot strip,
+ * userinfo, and reserved TLDs (`.local`, `.internal`, …).
  */
 function validatePublicUrl(raw: string): Result<string> {
-  const trimmed = raw.trim();
-  if (trimmed.length === 0) {
-    return fail("`url` is required.");
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    return fail("`url` must be a valid URL (include https://).");
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return fail("`url` must use http:// or https://.");
-  }
-  const host = parsed.hostname.toLowerCase();
-  if (
-    host === "localhost" ||
-    host === "0.0.0.0" ||
-    host === "::1" ||
-    host === "::" ||
-    host === "127.0.0.1"
-  ) {
-    return fail("`url` cannot point at localhost or loopback addresses.");
-  }
-  const ipv4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-  if (ipv4) {
-    const a = Number(ipv4[1]);
-    const b = Number(ipv4[2]);
-    if (a === 10 || a === 127 || a === 0) {
-      return fail("`url` cannot point at private/loopback IPs.");
-    }
-    if (a === 172 && b >= 16 && b <= 31) {
-      return fail("`url` cannot point at private/loopback IPs.");
-    }
-    if (a === 192 && b === 168) {
-      return fail("`url` cannot point at private/loopback IPs.");
-    }
-    if (a === 169 && b === 254) {
-      return fail("`url` cannot point at link-local addresses.");
-    }
+  const r = guardPublicUrl(raw);
+  if (!r.ok) {
+    // Translate the generic "URL …" prefix into the field-specific form
+    // the rest of this module uses.
+    return fail(`\`url\` ${r.error.replace(/^URL /, "")}`);
   }
 
-  return { ok: true, value: trimmed };
+  return { ok: true, value: r.url };
 }
 
 // RFC-5322 is famously a rabbit hole; this is the same shape every
@@ -175,10 +142,22 @@ function validateEmail(raw: string): boolean {
   return EMAIL_PATTERN.test(raw);
 }
 
-function validateHttpsUrl(raw: string): boolean {
+/**
+ * Webhook + Slack URLs must pass the SAME public-host guard as the
+ * watched URL — they are dispatch sinks; an attacker who can set
+ * `webhook = https://10.0.0.5/internal` weaponizes us as a forwarder.
+ * Locking it here means Week-2 alert dispatch can trust the stored value
+ * without re-validating (though it still SHOULD re-validate at send
+ * time to defeat DNS rebinding — see lib/security/url-guard.ts).
+ */
+function validateDispatchHttpsUrl(raw: string): boolean {
+  const r = guardPublicUrl(raw);
+  if (!r.ok) {
+    return false;
+  }
+
   try {
-    const u = new URL(raw);
-    return u.protocol === "https:";
+    return new URL(r.url).protocol === "https:";
   } catch {
     return false;
   }
@@ -246,8 +225,10 @@ function validateAlertChannels(raw: unknown): Result<AlertChannels> {
     );
   }
   for (const w of webhook) {
-    if (!validateHttpsUrl(w)) {
-      return fail(`\`alertChannels.webhook\` must use https://: ${w}`);
+    if (!validateDispatchHttpsUrl(w)) {
+      return fail(
+        `\`alertChannels.webhook\` must be a public https:// URL (no localhost/private IP): ${w}`,
+      );
     }
   }
 
@@ -261,8 +242,10 @@ function validateAlertChannels(raw: unknown): Result<AlertChannels> {
     );
   }
   for (const s of slack) {
-    if (!validateHttpsUrl(s)) {
-      return fail(`\`alertChannels.slack\` must use https://: ${s}`);
+    if (!validateDispatchHttpsUrl(s)) {
+      return fail(
+        `\`alertChannels.slack\` must be a public https:// URL (no localhost/private IP): ${s}`,
+      );
     }
   }
 
@@ -500,6 +483,15 @@ export type ValidateWatchUpdateResult =
   | { ok: true; update: WatchUpdate }
   | { ok: false; error: string };
 
+// Operator-mutable subset of WatchStatus. `running` / `failed` are
+// runtime-internal transitions and MUST NOT come in via PATCH.
+type PatchableStatus = NonNullable<WatchUpdate["status"]>;
+const PATCHABLE_STATUSES: ReadonlySet<string> = new Set<PatchableStatus>([
+  "active",
+  "paused",
+  "archived",
+]);
+
 export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
   if (!isPlainObject(value)) {
     return { ok: false, error: "Body must be a JSON object." };
@@ -513,25 +505,29 @@ export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
     return { ok: false, error: "PATCH body must contain at least one field." };
   }
 
-  const update: Record<string, unknown> = {};
-
+  // Build each typed field locally; assemble the WatchUpdate at the end
+  // with the same conditional-spread pattern validateWatchSpec uses. This
+  // removes the `as WatchUpdate` cast and ensures any future WatchUpdate
+  // field will fail typecheck here if not threaded through.
+  let name: string | undefined;
   if (value.name !== undefined) {
     if (typeof value.name !== "string") {
       return { ok: false, error: "`name` must be a string." };
     }
-    const name = value.name.trim();
+    const trimmed = value.name.trim();
     if (
-      name.length < WATCH_LIMITS.nameMin ||
-      name.length > WATCH_LIMITS.nameMax
+      trimmed.length < WATCH_LIMITS.nameMin ||
+      trimmed.length > WATCH_LIMITS.nameMax
     ) {
       return {
         ok: false,
         error: `\`name\` must be ${WATCH_LIMITS.nameMin}..${WATCH_LIMITS.nameMax} chars.`,
       };
     }
-    update.name = name;
+    name = trimmed;
   }
 
+  let cron: string | undefined;
   if (value.cron !== undefined) {
     if (typeof value.cron !== "string" || !validateCron(value.cron)) {
       return {
@@ -539,9 +535,10 @@ export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
         error: "`cron` is not a valid 5-field cron expression or @-macro.",
       };
     }
-    update.cron = value.cron;
+    cron = value.cron;
   }
 
+  let autonomyMode: WatchUpdate["autonomyMode"];
   if (value.autonomyMode !== undefined) {
     if (
       typeof value.autonomyMode !== "string" ||
@@ -553,17 +550,19 @@ export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
           "`autonomyMode` must be one of: full-auto, diff-gated, always-agent.",
       };
     }
-    update.autonomyMode = value.autonomyMode;
+    autonomyMode = value.autonomyMode;
   }
 
+  let alertChannels: AlertChannels | undefined;
   if (value.alertChannels !== undefined) {
     const r = validateAlertChannels(value.alertChannels);
     if (!r.ok) {
       return { ok: false, error: r.error };
     }
-    update.alertChannels = r.value;
+    alertChannels = r.value;
   }
 
+  let status: PatchableStatus | undefined;
   if (value.status !== undefined) {
     if (typeof value.status !== "string" || !isWatchStatus(value.status)) {
       return {
@@ -571,21 +570,16 @@ export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
         error: "`status` must be one of: active, paused, archived.",
       };
     }
-    // Only the operator-mutable subset is allowed via PATCH; `running`
-    // and `failed` are runtime-internal transitions.
-    if (
-      value.status !== "active" &&
-      value.status !== "paused" &&
-      value.status !== "archived"
-    ) {
+    if (!PATCHABLE_STATUSES.has(value.status)) {
       return {
         ok: false,
         error: "`status` (via PATCH) must be one of: active, paused, archived.",
       };
     }
-    update.status = value.status;
+    status = value.status as PatchableStatus;
   }
 
+  let confidenceThreshold: number | undefined;
   if (value.confidenceThreshold !== undefined) {
     const r = validateBoundedNumber(
       value.confidenceThreshold,
@@ -596,9 +590,10 @@ export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
     if (!r.ok) {
       return { ok: false, error: r.error };
     }
-    update.confidenceThreshold = r.value;
+    confidenceThreshold = r.value;
   }
 
+  let diffThreshold: number | undefined;
   if (value.diffThreshold !== undefined) {
     const r = validateBoundedNumber(
       value.diffThreshold,
@@ -609,9 +604,10 @@ export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
     if (!r.ok) {
       return { ok: false, error: r.error };
     }
-    update.diffThreshold = r.value;
+    diffThreshold = r.value;
   }
 
+  let ignoreSelectors: ReadonlyArray<string> | undefined;
   if (value.ignoreSelectors !== undefined) {
     if (!isStringArray(value.ignoreSelectors)) {
       return {
@@ -625,16 +621,18 @@ export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
         error: `\`ignoreSelectors\` accepts up to ${WATCH_LIMITS.ignoreSelectorsMax} entries.`,
       };
     }
-    update.ignoreSelectors = value.ignoreSelectors;
+    ignoreSelectors = value.ignoreSelectors;
   }
 
+  let useVisionDefault: boolean | undefined;
   if (value.useVisionDefault !== undefined) {
     if (typeof value.useVisionDefault !== "boolean") {
       return { ok: false, error: "`useVisionDefault` must be a boolean." };
     }
-    update.useVisionDefault = value.useVisionDefault;
+    useVisionDefault = value.useVisionDefault;
   }
 
+  let dailyBudgetUsd: number | undefined;
   if (value.dailyBudgetUsd !== undefined) {
     const r = validateBoundedNumber(
       value.dailyBudgetUsd,
@@ -645,8 +643,21 @@ export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
     if (!r.ok) {
       return { ok: false, error: r.error };
     }
-    update.dailyBudgetUsd = r.value;
+    dailyBudgetUsd = r.value;
   }
 
-  return { ok: true, update: update as WatchUpdate };
+  const update: WatchUpdate = {
+    ...(name !== undefined ? { name } : {}),
+    ...(cron !== undefined ? { cron } : {}),
+    ...(autonomyMode !== undefined ? { autonomyMode } : {}),
+    ...(alertChannels !== undefined ? { alertChannels } : {}),
+    ...(status !== undefined ? { status } : {}),
+    ...(confidenceThreshold !== undefined ? { confidenceThreshold } : {}),
+    ...(diffThreshold !== undefined ? { diffThreshold } : {}),
+    ...(ignoreSelectors !== undefined ? { ignoreSelectors } : {}),
+    ...(useVisionDefault !== undefined ? { useVisionDefault } : {}),
+    ...(dailyBudgetUsd !== undefined ? { dailyBudgetUsd } : {}),
+  };
+
+  return { ok: true, update };
 }

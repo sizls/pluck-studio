@@ -131,3 +131,146 @@ export function redactPayloadForGet(
 
   return redactor(payload);
 }
+
+// ---------------------------------------------------------------------------
+// /v1/watches — GET-side record redaction
+// ---------------------------------------------------------------------------
+//
+// PROBLEM: `/api/v1/watches/[id]` is public-read by phraseId — the phraseId
+// is the share credential, mirroring the Bureau receipt-link model. The
+// stored WatchRecord carries operator-private fields that MUST NOT echo to
+// a phraseId-credentialed reader:
+//
+//   - `alertChannels.email`     — operator's notification address list
+//   - `alertChannels.webhook`   — operator's automation endpoint(s)
+//   - `alertChannels.slack`     — operator's incident-channel URLs
+//
+// These are credentials/PII the operator did not consent to publish. Strip
+// them at the GET boundary. The stored record stays untouched (alerts still
+// dispatch correctly). Apply to:
+//
+//   - GET /api/v1/watches/[id]              (single)
+//   - GET /api/v1/watches                   (list — each row)
+//   - GET /api/v1/watches/[id]/events       (SSE `state` event payload)
+//
+// The flag-shaped channels (`dashboard`, `phraseId`) are NOT secret — they
+// tell a reader "this watch has dashboard live + receipts on" without
+// leaking destinations. We keep those on the wire.
+//
+// Boolean shape is preserved: the public view replaces the address arrays
+// with their COUNTS so the dashboard can render "Email (3)" without
+// disclosing the addresses.
+// ---------------------------------------------------------------------------
+
+export interface PublicAlertChannelSummary {
+  readonly dashboard: boolean;
+  readonly phraseId: boolean;
+  readonly emailCount: number;
+  readonly webhookCount: number;
+  readonly slackCount: number;
+}
+
+export interface PublicWatchRecord {
+  readonly watchId: string;
+  readonly name: string;
+  readonly url: string;
+  readonly cron: string;
+  readonly intent: string;
+  readonly fetcherKind: string;
+  readonly autonomyMode: string;
+  readonly status: string;
+  readonly alertChannels: PublicAlertChannelSummary;
+  readonly confidenceThreshold: number;
+  readonly diffThreshold: number;
+  readonly ignoreSelectors: ReadonlyArray<string>;
+  readonly useVisionDefault: boolean;
+  readonly dailyBudgetUsd: number;
+  readonly agentTokensSpentTotal: number;
+  readonly agentCostUsdTotal: number;
+  readonly lastObservationId: string | null;
+  readonly lastFiredAt: string | null;
+  readonly receiptUrl: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+interface AlertChannelsLike {
+  dashboard?: unknown;
+  phraseId?: unknown;
+  email?: unknown;
+  webhook?: unknown;
+  slack?: unknown;
+}
+
+interface WatchRecordLike {
+  watchId: string;
+  name: string;
+  url: string;
+  cron: string;
+  intent: string;
+  fetcherKind: string;
+  autonomyMode: string;
+  status: string;
+  alertChannels: AlertChannelsLike;
+  confidenceThreshold: number;
+  diffThreshold: number;
+  ignoreSelectors: ReadonlyArray<string>;
+  useVisionDefault: boolean;
+  dailyBudgetUsd: number;
+  agentTokensSpentTotal: number;
+  agentCostUsdTotal: number;
+  lastObservationId: string | null;
+  lastFiredAt: number | string | null;
+  receiptUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function arrayLen(v: unknown): number {
+  return Array.isArray(v) ? v.length : 0;
+}
+
+/**
+ * Project a stored WatchRecord into the public view served by GET routes
+ * and SSE `state` events. Address arrays in alertChannels are replaced
+ * with counts. `lastFiredAt` (Unix ms internally) is rendered as ISO so
+ * the public surface uses a single timestamp encoding.
+ */
+export function redactWatchForGet(record: WatchRecordLike): PublicWatchRecord {
+  const c = record.alertChannels;
+
+  return {
+    watchId: record.watchId,
+    name: record.name,
+    url: record.url,
+    cron: record.cron,
+    intent: record.intent,
+    fetcherKind: record.fetcherKind,
+    autonomyMode: record.autonomyMode,
+    status: record.status,
+    alertChannels: {
+      dashboard: c.dashboard === true,
+      phraseId: c.phraseId === true,
+      emailCount: arrayLen(c.email),
+      webhookCount: arrayLen(c.webhook),
+      slackCount: arrayLen(c.slack),
+    },
+    confidenceThreshold: record.confidenceThreshold,
+    diffThreshold: record.diffThreshold,
+    ignoreSelectors: record.ignoreSelectors,
+    useVisionDefault: record.useVisionDefault,
+    dailyBudgetUsd: record.dailyBudgetUsd,
+    agentTokensSpentTotal: record.agentTokensSpentTotal,
+    agentCostUsdTotal: record.agentCostUsdTotal,
+    lastObservationId: record.lastObservationId,
+    lastFiredAt:
+      record.lastFiredAt === null
+        ? null
+        : typeof record.lastFiredAt === "number"
+          ? new Date(record.lastFiredAt).toISOString()
+          : record.lastFiredAt,
+    receiptUrl: record.receiptUrl,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+}

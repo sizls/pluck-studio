@@ -989,3 +989,96 @@ without modification.
 landed. 1203 unit tests across 70 files + 115 Playwright test cases
 across 26 spec files, all green. 11/11 alpha programs migrated to
 `/v1/runs`. Runner GA + alias sunset target: 31 Dec 2026.*
+
+---
+
+## 16. Watch — periodic semantic monitoring (peer to Bureau)
+
+**Status:** Week-1 stub landed in commit `8af75f0`. Week-2 ships the
+Playwright worker + observation agent. **Not part of Bureau.**
+
+### Premise
+
+The agent IS the selector. Operators describe what to watch in plain
+language; the runtime decides what's a meaningful change. CSS-selector
+scrapers die on a class rename — Watches survive.
+
+### Surface
+
+Mirrors Bureau's 5-step cookbook without being under it:
+
+| Step | Watch path | Bureau analog |
+|---|---|---|
+| Landing | `src/app/watch/page.tsx` | `src/app/bureau/<slug>/page.tsx` |
+| Form | `src/app/watch/new/{page.tsx, NewWatchForm.tsx}` | `src/app/bureau/<slug>/run/{page.tsx, RunForm.tsx}` |
+| Form module | `src/lib/watch/watch-form-module.ts` | `src/lib/<slug>/run-form-module.ts` |
+| API (v1) | `src/app/api/v1/watches/*` | `src/app/api/v1/runs/*` |
+| Receipt | `src/app/watch/[id]/{page.tsx, WatchDetailView.tsx}` | `src/app/bureau/<slug>/runs/[id]/{page.tsx, ReceiptView.tsx}` |
+
+### Stub seam
+
+`src/lib/watch/store.ts` mirrors `src/lib/v1/run-store.ts` exactly:
+in-memory `Map` pinned to `globalThis` for HMR survivability, owner-
+scoped idempotency hash, FIFO cap, pub/sub for SSE. The PUBLIC API
+(`createWatch`, `getWatch`, `listWatches`, `pauseWatch`, `resumeWatch`,
+`archiveWatch`, `updateWatch`, `triggerWatch`, `recordObservation`,
+`subscribeToWatch`) is what routes + UI bind against — Week-2 swap
+to Supabase + Worker keeps every consumer untouched.
+
+### SSRF posture (R1 hardened)
+
+`src/lib/security/url-guard.ts` is the single source of truth for
+"is this URL safe to fetch from the server side." Applied to:
+
+- Watch URL at POST time (`watch-validators.ts`)
+- Watch URL at fetch time (every `Location` header on a redirect chain)
+- Webhook + Slack URLs at POST time (Week-2 dispatch re-validates at send)
+
+The guard handles: IPv6 literals (with bracket strip), numeric-form
+IPv4 (via `node:net.isIP`), trailing-dot normalization, userinfo
+rejection, reserved TLDs (`.local`, `.internal`, `.test`, `.invalid`,
+`.localhost`), and IPv4-mapped IPv6 ULA / link-local / multicast ranges.
+`validateResolvedIp` (DNS-rebinding defense) ships for use at fetch
+time when the Worker resolves and connects by IP.
+
+### GET-side redaction
+
+`PublicWatchRecord` (defined in `src/lib/v1/redact.ts`) strips
+operator-private address lists (`alertChannels.email`/`.webhook`/
+`.slack`) from any phraseId-credentialed read — list, single GET,
+SSE `state` events. Addresses are replaced with counts so the dashboard
+can show "Email (3)" without leaking destinations.
+
+### Three autonomy modes per watch
+
+| Mode | Diff first? | Agent runs? | Alert path |
+|---|---|---|---|
+| `diff-gated` (default) | Yes (Levenshtein ≤ threshold) | Only on non-trivial diff | Alert directly when alertWorthy |
+| `full-auto` | No | Always | Confidence ≥ threshold → alert; below → review queue |
+| `always-agent` | No | Always | Always to human-confirm queue (no auto-alert ever) |
+
+### Observation contract
+
+Every fire produces an `ObservationRecord` with a structured `Observation`:
+extracted fields, status classification, confidence, reasoning, evidence
+quote, causal explanation, suggested-next-check ms. Phrase-ID format
+`pluck/watch/<watchId>/<YYYY-MM-DD>/observation-NN`. Error observations
+have `prevObservationId = null` (they don't chain to prior successful
+runs — receipt diff views never compare an error to a baseline).
+
+### Path to Week-2
+
+The plan at `/Users/jasonwcomes/.claude/plans/for-pluck-studio-id-expressive-manatee.md`
+covers the full sequence: pluck-watch-worker (Fly.io, Node + Playwright),
+Supabase Postgres + Realtime + Storage, observation agent
+(`@directive-run/ai` + Anthropic, Zod structured output), four alert
+channels (dashboard + email + webhook/Slack + phrase-id receipts),
+self-healing reinvestigation on layout shift.
+
+### Bureau ↔ Watch composition
+
+Watches are NOT Bureau programs but compose cleanly: a Watch alert can
+become input to a Bureau probe (e.g. a competitor pricing change kicks
+off a DRAGNET run). Both surfaces share the `lib/security/url-guard.ts`
+hardening, the phrase-id receipt format, and the auth + CSRF +
+rate-limit posture via `lib/security/request-guards.ts`.

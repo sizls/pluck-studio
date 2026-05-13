@@ -39,6 +39,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { generateScopedPhraseId } from "../phrase-id";
+import { validatePublicUrl } from "../security/url-guard";
 import {
   type AlertChannels,
   type Observation,
@@ -56,7 +57,16 @@ import {
 // ---------------------------------------------------------------------------
 
 const MAX_WATCHES = 10_000;
-const MAX_OBSERVATIONS = 50_000;
+/**
+ * Per-watch cap, not global. A noisy watch firing every 15 min cannot
+ * evict a quiet watch's baseline — each watch keeps up to N observations
+ * before its own oldest rolls off.
+ */
+const MAX_OBSERVATIONS_PER_WATCH = 200;
+/** Per-watch manual trigger cooldown — defeats trigger amplification (SEC-M1). */
+const TRIGGER_COOLDOWN_MS = 15_000;
+/** Maximum HTTP redirects to follow during a trigger fetch. */
+const TRIGGER_MAX_REDIRECTS = 3;
 
 declare global {
   // eslint-disable-next-line no-var
@@ -105,6 +115,8 @@ export type WatchEvent =
 export type WatchSubscriber = (event: WatchEvent) => void;
 
 const SUBSCRIBERS_PER_WATCH_CAP = 100;
+/** Global cap across all watches — bounds total open SSE connections. */
+const SUBSCRIBERS_GLOBAL_CAP = 5_000;
 
 const subscribers: Map<string, Set<WatchSubscriber>> =
   (globalThis.__pluckStudioV1WatchSubscribers ??= new Map<
@@ -112,19 +124,37 @@ const subscribers: Map<string, Set<WatchSubscriber>> =
     Set<WatchSubscriber>
   >());
 
+function totalSubscriberCount(): number {
+  let total = 0;
+  for (const set of subscribers.values()) {
+    total += set.size;
+  }
+
+  return total;
+}
+
+/**
+ * Subscribe to state transitions on a specific watch. Returns an
+ * `unsubscribe` thunk on success, or `null` when either the per-watch or
+ * the global subscriber cap is reached (callers — the SSE route — turn
+ * that into a `subscriber-cap-reached` event). Earlier revisions threw
+ * on cap; throwing on a quota-event is API smell, so the route had to
+ * wrap every call in try/catch. Null is the explicit, typed signal.
+ */
 export function subscribeToWatch(
   watchId: string,
   cb: WatchSubscriber,
-): () => void {
+): (() => void) | null {
   let set = subscribers.get(watchId);
   if (set === undefined) {
     set = new Set();
     subscribers.set(watchId, set);
   }
   if (set.size >= SUBSCRIBERS_PER_WATCH_CAP) {
-    throw new Error(
-      `[watch-store] subscriber cap (${SUBSCRIBERS_PER_WATCH_CAP}) reached for watchId=${watchId}`,
-    );
+    return null;
+  }
+  if (totalSubscriberCount() >= SUBSCRIBERS_GLOBAL_CAP) {
+    return null;
   }
   set.add(cb);
 
@@ -184,7 +214,25 @@ function canonicalJson(value: unknown): string {
   return `{${parts.join(",")}}`;
 }
 
-function idempotencyHashOf(spec: WatchSpec): string | null {
+/**
+ * Owner-scoped idempotency hash.
+ *
+ * Pre-pluck-api, every Studio user is anonymous (`STUB_OWNER_ID`) — so
+ * cross-tenant collisions can already happen, but a single anonymous user
+ * retrying a POST still collapses correctly. When pluck-api lands and
+ * routes thread the real `session.user.id` through, hashes will key on
+ * the real owner. Day-1 fix: include the owner field in the canonical
+ * input now so the swap doesn't require a data migration AND so two
+ * distinct authed users (whose org Bearer tokens differ in
+ * `clientKey(req)`) cannot accidentally land on the same watchId on
+ * Bearer-affordance dev environments.
+ */
+const STUB_OWNER_ID = "anonymous";
+
+function idempotencyHashOf(
+  spec: WatchSpec,
+  ownerId: string = STUB_OWNER_ID,
+): string | null {
   if (spec.idempotencyKey === undefined) {
     return null;
   }
@@ -192,9 +240,9 @@ function idempotencyHashOf(spec: WatchSpec): string | null {
   // legitimately tweak post-create (cron, channels, thresholds) are
   // excluded so a retry with the same key still collapses. `name` is
   // included so two watches against the same URL with different labels
-  // do not collide (and tests that share a minute-bucket idempotency
-  // key with distinct names stay separate, matching operator intuition).
+  // do not collide.
   const canonical = canonicalJson({
+    ownerId,
     name: spec.name,
     url: spec.url,
     intent: spec.intent,
@@ -286,25 +334,34 @@ function enforceWatchCap(): void {
   observationIndex.delete(eviction);
 }
 
-function enforceObservationCap(): void {
-  while (observations.size > MAX_OBSERVATIONS) {
-    const oldest = observations.keys().next().value;
-    if (oldest === undefined) {
-      return;
+/**
+ * Per-watch observation cap. Was global (oldest insertion across ALL watches
+ * evicted first), which let a noisy watch silently delete a quiet watch's
+ * baseline observation — breaking its diff anchor and orphaning
+ * `prevObservationId` chains. Now: each watch keeps at most
+ * MAX_OBSERVATIONS_PER_WATCH; eviction stays scoped to the active watch.
+ *
+ * @param protectedWatchId — the watch whose observation we just recorded.
+ *   Eviction will not touch the just-added observation even if its watch
+ *   is at exactly the cap.
+ */
+function enforcePerWatchObservationCap(
+  protectedWatchId: string,
+  justAddedObservationId: string,
+): void {
+  const idx = observationIndex.get(protectedWatchId);
+  if (idx === undefined) {
+    return;
+  }
+  while (idx.length > MAX_OBSERVATIONS_PER_WATCH) {
+    const removed = idx.pop(); // oldest in this watch
+    if (removed === undefined || removed === justAddedObservationId) {
+      break;
     }
-    const obs = observations.get(oldest);
-    observations.delete(oldest);
-    if (obs !== undefined) {
-      const idx = observationIndex.get(obs.watchId);
-      if (idx !== undefined) {
-        const filtered = idx.filter((id) => id !== oldest);
-        if (filtered.length === 0) {
-          observationIndex.delete(obs.watchId);
-        } else {
-          observationIndex.set(obs.watchId, filtered);
-        }
-      }
-    }
+    observations.delete(removed);
+  }
+  if (idx.length === 0) {
+    observationIndex.delete(protectedWatchId);
   }
 }
 
@@ -565,12 +622,20 @@ export function recordObservation(
   if (watch === undefined) {
     return null;
   }
+
+  // Phase 1 — derive everything from current state.
   const nowDate = new Date(now);
   const observationId = randomUUID();
   const phraseId = generateObservationPhraseId(input.watchId, nowDate);
-
   const idx = observationIndex.get(input.watchId) ?? [];
-  const prevObservationId = idx.length > 0 ? (idx[0] ?? null) : null;
+  // `prevObservationId` is null on errors so the receipt page never tries
+  // to render a "before/after diff" against an unrelated successful run.
+  const prevObservationId =
+    input.kind === "error"
+      ? null
+      : idx.length > 0
+        ? (idx[0] ?? null)
+        : null;
 
   const record: ObservationRecord = {
     observationId,
@@ -587,21 +652,29 @@ export function recordObservation(
     createdAt: nowIso(now),
   };
 
-  observations.set(observationId, record);
-  observationIndex.set(input.watchId, [observationId, ...idx]);
-  enforceObservationCap();
-
   const updatedWatch: WatchRecord = {
     ...watch,
     lastFiredAt: now,
-    lastObservationId: input.kind === "error" ? watch.lastObservationId : observationId,
+    lastObservationId:
+      input.kind === "error" ? watch.lastObservationId : observationId,
     agentTokensSpentTotal:
       watch.agentTokensSpentTotal + (input.agentTokensUsed ?? 0),
     agentCostUsdTotal:
       watch.agentCostUsdTotal + (input.agentCostUsd ?? 0),
     updatedAt: nowIso(now),
   };
+
+  // Phase 2 — commit. All Map mutations happen together so a mid-flight
+  // observer never sees observation-without-watch or watch-without-index.
+  // Cap enforcement is scoped to THIS watch (per-watch FIFO) so the
+  // just-added observation cannot be evicted before publish fires.
+  observations.set(observationId, record);
+  observationIndex.set(input.watchId, [observationId, ...idx]);
+  enforcePerWatchObservationCap(input.watchId, observationId);
   watches.set(input.watchId, updatedWatch);
+
+  // Phase 3 — broadcast. observation event first so subscribers see the
+  // new observation before its watch-state side effects.
   publish(input.watchId, { kind: "observation", record });
   publish(input.watchId, { kind: "state", record: updatedWatch });
 
@@ -645,9 +718,104 @@ export function getObservation(observationId: string): ObservationRecord | null 
 export type TriggerResult =
   | { kind: "ok"; observation: ObservationRecord }
   | { kind: "not-found" }
-  | { kind: "not-active"; status: WatchStatus };
+  | { kind: "not-active"; status: WatchStatus }
+  | { kind: "cooldown"; waitMs: number };
 
 const MOCK_FETCH_TIMEOUT_MS = 15_000;
+/** Cap the response body we slurp from a target so a hostile site can't
+ *  stream gigabytes into our process. 1 MiB is well above any real-world
+ *  pricing/release/status page; raise post-Week-2 when the worker handles
+ *  the fetch with proper streaming + size accounting. */
+const MOCK_FETCH_MAX_BYTES = 1_000_000;
+
+/**
+ * Manual redirect walker. Each `Location` header is re-validated via the
+ * shared public-URL guard before we follow it — this is what defeats the
+ * "https://attacker.tld → 302 → http://127.0.0.1" SSRF chain. Returns the
+ * final successful Response, or throws a redacted error string.
+ */
+async function safeFetchFollowingRedirects(
+  fetchImpl: typeof fetch,
+  startUrl: string,
+  signal: AbortSignal,
+): Promise<Response> {
+  let currentUrl = startUrl;
+  for (let hop = 0; hop <= TRIGGER_MAX_REDIRECTS; hop += 1) {
+    const res = await fetchImpl(currentUrl, {
+      method: "GET",
+      signal,
+      redirect: "manual",
+    });
+    // 3xx with Location → re-validate, then keep walking.
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      if (loc === null) {
+        throw new Error(`redirect without Location at ${redactUrl(currentUrl)}`);
+      }
+      // Resolve relative redirects against the current URL.
+      const next = new URL(loc, currentUrl).toString();
+      const guard = validatePublicUrl(next);
+      if (!guard.ok) {
+        throw new Error(
+          `redirect blocked (${guard.error}) at ${redactUrl(currentUrl)}`,
+        );
+      }
+      currentUrl = guard.url;
+      continue;
+    }
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    return res;
+  }
+  throw new Error(`too many redirects (>${TRIGGER_MAX_REDIRECTS})`);
+}
+
+function redactUrl(u: string): string {
+  try {
+    const parsed = new URL(u);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch {
+    return "<malformed-url>";
+  }
+}
+
+async function readBoundedText(
+  res: Response,
+  maxBytes: number,
+): Promise<string> {
+  const reader = res.body?.getReader();
+  if (reader === undefined) {
+    // No streaming body — fall back to .text() and slice. We still cap
+    // the resulting string because some runtimes buffer fully before
+    // returning .text().
+    const text = await res.text();
+    return text.length > maxBytes ? text.slice(0, maxBytes) : text;
+  }
+  const decoder = new TextDecoder();
+  let total = 0;
+  let out = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      out += decoder.decode(value.subarray(0, maxBytes - (total - value.byteLength)));
+      // Cancel the stream so the server stops sending.
+      try {
+        await reader.cancel();
+      } catch {
+        // ignore
+      }
+      break;
+    }
+    out += decoder.decode(value, { stream: true });
+  }
+  out += decoder.decode();
+
+  return out;
+}
 
 export async function triggerWatch(
   watchId: string,
@@ -660,6 +828,15 @@ export async function triggerWatch(
   }
   if (watch.status !== "active" && watch.status !== "failed") {
     return { kind: "not-active", status: watch.status };
+  }
+  // Per-watch trigger cooldown — defeats trigger amplification (SEC-M1).
+  // Independent of the per-IP rate limit upstream. Operator can still
+  // schedule via cron; this only bounds manual fire-now spam.
+  if (watch.lastFiredAt !== null) {
+    const elapsed = now - watch.lastFiredAt;
+    if (elapsed < TRIGGER_COOLDOWN_MS) {
+      return { kind: "cooldown", waitMs: TRIGGER_COOLDOWN_MS - elapsed };
+    }
   }
 
   // Mark running so the UI can show a spinner.
@@ -677,16 +854,12 @@ export async function triggerWatch(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), MOCK_FETCH_TIMEOUT_MS);
     try {
-      const res = await fetchImpl(watch.url, {
-        method: "GET",
-        signal: controller.signal,
-        redirect: "follow",
-      });
-      if (!res.ok) {
-        fetchError = `HTTP ${res.status}`;
-      } else {
-        bodyText = await res.text();
-      }
+      const res = await safeFetchFollowingRedirects(
+        fetchImpl,
+        watch.url,
+        controller.signal,
+      );
+      bodyText = await readBoundedText(res, MOCK_FETCH_MAX_BYTES);
     } finally {
       clearTimeout(timer);
     }

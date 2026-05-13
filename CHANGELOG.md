@@ -1,5 +1,81 @@
 # @sizls/pluck-studio
 
+## Unreleased
+
+### Watch — Directive-native periodic monitoring (Week-1 scaffold + R1 hardening)
+
+Standalone surface, peer to Bureau. Operators describe what to watch in
+plain language; the agent (Week-2) decides what changed. The wedge: the
+agent IS the selector — pages can be rewritten and watches keep working.
+
+Adds (commit `8af75f0`):
+
+- `WatchSpec` / `WatchRecord` / `Observation` types in `src/lib/v1/watch-spec.ts`
+- `validateWatchSpec` / `validateWatchUpdate` with URL guard, cron grammar,
+  channel address shapes
+- In-memory store (`src/lib/watch/store.ts`) mirroring `run-store.ts` —
+  globalThis-pinned `Map`, idempotency, pub/sub, mock `triggerWatch`
+- Directive form module (`src/lib/watch/watch-form-module.ts`)
+- REST + SSE surface under `/api/v1/watches/` (POST/GET/PATCH/DELETE/trigger/events)
+- UI under `/watch/`: landing + list, `/new` create form, `/[id]` detail
+  with live SSE-driven observation cards
+- 53 Vitest tests + 7 Playwright E2E specs
+
+R1 AE-review hardening (this revision):
+
+- **SSRF defense (`src/lib/security/url-guard.ts`)** — IPv6 literals (bracket
+  strip + ULA/link-local/multicast), numeric IPv4 via `node:net.isIP`,
+  trailing-dot strip, userinfo rejection, reserved TLDs (`.local`, `.internal`,
+  `.test`, `.invalid`, `.localhost`), IPv4-mapped IPv6, `validateResolvedIp`
+  for DNS-rebinding defense at fetch time. 42 unit tests.
+- **Safe redirect walker in `triggerWatch`** — `redirect: "manual"`, every
+  `Location` header re-validated through the URL guard, max 3 hops,
+  1 MiB body cap.
+- **Per-watch trigger cooldown** (15s) — defeats trigger amplification.
+- **Atomic `recordObservation`** + **per-watch observation FIFO** (200/watch,
+  was global — a noisy watch could evict a quiet watch's baseline).
+- **GET-side redaction (`redactWatchForGet`)** — operator address lists in
+  `alertChannels.email/webhook/slack` stripped from public reads, list,
+  single GET, and SSE `state` events. Replaced with counts.
+- **Owner-scoped idempotency hash** (stub `ownerId = "anonymous"` Week-1) —
+  ready for cross-tenant gating when pluck-api lands.
+- **`subscribeToWatch` returns `() => void | null`** — throwing on a quota
+  event was API smell; null is the explicit, typed signal.
+- **`Last-Event-ID` clamped** strict `/^\d{1,8}$/` + `[0, 1_000_000]` so a
+  malformed header cannot push the local counter past `MAX_SAFE_INTEGER`.
+- **Global SSE subscriber cap** (5000 across all watches; 100 per watch).
+- **Webhook + Slack URLs run through the same public-host guard** (closes
+  Week-2 dispatch SSRF surface).
+- **Auth-before-JSON-parse** on POST + PATCH; 64 KiB body cap on all writes.
+- **Bearer-token affordance** gated on `NODE_ENV ∈ {test, development}` OR
+  positive `PLUCK_DEV_BEARER_AUTH=1` — preview/staging with unset NODE_ENV
+  is now auth-locked by default.
+- **`validateWatchUpdate` rebuilt without `as WatchUpdate` cast** — typed
+  conditional-spread mirror of `validateWatchSpec`.
+- **Status filter capped** (1..10 comma-separated values, ≤128 chars total).
+- **Page-level `runtime = "nodejs"`** on `/watch/page.tsx` and
+  `/watch/[id]/page.tsx` (store uses `node:crypto`).
+- **Stable per-render idempotency key in the form** via `crypto.randomUUID()`
+  — replaces the minute-bucket client clock.
+- **DELETE-already-archived null-check** on re-fetch.
+- **Error observations have `prevObservationId = null`** — receipt diff
+  views never compare an error to a baseline.
+
+Nav + docs:
+
+- `Watch` entry added to global nav (`src/components/bureau-ui/chrome.tsx`
+  header + footer) + `app/watch/layout.tsx` highlights it.
+- `docs/V1_API.md` — full `/v1/watches` section: WatchSpec, endpoint table,
+  DELETE semantics rationale, redaction shape, observation contract,
+  auth posture, SSE event schema.
+- `docs/ARCHITECTURE.md` — §16 Watch surface block: stub seam, SSRF posture,
+  three autonomy modes, Bureau ↔ Watch composition.
+- `docs/IDEAS.md` — R-Watch1 game-changers captured (Stakeout, Receipt Trio,
+  The Vigil); deferred per user's "fix first" call.
+
+Tests: 53 → 105 watch+security tests; 1256 → 1308 total Studio Vitest;
+7 Playwright E2E specs all green; typecheck clean.
+
 ## 0.1.1
 
 ### Patch Changes

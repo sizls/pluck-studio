@@ -16,6 +16,9 @@ import { listWatches } from "../../lib/watch/store";
 // outside the request cycle (SSE pub/sub, manual triggers) and Next's
 // default RSC cache would otherwise serve stale snapshots.
 export const dynamic = "force-dynamic";
+// Watch store uses node:crypto; lock the runtime so a future config flip
+// to edge can't silently break this page.
+export const runtime = "nodejs";
 
 export const metadata = {
   title: "Watch — Pluck Studio",

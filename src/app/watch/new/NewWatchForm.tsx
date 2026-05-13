@@ -131,10 +131,24 @@ function clientSideUrlGuard(raw: string): string | null {
   return null;
 }
 
-function idempotencyKeyFor(url: string): string {
-  const minuteBucket = Math.floor(Date.now() / 60_000);
+/**
+ * Stable per-render idempotency key. Earlier this used a client-side
+ * minute-bucket on the clock, which produced a NEW key when a slow
+ * round-trip crossed a minute boundary — a duplicate-click after a
+ * 60s wait created two watches. A `crypto.randomUUID()` minted ONCE
+ * per form mount means: every click within the same mount collapses
+ * to the same watchId; reloading the form creates a fresh key. Server
+ * clock is the only one that matters for de-duplication.
+ */
+function newIdempotencyKey(): string {
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    return `watch:${globalThis.crypto.randomUUID()}`;
+  }
 
-  return `watch:${url}:${minuteBucket}`;
+  return `watch:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function NewWatchForm(): ReactNode {
@@ -146,6 +160,11 @@ export function NewWatchForm(): ReactNode {
 
     return sys;
   }, []);
+
+  // One idempotency key per form mount. Submitting twice — even seconds
+  // apart, even across a slow network — collapses to the same watchId.
+  // Resetting the form (component unmount + remount) creates a fresh key.
+  const idempotencyKey = useMemo(() => newIdempotencyKey(), []);
 
   const name = useFact(system, "name");
   const url = useFact(system, "url");
@@ -260,7 +279,7 @@ export function NewWatchForm(): ReactNode {
           fetcherKind,
           autonomyMode,
           alertChannels,
-          idempotencyKey: idempotencyKeyFor(url ?? ""),
+          idempotencyKey,
         }),
       });
 

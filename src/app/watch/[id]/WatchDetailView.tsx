@@ -18,14 +18,14 @@ import {
   type ReactNode,
 } from "react";
 
+import type { PublicWatchRecord } from "../../../lib/v1/redact";
 import type {
   ObservationRecord,
-  WatchRecord,
   WatchStatus,
 } from "../../../lib/v1/watch-spec";
 
 interface WatchDetailViewProps {
-  readonly watch: WatchRecord;
+  readonly watch: PublicWatchRecord;
   readonly initialObservations: ReadonlyArray<ObservationRecord>;
   readonly observationCount: number;
 }
@@ -83,7 +83,7 @@ export function WatchDetailView({
   initialObservations,
   observationCount,
 }: WatchDetailViewProps): ReactNode {
-  const [watch, setWatch] = useState<WatchRecord>(initial);
+  const [watch, setWatch] = useState<PublicWatchRecord>(initial);
   const [observations, setObservations] = useState<ReadonlyArray<ObservationRecord>>(
     initialObservations,
   );
@@ -99,7 +99,7 @@ export function WatchDetailView({
 
     es.addEventListener("state", (ev: MessageEvent) => {
       try {
-        const record = JSON.parse(ev.data) as WatchRecord;
+        const record = JSON.parse(ev.data) as PublicWatchRecord;
         setWatch(record);
       } catch {
         // ignore parse errors
@@ -190,9 +190,9 @@ export function WatchDetailView({
     const parts: string[] = [];
     if (c.dashboard) parts.push("dashboard");
     if (c.phraseId) parts.push("phrase-id");
-    if (c.email.length > 0) parts.push(`email (${c.email.length})`);
-    if (c.webhook.length > 0) parts.push(`webhook (${c.webhook.length})`);
-    if (c.slack.length > 0) parts.push(`slack (${c.slack.length})`);
+    if (c.emailCount > 0) parts.push(`email (${c.emailCount})`);
+    if (c.webhookCount > 0) parts.push(`webhook (${c.webhookCount})`);
+    if (c.slackCount > 0) parts.push(`slack (${c.slackCount})`);
 
     return parts.join(" · ");
   }, [watch.alertChannels]);
@@ -211,7 +211,8 @@ export function WatchDetailView({
             data-testid="watch-detail-status"
             style={{
               fontFamily: "var(--bureau-mono)",
-              color: STATUS_COLOR[watch.status],
+              color:
+                STATUS_COLOR[watch.status as WatchStatus] ?? "var(--bureau-fg)",
               marginRight: 12,
             }}
           >

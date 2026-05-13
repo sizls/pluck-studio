@@ -206,6 +206,44 @@ Surfaced after Receipt Diff + MCP scaffold landed. R1 review found 5 majors (fix
 
 If the loop converges with 0 critical / 0 major after R2, all three are buildable in <2 days each. Recommend **#1 `/proof`** first — the cryptographic-proof artifact is the strongest viral candidate AND retroactively justifies every "we don't log that" claim across the existing 7 redaction boundaries.
 
+## R-Watch1 — Watch surface (Sherlock Moments)
+
+Surfaced by Round 1 of the AE loop on the Week-1 Watch scaffold (commit 8af75f0). User chose to **defer all** game changers this round because R1 turned up 8 critical and ~22 major issues — fix first, build the wedge in R3+.
+
+### The Three Wedge Picks (ranked)
+
+1. **The Stakeout — `/watch/[id]/stakeout`** (1 day, HIGH viral × HIGH compound)
+   - Pitch: full-screen cinematic "the agent is watching right now" view. SSE-driven typewriter streaming the agent's `reasoning`; yellow-highlighted `evidenceQuote` pull-quotes slide in; next-fire countdown tick against the cron. Bureau-mono terminal aesthetic IS the brand.
+   - Demo moment: 15-second clip. Black terminal, vendor URL up top, typewriter spits "Price changed from $79 → $129. Reason: removed the introductory tier." Evidence quote highlights yellow. Cron clock ticks `04:43`. Single frame = TechCrunch hero asset.
+   - Implementation (Directive-first): `stakeoutModule` with `schema: { observations, countdownMs, typewriterIndex }`, derivations for `latestEvidenceQuote` / `nextFireAt` / `streamProgress`, 1s `tickCountdown` effect. SSE feed → `system.facts.observations.push(...)`. `useDerived` drives the typewriter.
+   - Compound: SSE endpoint already exists, `Observation.reasoning`/`evidenceQuote` already in the contract. Stub today → real agent text streams in Week-2 for free.
+   - Status: **DEFERRED to R3+** — fix-first.
+
+2. **Receipt Trio — auto-mint OG card + haiku + evidence poster per observation** (1.5 days, HIGH viral × HIGH compound)
+   - Pitch: every observation auto-mints three shareable artifacts on save: (a) 1200×630 OG card with the evidence quote pull-quoted, (b) 6-line haiku blurb generated from `causalExplanation` for Slack/Twitter, (c) `/observation/<phraseId>/poster.svg` "police-evidence-board" poster with Phrase Crest sigil — printable.
+   - Demo moment: Slack DM screenshot: *"Stripe raised checkout fees. / Three hours past midnight Pacific. / swift-falcon-1188"* attached to a black-and-yellow evidence poster. The haiku is the unhinged-but-perfect distribution wedge — nobody else does this.
+   - Implementation (Directive-first): Add `effects.onObservation` on the watch module that calls `renderTrio()` when a new observation lands. Haiku is a deterministic structured-output stub until the Week-2 agent ships. Posters reuse the existing Phrase Crest SVG generator.
+   - Compound: `phrase-id.ts` already minted, `Observation.evidenceQuote`/`causalExplanation` already typed, `WatchRecord.receiptUrl` already exposed.
+   - Status: **DEFERRED to R3+** — fix-first.
+
+3. **The Vigil — `/watch/[id]/vigil`** (4 hours, MEDIUM viral × MEDIUM compound)
+   - Pitch: one number, very large. "Pluck has been watching this page for 47 days, 3 hours, 12 minutes." Below it: total observations, longest unchanged streak, single most alert-worthy moment linked to its receipt. That's the whole page. No charts.
+   - Demo moment: a 30-second clip of pasting the URL into an article: *"Pluck has been watching OpenAI's pricing page for 134 days. In that time they changed it 9 times."* The number is hypnotic. Karpathy-quote-tweet bait.
+   - Implementation (Directive-first): `vigilModule` with `schema: { startedAt, observationCount, longestUnchangedStreak, peakAlertObsId }`. Derivation `currentDuration = (facts) => Date.now() - facts.startedAt` re-evaluates on a 1s effect tick. SSR for SEO; one client component for the live ticking.
+   - Compound: `WatchRecord.createdAt` + `listObservations` + observation phrase-IDs — all already in place.
+   - Status: **DEFERRED to R3+** — fix-first. (Cheapest of the three; great candidate for the first R3 commit.)
+
+### Other ideas (backlog)
+
+4. **Two-Watch Duel — `/duel/<watch-a>/<watch-b>`** (1 day) — side-by-side scoreboard of two watches with synchronized cron-tick header. Cross-module derivation `verdict = (facts) => compareObservationStreams(facts.a, facts.b)`. The only monitoring tool that watches comparatively.
+5. **Patience Score badge — `/watch/[id]/patience.svg`** (4 hours) — calibrated "this watch saved you 14 hours of refreshing" badge. ROI on monitoring tools is invisible; Patience Score makes the savings visible and shareable.
+6. **Watch-of-Watches — meta-watch on `/watch` itself** (2 hours) — recursive: "alert me when a new watch is created or an existing one fires alert-worthy." Hofstadter screenshot waiting to happen + genuinely useful team feature.
+7. **Watch Roulette — `/watch/roulette`** (2 hours) — random redirect to a live `/watch/<id>/stakeout`. "I'm Feeling Lucky" for monitoring. Disco frames are screenshot bait. Requires opt-in `WatchSpec.public` flag.
+
+### R-Watch1 wedge bundle estimate
+
+Stakeout + Receipt Trio + Vigil = ~3 days of focused work. Single launch announcement writes itself: **"The Stakeout. The Haiku. The Vigil. Watch is live."**
+
 ## R0 (plan-doc) — already captured in `mighty-gliding-swan.md`
 
 These are part of the plan, not surfaced this round:

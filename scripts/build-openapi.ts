@@ -417,7 +417,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       version: pkg.version,
       summary: "Unified pipeline activation surface for the Pluck Bureau.",
       description:
-        "Auto-generated from `src/lib/v1/run-spec.ts`. Pipeline + status enums are derived from `BUREAU_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`. Per-pipeline payload schemas live in `docs/V1_API.md` (not embedded here). Re-run `pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators / redactor change.",
+        "Auto-generated from `src/lib/v1/run-spec.ts`. Pipeline + status enums are derived from `BUREAU_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`. Per-pipeline payload schemas live in `docs/V1_API.md` (not embedded here). Re-run `pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators / redactor change.\n\nNOTE: The `/v1/watches` surface (periodic semantic monitoring — see `docs/V1_API.md` §Watch) is documented separately and not yet embedded in this OpenAPI document. Tracking: add WatchSpec / WatchRecord / ObservationRecord schemas + 7 endpoints in a follow-on commit before pluck-watch-worker GA.",
       license: { name: "Proprietary", identifier: "LicenseRef-Sizls-Internal" },
       contact: { name: "Pluck Studio", url: "https://studio.pluck.run" },
     },

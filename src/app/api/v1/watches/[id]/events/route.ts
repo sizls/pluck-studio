@@ -18,6 +18,7 @@ import {
   isSameSiteRequest,
   rateLimitOk,
 } from "../../../../../../lib/security/request-guards";
+import { redactWatchForGet } from "../../../../../../lib/v1/redact";
 import {
   getWatch,
   subscribeToWatch,
@@ -71,13 +72,23 @@ export async function GET(
     return jsonError("watch not found", 404);
   }
 
+  // Reconnect support: clients echo back the last id they saw via the
+  // standard `Last-Event-ID` request header. Resume the local id counter
+  // from that value + 1. Clamped to [0, MAX_LAST_EVENT_ID] AND parsed
+  // strictly (`/^\d+$/`) so a header like `1e20` or `99999999999999999999`
+  // cannot push the local counter past `Number.MAX_SAFE_INTEGER` and
+  // break monotonic event-id ordering (SEC-M4).
+  const MAX_LAST_EVENT_ID = 1_000_000;
   const lastEventIdHeader = req.headers.get("last-event-id");
   const startFrom = (() => {
     if (lastEventIdHeader === null) {
       return 1;
     }
-    const n = Number(lastEventIdHeader);
-    if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+    if (!/^\d{1,8}$/.test(lastEventIdHeader)) {
+      return 1;
+    }
+    const n = Number.parseInt(lastEventIdHeader, 10);
+    if (!Number.isFinite(n) || n < 0 || n > MAX_LAST_EVENT_ID) {
       return 1;
     }
 
@@ -128,30 +139,32 @@ export async function GET(
         }
       };
 
-      // 1. Initial state event — current snapshot.
-      send("state", initial);
+      // 1. Initial state event — redacted (operator address lists are
+      //    PII; the phraseId is the share credential, not consent).
+      send("state", redactWatchForGet(initial));
 
-      // 2. Subscribe for transitions. Wrap in try/catch — subscribeToWatch
-      //    throws if the per-watch subscriber cap is reached.
-      try {
-        unsubscribe = subscribeToWatch(id, (event: WatchEvent) => {
-          if (event.kind === "state") {
-            send("state", event.record);
-          } else if (event.kind === "observation") {
-            send("observation", event.record);
-          } else if (event.kind === "alert") {
-            send("alert", {
-              observationId: event.observationId,
-              channel: event.channel,
-              status: event.status,
-            });
-          }
-        });
-      } catch {
+      // 2. Subscribe for transitions. `subscribeToWatch` returns `null`
+      //    when either the per-watch cap (100) or the global cap (5000)
+      //    is reached; the route emits one `error` event and closes.
+      const sub = subscribeToWatch(id, (event: WatchEvent) => {
+        if (event.kind === "state") {
+          send("state", redactWatchForGet(event.record));
+        } else if (event.kind === "observation") {
+          send("observation", event.record);
+        } else if (event.kind === "alert") {
+          send("alert", {
+            observationId: event.observationId,
+            channel: event.channel,
+            status: event.status,
+          });
+        }
+      });
+      if (sub === null) {
         send("error", { code: "subscriber-cap-reached" });
         cleanup();
         return;
       }
+      unsubscribe = sub;
 
       // 3. Heartbeat — proxy + browser keep-alive.
       heartbeatTimer = setInterval(() => {
