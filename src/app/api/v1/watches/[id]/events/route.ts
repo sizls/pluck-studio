@@ -39,6 +39,9 @@ const SSE_HEADERS: HeadersInit = {
   "Cache-Control": "no-store, no-transform",
   Connection: "keep-alive",
   "X-Accel-Buffering": "no",
+  // R2 SEC-M5 defense-in-depth: pin MIME-sniffing off, drop referrers.
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
 };
 
 function jsonError(message: string, status: number): Response {

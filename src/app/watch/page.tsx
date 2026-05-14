@@ -10,6 +10,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { redactWatchForGet } from "../../lib/v1/redact";
 import { listWatches } from "../../lib/watch/store";
 
 // Read latest watch list on every request — the in-memory store mutates
@@ -55,7 +56,13 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function WatchLandingPage(): ReactNode {
-  const { watches, totalCount } = listWatches({ limit: 50 });
+  const { watches: raw, totalCount } = listWatches({ limit: 50 });
+  // Defense-in-depth — every WatchRecord that reaches the RSC tree goes
+  // through redaction, so address arrays cannot accidentally land in
+  // a future card or debug payload. The current list cards don't read
+  // alertChannels addresses, but a casual `JSON.stringify(w)` debug line
+  // would leak them without this gate.
+  const watches = raw.map((w) => redactWatchForGet(w));
 
   return (
     <>

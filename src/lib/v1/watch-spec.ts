@@ -143,7 +143,7 @@ export interface Observation {
 export interface ObservationRecord {
   /** Stable UUID for the observation; phraseId is the user-facing alias. */
   readonly observationId: string;
-  /** pluck/watch/<watch-slug>/<ymd>/observation-<seq> — Pluck phrase-id format. */
+  /** pluck:watch:<watch-slug>:<ymd>:obs-<seq>-<r4> — URL-/Slack-safe phrase-id. */
   readonly phraseId: string;
   readonly watchId: string;
   readonly kind: ObservationKind;

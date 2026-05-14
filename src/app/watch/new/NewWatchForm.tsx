@@ -75,6 +75,9 @@ const FETCHER_OPTIONS: ReadonlyArray<{
   },
 ];
 
+// Autonomy options lead with the OUTCOME (what the operator gets), not
+// the jargon. Internal slug remains for the API + telemetry; readers see
+// the behavior first. R2 DX fix.
 const AUTONOMY_OPTIONS: ReadonlyArray<{
   value: AutonomyMode;
   label: ReactNode;
@@ -82,17 +85,18 @@ const AUTONOMY_OPTIONS: ReadonlyArray<{
 }> = [
   {
     value: "diff-gated",
-    label: "Diff-gated — cheap text diff first, agent only on non-trivial change (recommended)",
+    label:
+      "Cost-saver — cheap text diff first, agent only on real change (recommended)",
     testId: "autonomy-diff-gated",
   },
   {
     value: "full-auto",
-    label: "Full auto — always run the agent; alert when confidence is high",
+    label: "Always-on agent — alert whenever the agent is confident",
     testId: "autonomy-full-auto",
   },
   {
     value: "always-agent",
-    label: "Always agent + human-confirm — every alert routes to a review queue",
+    label: "Always agent + human review — every alert lands in an approval queue",
     testId: "autonomy-always-agent",
   },
 ];
@@ -384,6 +388,7 @@ export function NewWatchForm(): ReactNode {
             <button
               type="button"
               onClick={() => setCron(p.value)}
+              aria-pressed={cron === p.value}
               data-testid={`cron-preset-${p.value.replace(/\W+/g, "-")}`}
               style={{
                 background: "none",
@@ -392,6 +397,8 @@ export function NewWatchForm(): ReactNode {
                 color: "var(--bureau-fg)",
                 cursor: "pointer",
                 textDecoration: "underline",
+                textDecorationThickness: cron === p.value ? 3 : 1,
+                fontWeight: cron === p.value ? 700 : 400,
                 font: "inherit",
               }}
             >

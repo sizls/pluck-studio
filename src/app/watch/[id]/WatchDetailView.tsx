@@ -89,14 +89,22 @@ export function WatchDetailView({
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // SSE connection state — drives the live/reconnecting/dead pill.
+  const [sseState, setSseState] = useState<"live" | "reconnecting" | "dead">(
+    "reconnecting",
+  );
+  // Cooldown end timestamp (Unix ms) when the trigger route returns 429.
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [, setNowTick] = useState(0);
   const watchId = initial.watchId;
   const sourceRef = useRef<EventSource | null>(null);
 
-  // SSE subscription — live state + observation push.
+  // SSE subscription — live state + observation push + connection-state pill.
   useEffect(() => {
     const es = new EventSource(`/api/v1/watches/${watchId}/events`);
     sourceRef.current = es;
 
+    es.onopen = () => setSseState("live");
     es.addEventListener("state", (ev: MessageEvent) => {
       try {
         const record = JSON.parse(ev.data) as PublicWatchRecord;
@@ -113,9 +121,16 @@ export function WatchDetailView({
         // ignore
       }
     });
+    es.addEventListener("heartbeat", () => {
+      // A heartbeat from the server means we're alive even if no state
+      // changes occurred — re-confirm "live" in case onerror flipped us
+      // to reconnecting after a transient blip.
+      setSseState("live");
+    });
     es.onerror = () => {
-      // EventSource auto-reconnects; nothing to do unless we want to
-      // surface offline UX.
+      // EventSource auto-reconnects; flip the pill while we're between
+      // sockets. CLOSED (readyState 2) is terminal — show "dead."
+      setSseState(es.readyState === EventSource.CLOSED ? "dead" : "reconnecting");
     };
 
     return () => {
@@ -123,6 +138,22 @@ export function WatchDetailView({
       sourceRef.current = null;
     };
   }, [watchId]);
+
+  // Drive a 1s tick while a cooldown is active so the countdown button
+  // re-renders. Stops as soon as the cooldown expires.
+  useEffect(() => {
+    if (cooldownUntil === null) {
+      return;
+    }
+    const i = setInterval(() => {
+      setNowTick((n) => n + 1);
+      if (Date.now() >= cooldownUntil) {
+        setCooldownUntil(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(i);
+  }, [cooldownUntil]);
 
   const doAction = useCallback(
     async (
@@ -136,6 +167,15 @@ export function WatchDetailView({
         const res = await run();
         const body = await res.json().catch(() => null);
         if (!res.ok) {
+          // Special-case the trigger cooldown 429 — surface as a countdown
+          // on the Trigger button instead of a raw error toast.
+          if (res.status === 429 && body && typeof body === "object") {
+            const retryAfterMs = (body as { retryAfterMs?: unknown }).retryAfterMs;
+            if (typeof retryAfterMs === "number" && Number.isFinite(retryAfterMs)) {
+              setCooldownUntil(Date.now() + retryAfterMs);
+              return;
+            }
+          }
           const err =
             body && typeof body === "object" && "error" in body
               ? String((body as { error: unknown }).error)
@@ -154,6 +194,11 @@ export function WatchDetailView({
     },
     [],
   );
+
+  const cooldownSecsLeft =
+    cooldownUntil === null
+      ? 0
+      : Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
 
   const trigger = useCallback(async (): Promise<void> => {
     await doAction("trigger", () =>
@@ -218,6 +263,32 @@ export function WatchDetailView({
           >
             {watch.status}
           </span>
+          <span
+            data-testid="watch-sse-pill"
+            title={
+              sseState === "live"
+                ? "Live: receiving updates"
+                : sseState === "reconnecting"
+                  ? "Reconnecting to the live stream…"
+                  : "Live stream disconnected"
+            }
+            style={{
+              fontFamily: "var(--bureau-mono)",
+              fontSize: 11,
+              padding: "2px 8px",
+              marginRight: 12,
+              borderRadius: 10,
+              border: "1px solid var(--bureau-fg-dim)",
+              color:
+                sseState === "live"
+                  ? "#7ee787"
+                  : sseState === "reconnecting"
+                    ? "#e3a548"
+                    : "#ff8888",
+            }}
+          >
+            ● {sseState}
+          </span>
           ·{" "}
           <span style={{ fontFamily: "var(--bureau-mono)" }}>
             {watch.cron}
@@ -232,11 +303,17 @@ export function WatchDetailView({
           <button
             type="button"
             onClick={trigger}
-            disabled={busy !== null || watch.status === "archived"}
+            disabled={
+              busy !== null || watch.status === "archived" || cooldownSecsLeft > 0
+            }
             data-testid="watch-trigger"
             style={ButtonStyle}
           >
-            {busy === "trigger" ? "Triggering…" : "Trigger now"}
+            {busy === "trigger"
+              ? "Triggering…"
+              : cooldownSecsLeft > 0
+                ? `Cooldown — ${cooldownSecsLeft}s`
+                : "Trigger now"}
           </button>
           <button
             type="button"
@@ -344,18 +421,41 @@ export function WatchDetailView({
             data-testid="watch-observations"
             style={{ listStyle: "none", padding: 0, marginTop: 12 }}
           >
-            {observations.map((o) => (
+            {observations.map((o) => {
+              const isStub = o.modelUsed === null && o.kind !== "error";
+              return (
               <li
                 key={o.observationId}
                 data-testid={`observation-${o.observationId}`}
                 style={{
                   padding: "16px 20px",
                   marginTop: 12,
-                  border: "1px solid var(--bureau-fg-dim)",
+                  border: `1px solid ${isStub ? "#e3a548" : "var(--bureau-fg-dim)"}`,
                   borderRadius: 4,
                   background: "rgba(255,255,255,0.02)",
+                  position: "relative",
                 }}
               >
+                {isStub ? (
+                  <span
+                    data-testid={`observation-stub-${o.observationId}`}
+                    title="Week-1 mock observation. Real agent ships Week-2."
+                    style={{
+                      position: "absolute",
+                      top: 10,
+                      right: 12,
+                      fontFamily: "var(--bureau-mono)",
+                      fontSize: 10,
+                      padding: "2px 6px",
+                      borderRadius: 3,
+                      background: "#e3a548",
+                      color: "var(--bureau-bg)",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    STUB
+                  </span>
+                ) : null}
                 <div
                   style={{
                     display: "flex",
@@ -441,7 +541,8 @@ export function WatchDetailView({
                     : ""}
                 </p>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

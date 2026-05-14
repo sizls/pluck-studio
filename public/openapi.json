@@ -1,10 +1,10 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Pluck Studio — /v1/runs API",
+    "title": "Pluck Studio — /v1/runs + /v1/watches API",
     "version": "0.1.1",
-    "summary": "Unified pipeline activation surface for the Pluck Bureau.",
-    "description": "Auto-generated from `src/lib/v1/run-spec.ts`. Pipeline + status enums are derived from `BUREAU_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`. Per-pipeline payload schemas live in `docs/V1_API.md` (not embedded here). Re-run `pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators / redactor change.\n\nNOTE: The `/v1/watches` surface (periodic semantic monitoring — see `docs/V1_API.md` §Watch) is documented separately and not yet embedded in this OpenAPI document. Tracking: add WatchSpec / WatchRecord / ObservationRecord schemas + 7 endpoints in a follow-on commit before pluck-watch-worker GA.",
+    "summary": "Unified pipeline activation (Bureau /v1/runs) + periodic semantic monitoring (/v1/watches).",
+    "description": "Auto-generated from `src/lib/v1/run-spec.ts` and `src/lib/v1/watch-spec.ts`. Pipeline + status enums are derived from the TypeScript taxonomy (`BUREAU_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`, `AUTONOMY_MODES` / `FETCHER_KINDS` / `WATCH_STATUSES` / `OBSERVATION_KINDS` / `OBSERVATION_CLASSIFICATIONS`). Per-pipeline run payload schemas live in `docs/V1_API.md`. Re-run `pnpm openapi:build` after any spec / validator / redactor change.",
     "license": {
       "name": "Proprietary",
       "identifier": "LicenseRef-Sizls-Internal"
@@ -28,6 +28,10 @@
     {
       "name": "Runs",
       "description": "Unified pipeline activation surface. POST creates, GET-list and GET-by-id are public-read, DELETE cancels."
+    },
+    {
+      "name": "Watches",
+      "description": "Periodic semantic monitoring. POST creates, GET (list + single) are public-read, PATCH updates a subset, DELETE archives (soft delete), POST /trigger fires manually, GET /events streams SSE."
     }
   ],
   "paths": {
@@ -426,6 +430,530 @@
           }
         }
       }
+    },
+    "/api/v1/watches": {
+      "post": {
+        "tags": [
+          "Watches"
+        ],
+        "summary": "Create a watch",
+        "operationId": "createWatch",
+        "description": "Create a periodic semantic monitor. Idempotent on `(ownerId, name, url, intent, fetcherKind, idempotencyKey)`. Returns the envelope on success — clients that need the full record after create should GET `/v1/watches/{watchId}`.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchSpec"
+              },
+              "examples": {
+                "pricing": {
+                  "summary": "OpenAI pricing watch (Playwright + diff-gated)",
+                  "value": {
+                    "name": "OpenAI pricing watch",
+                    "url": "https://openai.com/pricing",
+                    "cron": "@daily",
+                    "intent": "Alert when GPT-4 input token price changes from its current value, especially on the API pricing table.",
+                    "fetcherKind": "playwright",
+                    "autonomyMode": "diff-gated",
+                    "alertChannels": {
+                      "dashboard": true,
+                      "email": [],
+                      "webhook": [],
+                      "slack": [],
+                      "phraseId": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Watch created (or replayed via idempotency).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateWatchResponse"
+                },
+                "example": {
+                  "watchId": "openai-amber-falcon-3742",
+                  "receiptUrl": "/watch/openai-amber-falcon-3742",
+                  "status": "active",
+                  "reused": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Watches"
+        ],
+        "summary": "List watches (public read, redacted)",
+        "operationId": "listWatches",
+        "description": "Public read by phraseId model — same posture as `/v1/runs`. Operator address lists in `alertChannels` are stripped (replaced with counts). Archived watches are hidden by default; pass `?status=archived` to surface them.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "WatchStatus filter. Single value or comma-separated (≤10 values). Unknown values return 400.",
+            "examples": {
+              "single": {
+                "value": "active"
+              },
+              "csv": {
+                "value": "active,paused"
+              }
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of redacted watch records.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListWatchesResponse"
+                },
+                "example": {
+                  "watches": [],
+                  "nextCursor": null,
+                  "totalCount": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/v1/watches/{id}": {
+      "get": {
+        "tags": [
+          "Watches"
+        ],
+        "summary": "Get a watch (public read, redacted)",
+        "operationId": "getWatch",
+        "description": "Public read by phraseId. Response inlines the most recent observation history (cap 20) so the receipt page renders without a second round trip.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "phraseId of the watch."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Watch record + recent observations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchDetailResponse"
+                },
+                "example": {
+                  "watchId": "openai-amber-falcon-3742",
+                  "name": "OpenAI pricing watch",
+                  "url": "https://openai.com/pricing",
+                  "cron": "@daily",
+                  "intent": "Alert when GPT-4 input token price changes from its current value.",
+                  "fetcherKind": "playwright",
+                  "autonomyMode": "diff-gated",
+                  "status": "active",
+                  "alertChannels": {
+                    "dashboard": true,
+                    "phraseId": true,
+                    "emailCount": 0,
+                    "webhookCount": 0,
+                    "slackCount": 0
+                  },
+                  "confidenceThreshold": 0.75,
+                  "diffThreshold": 0.02,
+                  "ignoreSelectors": [],
+                  "useVisionDefault": false,
+                  "dailyBudgetUsd": 2,
+                  "agentTokensSpentTotal": 0,
+                  "agentCostUsdTotal": 0,
+                  "lastObservationId": null,
+                  "lastFiredAt": null,
+                  "receiptUrl": "/watch/openai-amber-falcon-3742",
+                  "createdAt": "2026-05-04T17:00:00.000Z",
+                  "updatedAt": "2026-05-04T17:00:00.000Z",
+                  "observations": [],
+                  "observationCount": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Watches"
+        ],
+        "summary": "Update a watch (subset)",
+        "operationId": "updateWatch",
+        "description": "Partial update. Operator-mutable fields only — `url`, `intent`, `fetcherKind` are immutable post-create (change those by archiving + recreating). Returns the full PublicWatchRecord.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "phraseId of the run."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchUpdate"
+              },
+              "examples": {
+                "pause": {
+                  "value": {
+                    "status": "paused"
+                  }
+                },
+                "cron": {
+                  "value": {
+                    "cron": "0 */6 * * *"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated watch record.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicWatchRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Watches"
+        ],
+        "summary": "Archive a watch (soft delete)",
+        "operationId": "archiveWatch",
+        "description": "Archive verb — record stays for audit; observation history is preserved. `DELETE /v1/runs/:id` cancels because runs cannot be paused; `DELETE /v1/watches/:id` archives because watches CAN be paused via `PATCH status=paused`. Idempotent: already-archived returns 200 with `alreadyArchived: true`.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "phraseId of the run."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Watch archived (or already archived).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteWatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/v1/watches/{id}/trigger": {
+      "post": {
+        "tags": [
+          "Watches"
+        ],
+        "summary": "Fire a watch now (manual)",
+        "operationId": "triggerWatch",
+        "description": "Manual fire-now. Per-watch cooldown applies (15 s) to defeat trigger amplification — exceeded returns 429 with `Retry-After` + `retryAfterMs` payload. Week-1 stub runs a server-side fetch with manual redirect-walking + DNS-rebinding guard + HTTPS-downgrade rejection; Week-2 proxies to the Worker (Playwright + agent).",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "phraseId of the run."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Observation recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationRecord"
+                },
+                "example": {
+                  "observationId": "9c2a3e6a-3b6a-4d9f-9a3e-4d9f9a3e4d9f",
+                  "phraseId": "pluck:watch:openai-amber-falcon-3742:2026-05-13:obs-01-9f3a",
+                  "watchId": "openai-amber-falcon-3742",
+                  "kind": "baseline",
+                  "prevObservationId": null,
+                  "observation": null,
+                  "errorMessage": null,
+                  "agentTokensUsed": 0,
+                  "agentCostUsd": 0,
+                  "modelUsed": null,
+                  "fetchedAt": "2026-05-04T17:00:00.000Z",
+                  "createdAt": "2026-05-04T17:00:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/v1/watches/{id}/events": {
+      "get": {
+        "tags": [
+          "Watches"
+        ],
+        "summary": "Server-Sent Events stream of watch progress (public, redacted)",
+        "operationId": "streamWatchEvents",
+        "description": "Long-lived `text/event-stream` connection. Emits an initial redacted PublicWatchRecord as a `state` event on connect; fresh `state` events on every transition; `observation` events when observations are recorded; `alert` events on per-channel dispatch (Week-2+); `heartbeat` every 30 s. Hard 5-minute connection cap. Honors `Last-Event-ID` (strict `^\\d{1,8}$`, clamped to `[0, 1_000_000]`). Per-watch subscriber cap 100 / global 5000 → `error` event + close.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "description": "phraseId of the watch."
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,8}$"
+            },
+            "description": "Standard SSE reconnect header. Server resumes its event-id counter from `Last-Event-ID + 1`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream. Each message is `id: <n>\\nevent: <state|observation|alert|heartbeat|error>\\ndata: <json>\\n\\n`. The `state` event's data is a `PublicWatchRecord`; `observation` data is an `ObservationRecord`; `heartbeat` data is `{ ts: <unix-ms> }`.",
+            "headers": {
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "const": "text/event-stream; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store, no-transform"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "const": "nosniff"
+                }
+              },
+              "Referrer-Policy": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-referrer"
+                }
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "id: 1\nevent: state\ndata: {\"watchId\":\"openai-amber-falcon-3742\",\"status\":\"active\",\"cron\":\"@daily\",\"alertChannels\":{\"dashboard\":true,\"phraseId\":true,\"emailCount\":0,\"webhookCount\":0,\"slackCount\":0}}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -668,8 +1196,629 @@
           "status": {
             "$ref": "#/components/schemas/RunStatus",
             "description": "Present on 409 from DELETE — the final-state status."
+          },
+          "retryAfterMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Present on 429 from POST /v1/watches/{id}/trigger — wait this many ms before retrying."
           }
         }
+      },
+      "AutonomyMode": {
+        "type": "string",
+        "enum": [
+          "full-auto",
+          "diff-gated",
+          "always-agent"
+        ],
+        "description": "Watch-level autonomy. `diff-gated` runs a cheap text diff before the agent; `full-auto` always runs the agent + alerts when confidence > threshold; `always-agent` routes every observation to a human-confirm queue."
+      },
+      "FetcherKind": {
+        "type": "string",
+        "enum": [
+          "playwright",
+          "http",
+          "browserbase"
+        ],
+        "description": "How the worker fetches the watched URL. `browserbase` is a v2 stub."
+      },
+      "WatchStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "paused",
+          "running",
+          "failed",
+          "archived"
+        ],
+        "description": "Watch lifecycle. `running` is transient; `failed` flips on consecutive errors; `archived` is soft-delete."
+      },
+      "ObservationKind": {
+        "type": "string",
+        "enum": [
+          "baseline",
+          "no-change",
+          "observation",
+          "error"
+        ],
+        "description": "What the runtime recorded. `baseline` is the first observation; `no-change` is the diff-gated short-circuit; `error` carries failure-as-data."
+      },
+      "ObservationClassification": {
+        "type": "string",
+        "enum": [
+          "unchanged",
+          "minor-change",
+          "meaningful-change",
+          "layout-shifted",
+          "blocked",
+          "missing"
+        ],
+        "description": "Agent's semantic verdict over the snapshot."
+      },
+      "AlertChannels": {
+        "type": "object",
+        "required": [
+          "dashboard",
+          "email",
+          "webhook",
+          "slack",
+          "phraseId"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "dashboard": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "format": "email",
+              "maxLength": 254
+            }
+          },
+          "webhook": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "slack": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "phraseId": {
+            "type": "boolean"
+          }
+        },
+        "description": "Inbound channel selection. All operator-supplied URLs (webhook, slack) pass the same public-host SSRF guard as the watch URL. At least one channel MUST be enabled."
+      },
+      "PublicAlertChannelSummary": {
+        "type": "object",
+        "required": [
+          "dashboard",
+          "phraseId",
+          "emailCount",
+          "webhookCount",
+          "slackCount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "dashboard": {
+            "type": "boolean"
+          },
+          "phraseId": {
+            "type": "boolean"
+          },
+          "emailCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "webhookCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "slackCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "description": "Redacted channel summary on public reads — address arrays are replaced with counts."
+      },
+      "WatchSpec": {
+        "type": "object",
+        "required": [
+          "name",
+          "url",
+          "cron",
+          "intent",
+          "fetcherKind",
+          "autonomyMode",
+          "alertChannels"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Public http(s) URL. Localhost / RFC1918 / link-local / reserved-TLD rejected."
+          },
+          "cron": {
+            "type": "string",
+            "description": "5-field cron or @-macro."
+          },
+          "intent": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 2000,
+            "description": "Natural-language directive — what the agent should watch for."
+          },
+          "fetcherKind": {
+            "$ref": "#/components/schemas/FetcherKind"
+          },
+          "autonomyMode": {
+            "$ref": "#/components/schemas/AutonomyMode"
+          },
+          "alertChannels": {
+            "$ref": "#/components/schemas/AlertChannels"
+          },
+          "confidenceThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.75
+          },
+          "diffThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.02
+          },
+          "ignoreSelectors": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "string"
+            }
+          },
+          "useVisionDefault": {
+            "type": "boolean",
+            "default": false
+          },
+          "dailyBudgetUsd": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 2
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      },
+      "WatchUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "cron": {
+            "type": "string"
+          },
+          "autonomyMode": {
+            "$ref": "#/components/schemas/AutonomyMode"
+          },
+          "alertChannels": {
+            "$ref": "#/components/schemas/AlertChannels"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "archived"
+            ],
+            "description": "Operator-mutable subset of WatchStatus. `running` and `failed` are runtime-internal."
+          },
+          "confidenceThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "diffThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "ignoreSelectors": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "string"
+            }
+          },
+          "useVisionDefault": {
+            "type": "boolean"
+          },
+          "dailyBudgetUsd": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      },
+      "PublicWatchRecord": {
+        "type": "object",
+        "required": [
+          "watchId",
+          "name",
+          "url",
+          "cron",
+          "intent",
+          "fetcherKind",
+          "autonomyMode",
+          "status",
+          "alertChannels",
+          "confidenceThreshold",
+          "diffThreshold",
+          "ignoreSelectors",
+          "useVisionDefault",
+          "dailyBudgetUsd",
+          "agentTokensSpentTotal",
+          "agentCostUsdTotal",
+          "lastObservationId",
+          "lastFiredAt",
+          "receiptUrl",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "watchId": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Pluck phrase-id; share credential for the receipt URL."
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "cron": {
+            "type": "string"
+          },
+          "intent": {
+            "type": "string"
+          },
+          "fetcherKind": {
+            "$ref": "#/components/schemas/FetcherKind"
+          },
+          "autonomyMode": {
+            "$ref": "#/components/schemas/AutonomyMode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WatchStatus"
+          },
+          "alertChannels": {
+            "$ref": "#/components/schemas/PublicAlertChannelSummary"
+          },
+          "confidenceThreshold": {
+            "type": "number"
+          },
+          "diffThreshold": {
+            "type": "number"
+          },
+          "ignoreSelectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "useVisionDefault": {
+            "type": "boolean"
+          },
+          "dailyBudgetUsd": {
+            "type": "number"
+          },
+          "agentTokensSpentTotal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agentCostUsdTotal": {
+            "type": "number",
+            "minimum": 0
+          },
+          "lastObservationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastFiredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "ISO timestamp; null until first fire."
+          },
+          "receiptUrl": {
+            "type": "string",
+            "description": "Path to the receipt page, e.g. `/watch/<watchId>`."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "GET-side view of a watch — operator address lists in alertChannels (email/webhook/slack) are redacted to counts. The stored record retains the addresses."
+      },
+      "Observation": {
+        "type": "object",
+        "required": [
+          "naturalLanguageSummary",
+          "reasoning",
+          "evidenceQuote",
+          "causalExplanation",
+          "extractedFields",
+          "classification",
+          "confidence",
+          "alertWorthy",
+          "suggestedNextCheckMs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "naturalLanguageSummary": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "reasoning": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 1200
+          },
+          "evidenceQuote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "causalExplanation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "extractedFields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "classification": {
+            "$ref": "#/components/schemas/ObservationClassification"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "alertWorthy": {
+            "type": "boolean"
+          },
+          "suggestedNextCheckMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          }
+        }
+      },
+      "ObservationRecord": {
+        "type": "object",
+        "required": [
+          "observationId",
+          "phraseId",
+          "watchId",
+          "kind",
+          "prevObservationId",
+          "observation",
+          "errorMessage",
+          "agentTokensUsed",
+          "agentCostUsd",
+          "modelUsed",
+          "fetchedAt",
+          "createdAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "observationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "phraseId": {
+            "type": "string",
+            "description": "`pluck:watch:<watchId>:<YYYY-MM-DD>:obs-<NN>-<r4>` — URL/Slack-safe."
+          },
+          "watchId": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ObservationKind"
+          },
+          "prevObservationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null on first run and on `error` kind (don't chain errors to baselines)."
+          },
+          "observation": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Observation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errorMessage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agentTokensUsed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agentCostUsd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "modelUsed": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Provider/model that produced the observation. Null for `no-change` and Week-1 mock observations."
+          },
+          "fetchedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateWatchResponse": {
+        "type": "object",
+        "required": [
+          "watchId",
+          "receiptUrl",
+          "status",
+          "reused"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "watchId": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "receiptUrl": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WatchStatus"
+          },
+          "reused": {
+            "type": "boolean",
+            "description": "True when an idempotency replay returned the existing record."
+          }
+        },
+        "description": "Envelope-on-create. GET / PATCH / DELETE return the full PublicWatchRecord."
+      },
+      "WatchDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PublicWatchRecord"
+          },
+          {
+            "type": "object",
+            "required": [
+              "observations",
+              "observationCount"
+            ],
+            "properties": {
+              "observations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ObservationRecord"
+                }
+              },
+              "observationCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
+      "ListWatchesResponse": {
+        "type": "object",
+        "required": [
+          "watches",
+          "nextCursor",
+          "totalCount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "watches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicWatchRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "totalCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "DeleteWatchResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PublicWatchRecord"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "alreadyArchived": {
+                "type": "boolean",
+                "description": "Present + true on idempotent replay."
+              }
+            }
+          }
+        ]
       }
     },
     "responses": {

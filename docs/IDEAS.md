@@ -253,3 +253,37 @@ These are part of the plan, not surfaced this round:
 - Twitter/X card image for receipt URLs
 - Public Discord with `#receipts` auto-feed
 - Replay last week's incident with a different LLM (Kite's flagship demo)
+
+## R-Watch2 — Composition Wedges
+
+Surfaced by Round 2 of the AE loop after the R1 hardening commit (`2c8aecb`). R1 was *Watch by itself*; R2 is *Watch composing with the rest of Pluck*.
+
+### The Three Wedge Picks (R2)
+
+1. **The Provocation Probe — Watch alert → auto-fired Bureau DRAGNET cycle** (1.5 days)
+   - Pitch: when a Watch goes `alertWorthy: true`, the runtime auto-mints a DRAGNET run probing the new claim and binds the resulting receipt as the alert payload. Slack message links to both phrase-IDs.
+   - Why category-defining: nobody composes "monitor the change" with "audit the change." Watch detects drift, Bureau interrogates it, the receipt page shows both. The seam doesn't exist yet (flagged in `docs/ARCHITECTURE.md §16`).
+   - Demo: Slack alert — *"openai.com/pricing changed. DRAGNET probed and found 2 contradictions. → `pricing-swift-falcon-1188` (Watch) → `openai-bold-marlin-3742` (DRAGNET)."*
+   - Implementation (Directive-first): `provocationModule` constraint `autoProbe: { when: facts.lastObservation.alertWorthy && facts.spec.autoProbe === "dragnet", require: { type: "MINT_DRAGNET_RUN", … } }`. Resolver POSTs `/api/v1/runs`. Dedupe key `probe-${observationId}`.
+   - Risk: cost amplification — needs `autoProbeBudgetUsd` cap + explicit opt-in.
+
+2. **`pluck watch <url> "<intent>"` — 30-second CLI magic moment** (1 day)
+   - Pitch: single CLI command creates the watch, prints the phrase-ID, opens `/watch/[id]` in the browser, and tails SSE in the terminal until first observation lands.
+   - Why category-defining: Sentry's `npx @sentry/wizard` is a category move; this is the same beat for monitoring.
+   - Demo: 28-second `asciinema` — command → yellow phrase-ID prints → SSE bar fills → first observation prints inline.
+   - Implementation (Directive-first): `cliWatchModule` with `schema: { url, intent, watchId, observations }`, init POSTs `/v1/watches`, effect `tailSSE` opens events endpoint.
+   - Risk: anonymous-owner stub means publicly enumerable until pluck-api owner-scoping lands; add `--anonymous` flag explicit ack.
+
+3. **Watch-Diff — `/watch/[id]/diff?since=<obs-phrase>`** (4-6 hours)
+   - Pitch: compose the existing `/diff/[id]` primitive with Watch. Two observation phrase-IDs → diff of extractedFields + evidenceQuote + classification transition.
+   - Why category-defining: time machine for one URL. Compounds Stakeout (R1, live) with retrospective view.
+   - Demo: two side-by-side observation cards, "Stripe checkout fee: 2.9% → 3.4%" highlighted yellow.
+   - Implementation (Directive-first): extend `src/lib/diff/receipt-diff.ts` with `observationDiff(prev, curr)`; new route `/watch/[id]/diff/page.tsx`. Pure-fn.
+   - Status: **CANDIDATE for R2 commit — cheapest compound on the board.**
+
+### R-Watch2 Backlog (4)
+
+4. **`/watch/[id]/proof` — DSSE-signed "we are still watching" attestation** (1 day) — bridges existing /proof primitive into Watch. Companion `/proof.svg` badge: "WATCHED · 47d · 9 fires · verified".
+5. **Receipt-Symphony Page — `/observation/<phraseId>` Directive timeline UI** (1.5-2 days) — surface Directive's time-travel debugger as end-user UX. Tabs: "What the agent thought" / "did" / "engine evaluated."
+6. **Two-Way Trust Loop — public disagreement ledger** (1.5 days) — every alert renders "agent was wrong" button → phrase-ID'd disagreement receipt. Inverts surveillance pattern. Compounds with Vendor Honesty Index.
+7. **Fleet Heatmap — `/watch` landing as live cron-grid** (1 day) — 24×N grid, cells colored by classification density, SSE pulses on each fire. Requires opt-in `public: true` per watch.

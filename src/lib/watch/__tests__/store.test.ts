@@ -154,7 +154,9 @@ describe("observations", () => {
       },
     });
     expect(obs).not.toBeNull();
-    expect(obs?.phraseId).toMatch(/^pluck\/watch\//);
+    expect(obs?.phraseId).toMatch(/^pluck:watch:/);
+    expect(obs?.phraseId).not.toContain("/");
+    expect(obs?.phraseId).toMatch(/-[0-9a-f]{4}$/);
 
     const updated = getWatch(record.watchId);
     expect(updated?.lastObservationId).toBe(obs?.observationId);

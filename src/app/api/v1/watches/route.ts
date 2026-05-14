@@ -94,12 +94,12 @@ export async function POST(req: Request): Promise<Response> {
 
   const { record, reused } = createWatch(validated.spec);
 
+  // Envelope-on-create / resource-on-read pattern (same as /v1/runs).
+  // POST returns the minimum needed to redirect + de-dupe; GET/PATCH/DELETE
+  // return the full PublicWatchRecord. Clients that need the full shape
+  // after create should GET /v1/watches/<watchId>.
   return NextResponse.json(
     {
-      // Canonical `id` field for cross-resource consistency with /v1/runs
-      // (which still ships `runId` for backwards compat). New clients
-      // should read `id`; legacy `watchId` stays for now.
-      id: record.watchId,
       watchId: record.watchId,
       receiptUrl: record.receiptUrl,
       status: record.status,

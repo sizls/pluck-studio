@@ -6,6 +6,10 @@ import type { ReactNode } from "react";
 
 import { NewWatchForm } from "./NewWatchForm";
 
+// Sibling /watch pages declare nodejs; keep the watch surface uniform so a
+// future config flip to edge can't silently break SSR.
+export const runtime = "nodejs";
+
 export const metadata = {
   title: "Create a watch — Pluck Studio",
 };

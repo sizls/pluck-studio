@@ -22,6 +22,13 @@ import {
   FUTURE_PIPELINES,
   RUN_STATUSES,
 } from "../../src/lib/v1/run-spec.js";
+import {
+  AUTONOMY_MODES,
+  FETCHER_KINDS,
+  OBSERVATION_CLASSIFICATIONS,
+  OBSERVATION_KINDS,
+  WATCH_STATUSES,
+} from "../../src/lib/v1/watch-spec.js";
 import { buildOpenApiDocument } from "../build-openapi.ts";
 
 const ROOT = join(__dirname, "..", "..");
@@ -47,7 +54,7 @@ describe("OpenAPI document — structural validity", () => {
   });
   it("has title + semver-shaped version", () => {
     const d = doc();
-    expect(d.info.title).toBe("Pluck Studio — /v1/runs API");
+    expect(d.info.title).toBe("Pluck Studio — /v1/runs + /v1/watches API");
     expect(d.info.version).toMatch(/^\d+\.\d+\.\d+/);
   });
   it("declares prod + local-dev servers", () => {
@@ -55,8 +62,10 @@ describe("OpenAPI document — structural validity", () => {
     expect(urls).toContain("https://studio.pluck.run");
     expect(urls).toContain("http://localhost:3030");
   });
-  it("groups under the Runs tag", () => {
-    expect(doc().tags.some((t) => t.name === "Runs")).toBe(true);
+  it("groups under the Runs + Watches tags", () => {
+    const names = doc().tags.map((t) => t.name);
+    expect(names).toContain("Runs");
+    expect(names).toContain("Watches");
   });
 });
 
@@ -91,6 +100,30 @@ describe("OpenAPI document — endpoint coverage", () => {
     const r = doc().paths["/api/v1/runs/{id}/events"]?.get?.responses ?? {};
     for (const c of ["200", "400", "403", "404", "429"]) expect(r[c]).toBeDefined();
   });
+
+  // /v1/watches surface (R3) — 7 endpoints across 4 paths
+  it.each([
+    ["/api/v1/watches", "post"],
+    ["/api/v1/watches", "get"],
+    ["/api/v1/watches/{id}", "get"],
+    ["/api/v1/watches/{id}", "patch"],
+    ["/api/v1/watches/{id}", "delete"],
+    ["/api/v1/watches/{id}/trigger", "post"],
+    ["/api/v1/watches/{id}/events", "get"],
+  ])("documents %s %s", (path, verb) => {
+    expect(doc().paths[path]?.[verb]).toBeDefined();
+  });
+
+  it("watch GET / list / events declare NO auth (public read by phraseId)", () => {
+    expect(doc().paths["/api/v1/watches"]?.get?.security).toEqual([]);
+    expect(doc().paths["/api/v1/watches/{id}"]?.get?.security).toEqual([]);
+    expect(doc().paths["/api/v1/watches/{id}/events"]?.get?.security).toEqual([]);
+  });
+
+  it("trigger documents the cooldown 429", () => {
+    const r = doc().paths["/api/v1/watches/{id}/trigger"]?.post?.responses ?? {};
+    expect(r["429"]).toBeDefined();
+  });
 });
 
 describe("OpenAPI document — schemas + components", () => {
@@ -107,6 +140,23 @@ describe("OpenAPI document — schemas + components", () => {
       "ListRunsResponse",
       "CancelRunResponse",
       "ErrorResponse",
+      // /v1/watches
+      "AutonomyMode",
+      "FetcherKind",
+      "WatchStatus",
+      "ObservationKind",
+      "ObservationClassification",
+      "AlertChannels",
+      "PublicAlertChannelSummary",
+      "WatchSpec",
+      "WatchUpdate",
+      "PublicWatchRecord",
+      "Observation",
+      "ObservationRecord",
+      "CreateWatchResponse",
+      "WatchDetailResponse",
+      "ListWatchesResponse",
+      "DeleteWatchResponse",
     ]) {
       expect(keys).toContain(k);
     }
@@ -130,6 +180,25 @@ describe("OpenAPI document — drift invariants (taxonomy ↔ enum)", () => {
   });
   it("RunStatus enum matches RUN_STATUSES exactly", () => {
     expect(doc().components.schemas.RunStatus?.enum).toEqual([...RUN_STATUSES]);
+  });
+
+  // /v1/watches taxonomy invariants — same drift guard as the runs side.
+  it("AutonomyMode enum matches AUTONOMY_MODES", () => {
+    expect(doc().components.schemas.AutonomyMode?.enum).toEqual([...AUTONOMY_MODES]);
+  });
+  it("FetcherKind enum matches FETCHER_KINDS", () => {
+    expect(doc().components.schemas.FetcherKind?.enum).toEqual([...FETCHER_KINDS]);
+  });
+  it("WatchStatus enum matches WATCH_STATUSES", () => {
+    expect(doc().components.schemas.WatchStatus?.enum).toEqual([...WATCH_STATUSES]);
+  });
+  it("ObservationKind enum matches OBSERVATION_KINDS", () => {
+    expect(doc().components.schemas.ObservationKind?.enum).toEqual([...OBSERVATION_KINDS]);
+  });
+  it("ObservationClassification enum matches OBSERVATION_CLASSIFICATIONS", () => {
+    expect(doc().components.schemas.ObservationClassification?.enum).toEqual([
+      ...OBSERVATION_CLASSIFICATIONS,
+    ]);
   });
 });
 

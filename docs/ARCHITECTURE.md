@@ -1062,7 +1062,7 @@ can show "Email (3)" without leaking destinations.
 Every fire produces an `ObservationRecord` with a structured `Observation`:
 extracted fields, status classification, confidence, reasoning, evidence
 quote, causal explanation, suggested-next-check ms. Phrase-ID format
-`pluck/watch/<watchId>/<YYYY-MM-DD>/observation-NN`. Error observations
+`pluck:watch:<watchId>:<YYYY-MM-DD>:obs-NN-<r4>`. Error observations
 have `prevObservationId = null` (they don't chain to prior successful
 runs — receipt diff views never compare an error to a baseline).
 

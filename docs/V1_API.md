@@ -1162,7 +1162,7 @@ at POST AND at redirect-follow time.
 
 | Method | Path | Purpose | Auth | Shape |
 |---|---|---|---|---|
-| `POST` | `/api/v1/watches` | Create | yes | WatchSpec → `{id, watchId, receiptUrl, status, reused}` |
+| `POST` | `/api/v1/watches` | Create | yes | WatchSpec → `{watchId, receiptUrl, status, reused}` (envelope) |
 | `GET` | `/api/v1/watches` | List (paginated) | public-read | `{watches: PublicWatchRecord[], nextCursor, totalCount}` |
 | `GET` | `/api/v1/watches/[id]` | Read single | public-read | `PublicWatchRecord + {observations[], observationCount}` |
 | `PATCH` | `/api/v1/watches/[id]` | Update (subset) | yes | WatchUpdate → `PublicWatchRecord` |
@@ -1170,14 +1170,32 @@ at POST AND at redirect-follow time.
 | `POST` | `/api/v1/watches/[id]/trigger` | Fire-now (manual) | yes | `ObservationRecord` |
 | `GET` | `/api/v1/watches/[id]/events` | Live SSE stream | public-read | `state` / `observation` / `alert` events |
 
+### Response-shape convention
+
+All Watch endpoints follow envelope-on-create / resource-on-read:
+
+- **POST** returns a small envelope (`{watchId, receiptUrl, status, reused}`).
+  Need the full record? GET it.
+- **GET /watches/[id]**, **PATCH**, **DELETE** return the full
+  `PublicWatchRecord` (DELETE adds `alreadyArchived?: true` on idempotent
+  replay).
+- **GET /watches** (list) wraps `{watches: PublicWatchRecord[], nextCursor, totalCount}`.
+- **GET /watches/[id]/trigger** returns the freshly-minted `ObservationRecord`.
+
+This matches `/v1/runs`'s pattern. SDK authors should de-dupe via
+`watchId` (the canonical identifier), which appears on every shape.
+
 ### DELETE semantics
 
 `DELETE /v1/runs/:id` cancels a pending/running run; `DELETE /v1/watches/:id`
-**archives** the watch (soft delete — the record stays for audit). This
-asymmetry is intentional: Runs are short-lived activations, Watches are
-long-lived monitors. A future "permanently delete" verb lands with the
-Worker; the soft-archive lets observation history survive the operator's
-"this watch is done" gesture.
+**archives** the watch (soft delete — the record stays for audit).
+
+Why the asymmetry? Runs cannot be paused — they're already-started
+activations, so DELETE = cancel = abort. Watches CAN be paused (via
+`PATCH status=paused`), so DELETE is freed up for "stop forever, keep
+history." A future hard-delete verb lands with the Worker; soft-archive
+lets observation history + receipt URLs survive the operator's "I'm
+done watching this" gesture.
 
 ## PublicWatchRecord (GET-side redaction)
 
@@ -1231,7 +1249,7 @@ confidence, evidence quote, causal explanation, suggested-next-check ms).
 ```ts
 interface ObservationRecord {
   observationId: string;             // UUID
-  phraseId: string;                  // pluck/watch/<watchId>/<YYYY-MM-DD>/observation-NN
+  phraseId: string;                  // pluck:watch:<watchId>:<YYYY-MM-DD>:obs-NN-<r4>
   watchId: string;
   kind: "baseline" | "no-change" | "observation" | "error";
   prevObservationId: string | null;  // null on errors and on first run

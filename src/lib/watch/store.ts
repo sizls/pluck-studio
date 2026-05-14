@@ -38,8 +38,10 @@
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
+import { lookup as dnsLookup } from "node:dns/promises";
+
 import { generateScopedPhraseId } from "../phrase-id";
-import { validatePublicUrl } from "../security/url-guard";
+import { validatePublicUrl, validateResolvedIp } from "../security/url-guard";
 import {
   type AlertChannels,
   type Observation,
@@ -275,14 +277,20 @@ function uniqueWatchId(url: string): string {
 
 /**
  * Observation phrase-id format:
- *   pluck/watch/<watchId>/<YYYY-MM-DD>/observation-<NN>
+ *   pluck:watch:<watchId>:<YYYY-MM-DD>:obs-<NN>-<r4>
  *
- * Deterministic per-day sequence so two observations on the same day
- * sort lexicographically. NN is zero-padded by current daily count.
+ * R2 fixes vs the original `pluck/watch/<id>/<ymd>/observation-NN`:
+ *   - `:` separator instead of `/` — URL-path-safe, copies cleanly into
+ *     Slack code blocks and email subjects, never collides with Next's
+ *     dynamic routing (`/[id]` doesn't try to swallow a slash-laden id).
+ *   - 4-char random hex suffix on the per-day counter — defeats trivial
+ *     enumeration of observation IDs ("get obs 01..NN for date D");
+ *     `NN` still sorts lexicographically within a day for receipt diffs.
+ *   - `obs` instead of `observation` — receipt URLs are shorter.
  */
 function generateObservationPhraseId(watchId: string, now: Date): string {
   const ymd = now.toISOString().slice(0, 10);
-  const dayPrefix = `pluck/watch/${watchId}/${ymd}/observation-`;
+  const dayPrefix = `pluck:watch:${watchId}:${ymd}:obs-`;
   const ids = observationIndex.get(watchId) ?? [];
   let seq = 1;
   for (const obsId of ids) {
@@ -292,8 +300,9 @@ function generateObservationPhraseId(watchId: string, now: Date): string {
     }
   }
   const padded = String(seq).padStart(2, "0");
+  const suffix = randomBytes(2).toString("hex"); // 4 hex chars
 
-  return `${dayPrefix}${padded}`;
+  return `${dayPrefix}${padded}-${suffix}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -729,18 +738,39 @@ const MOCK_FETCH_TIMEOUT_MS = 15_000;
 const MOCK_FETCH_MAX_BYTES = 1_000_000;
 
 /**
- * Manual redirect walker. Each `Location` header is re-validated via the
- * shared public-URL guard before we follow it — this is what defeats the
- * "https://attacker.tld → 302 → http://127.0.0.1" SSRF chain. Returns the
- * final successful Response, or throws a redacted error string.
+ * Manual redirect walker with three defenses:
+ *
+ *   1. Per-hop URL-guard re-validation — defeats `https://attacker.tld →
+ *      302 → http://127.0.0.1` chains.
+ *   2. DNS-resolution-time IP check (R2 fix) — `validatePublicUrl` only
+ *      sees the textual hostname; we resolve A/AAAA via `dns.lookup`
+ *      immediately before each hop and reject the request when ANY
+ *      resolved address is private/loopback/link-local. Defeats DNS
+ *      rebinding where a TTL=0 record flips between public + RFC1918.
+ *   3. No-downgrade rule (R2 fix) — if the operator pinned `https://`,
+ *      a redirect Location with `http://` is rejected. Prevents on-path
+ *      attackers from forcing a downgrade and tampering with the body.
+ *
+ * Returns the final successful Response, or throws a redacted error.
  */
 async function safeFetchFollowingRedirects(
   fetchImpl: typeof fetch,
   startUrl: string,
   signal: AbortSignal,
 ): Promise<Response> {
+  const startProtocol = (() => {
+    try {
+      return new URL(startUrl).protocol;
+    } catch {
+      return "https:";
+    }
+  })();
+
   let currentUrl = startUrl;
   for (let hop = 0; hop <= TRIGGER_MAX_REDIRECTS; hop += 1) {
+    // DNS-resolution-time IP check (defeats rebinding).
+    await assertResolvedHostnameIsPublic(currentUrl);
+
     const res = await fetchImpl(currentUrl, {
       method: "GET",
       signal,
@@ -760,6 +790,23 @@ async function safeFetchFollowingRedirects(
           `redirect blocked (${guard.error}) at ${redactUrl(currentUrl)}`,
         );
       }
+      // No-downgrade: if the operator pinned https://, the redirect MUST
+      // stay https. Bare http://-pinned watches are an explicit operator
+      // choice and can downgrade further (or upgrade); the constraint
+      // only fires for https-origin chains.
+      if (startProtocol === "https:") {
+        let nextProto: string;
+        try {
+          nextProto = new URL(guard.url).protocol;
+        } catch {
+          nextProto = "";
+        }
+        if (nextProto !== "https:") {
+          throw new Error(
+            `redirect blocked (https→${nextProto || "?"} downgrade) at ${redactUrl(currentUrl)}`,
+          );
+        }
+      }
       currentUrl = guard.url;
       continue;
     }
@@ -770,6 +817,52 @@ async function safeFetchFollowingRedirects(
     return res;
   }
   throw new Error(`too many redirects (>${TRIGGER_MAX_REDIRECTS})`);
+}
+
+/**
+ * Resolve the URL's hostname and reject the fetch if ANY returned A/AAAA
+ * record is private / loopback / link-local. Defeats DNS rebinding: the
+ * `validatePublicUrl` text guard runs at POST time against the hostname
+ * string; this check runs immediately before each fetch hop. Both must
+ * pass.
+ *
+ * Non-DNS errors (lookup failure) fall through to fetch — fetch's own
+ * failure will surface as an `error` observation, so we don't need to
+ * preemptively reject on transient DNS hiccups.
+ */
+async function assertResolvedHostnameIsPublic(url: string): Promise<void> {
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    return;
+  }
+  // Strip surrounding brackets from IPv6 literals (URL.hostname keeps them).
+  if (hostname.startsWith("[") && hostname.endsWith("]")) {
+    hostname = hostname.slice(1, -1);
+  }
+  if (hostname.length === 0) {
+    return;
+  }
+  // Skip if hostname is already a literal IP — validatePublicUrl handled it.
+  // dns.lookup on a literal returns the same literal, which we'd block
+  // for private IPs but `validatePublicUrl` already gated on them.
+  let resolved: { address: string; family: number }[];
+  try {
+    resolved = await dnsLookup(hostname, { all: true });
+  } catch {
+    // DNS failure → let fetch handle it (it'll error and we'll record
+    // an error observation). No reason to fail early.
+    return;
+  }
+  for (const r of resolved) {
+    const err = validateResolvedIp(r.address);
+    if (err !== null) {
+      throw new Error(
+        `dns rebind blocked (${err}: ${r.address}) for ${redactUrl(url)}`,
+      );
+    }
+  }
 }
 
 function redactUrl(u: string): string {
@@ -787,9 +880,6 @@ async function readBoundedText(
 ): Promise<string> {
   const reader = res.body?.getReader();
   if (reader === undefined) {
-    // No streaming body — fall back to .text() and slice. We still cap
-    // the resulting string because some runtimes buffer fully before
-    // returning .text().
     const text = await res.text();
     return text.length > maxBytes ? text.slice(0, maxBytes) : text;
   }
@@ -802,12 +892,12 @@ async function readBoundedText(
     total += value.byteLength;
     if (total > maxBytes) {
       out += decoder.decode(value.subarray(0, maxBytes - (total - value.byteLength)));
-      // Cancel the stream so the server stops sending.
-      try {
-        await reader.cancel();
-      } catch {
-        // ignore
-      }
+      // Fire-and-forget cancel — `await reader.cancel()` blocks until the
+      // upstream closes the socket, which a hostile slowloris-style server
+      // can stall indefinitely (still within the abort window but holding
+      // an FD). The cancel signal is sufficient; we don't need to wait
+      // for the FIN to come back. R2 SEC-M3 fix.
+      void reader.cancel().catch(() => {});
       break;
     }
     out += decoder.decode(value, { stream: true });
@@ -830,8 +920,12 @@ export async function triggerWatch(
     return { kind: "not-active", status: watch.status };
   }
   // Per-watch trigger cooldown — defeats trigger amplification (SEC-M1).
-  // Independent of the per-IP rate limit upstream. Operator can still
-  // schedule via cron; this only bounds manual fire-now spam.
+  // R2 SEC-M1 fix: claim the cooldown slot SYNCHRONOUSLY by writing
+  // `lastFiredAt = now` and flipping to `running` BEFORE the first await,
+  // so two concurrent triggers cannot both pass the gate. JavaScript is
+  // single-threaded; the Map mutation completes before the next event-
+  // loop tick. The second caller now reads the freshly-claimed lastFiredAt
+  // and sees `elapsed < TRIGGER_COOLDOWN_MS` → returns cooldown.
   if (watch.lastFiredAt !== null) {
     const elapsed = now - watch.lastFiredAt;
     if (elapsed < TRIGGER_COOLDOWN_MS) {
@@ -839,10 +933,11 @@ export async function triggerWatch(
     }
   }
 
-  // Mark running so the UI can show a spinner.
+  // Atomic claim — set running AND advance lastFiredAt in the same tick.
   const running: WatchRecord = {
     ...watch,
     status: "running",
+    lastFiredAt: now,
     updatedAt: nowIso(now),
   };
   watches.set(watchId, running);

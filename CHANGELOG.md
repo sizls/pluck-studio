@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Watch R3 — SSRF v2 (DNS rebinding + no-downgrade), TOCTOU, OpenAPI, UX
+
+Closes R2 review: 5 criticals (SSRF DNS rebinding, HTTPS→HTTP downgrade, phrase-id slashes, API shape inconsistency, OpenAPI gap) + ~12 majors (cooldown TOCTOU, readBoundedText cancel hang, nosniff headers, observation NN predictability, /watch landing raw record, runtime on /new, SSE reconnect pill, 429 countdown, STUB ribbon, cron preset active state, autonomy label flip, plus the Watch-Week-2 design backlog).
+
+Tests: 1308 → 1322 (+14). All 75 Vitest files green, 7 Playwright specs green, typecheck clean.
+
+R2 review verdicts confirm ALL R1 fixes hold: security agent reported "ALL R1 FIXES HOLD" as part of regression check.
+
+Security:
+- **DNS-rebinding defense:** `safeFetchFollowingRedirects` now calls `dns.promises.lookup` for every hop and passes each resolved A/AAAA through `validateResolvedIp` (closes SEC-R2-C1). The `validateResolvedIp` helper existed in R1 but was unused — wired in now.
+- **HTTPS→HTTP downgrade rejection:** when the watch URL is `https://`, any redirect `Location` with `http://` is refused (closes SEC-R2-C2).
+- **Cooldown TOCTOU closed:** `triggerWatch` claims the cooldown slot SYNCHRONOUSLY (sets `lastFiredAt = now` and status `running` in the same event-loop tick before any await), so two parallel triggers can't both pass the gate (closes SEC-R2-M1).
+- **`readBoundedText` slowloris hardening:** fire-and-forget `reader.cancel()` (was awaited; hostile server could stall it indefinitely) (closes SEC-R2-M3).
+- **SSE response headers:** `X-Content-Type-Options: nosniff` + `Referrer-Policy: no-referrer` (closes SEC-R2-M5).
+- **Observation phrase-ID enumeration defeat:** 4-char hex random suffix on the `obs-NN` counter (closes SEC-R2-M6).
+
+API + DX:
+- **Phrase-ID format `pluck/watch/<id>/<ymd>/observation-NN` → `pluck:watch:<id>:<ymd>:obs-NN-<r4>`** (closes DX-R2-C2). Slashes broke URL paths, Slack code blocks, email subjects. `:` separator is URL-safe; the 4-char suffix doubles as enumeration defeat.
+- **POST response shape locked** to the canonical envelope `{watchId, receiptUrl, status, reused}` — removed the `id` alias added in R1 (it created MORE asymmetry with `/v1/runs.runId`, not less) (closes DX-R2-C1). Pattern documented in V1_API.md "Response-shape convention" block.
+- **DELETE semantics paragraph rewritten** to explain WHY runs cancel vs watches archive (DX-R2-M8).
+- **`/v1/watches` OpenAPI surface** — full schemas (WatchSpec, WatchUpdate, AlertChannels, PublicAlertChannelSummary, PublicWatchRecord, Observation, ObservationRecord, CreateWatchResponse, WatchDetailResponse, ListWatchesResponse, DeleteWatchResponse) + all 7 paths under `Watches` tag + drift-invariant tests for AUTONOMY_MODES / FETCHER_KINDS / WATCH_STATUSES / OBSERVATION_KINDS / OBSERVATION_CLASSIFICATIONS (closes DX-R2-C3).
+- **SSE reconnect pill** — `live` (green) / `reconnecting` (amber) / `dead` (red) chip near the watch detail status header, driven by `EventSource.readyState` + heartbeat re-confirmation (closes DX-R2-M1).
+- **429 cooldown countdown** — Trigger button reads `retryAfterMs` from the trigger route's 429 body and renders `Cooldown — Xs` with a 1s ticker (closes DX-R2-M2).
+- **STUB ribbon** on Week-1 mock observation cards (when `modelUsed === null && kind !== "error"`) — amber border + corner chip + title hint (closes DX-R2-M3).
+- **Cron preset active state** — `aria-pressed` + bold/thicker underline when the input matches a preset (closes DX-R2-M4).
+- **Autonomy labels flipped** — lead with outcome ("Cost-saver — cheap text diff first…") instead of jargon (closes DX-R2-M6).
+
+Architecture:
+- **Defense-in-depth: `/watch` landing wraps every record through `redactWatchForGet`** before it reaches the RSC tree — prevents accidental address-list leaks from future debug cards (closes ARCH-R2-M4).
+- **Explicit `runtime = "nodejs"` on `/watch/new/page.tsx`** — sibling pages had it; symmetry locks the runtime even if a future config flip points the app at edge (closes ARCH-R2-M5).
+
+Docs:
+- **`docs/WATCH_WEEK2.md`** — new file capturing the 20 contract-shape items the domain-expert lane raised (alert hysteresis, per-channel routing rules, classification expansion, maintenance windows, calibration period, trust feedback loop, extractedFields typing, polling politeness, stagger/jitter, Bureau composition seam, internal-host allowlist, always-agent queue, vocabulary clash, etc.). P0/P1/P2 sorted; flags vocabulary clash as the single biggest week-2 decision.
+- **R-Watch2 wedge picks added to `docs/IDEAS.md`**: Provocation Probe (Watch→Bureau DRAGNET composition), `pluck watch` CLI (30-sec magic moment), Watch-Diff (cheapest compound). User deferred all per "fix first" call.
+- **V1_API.md**: phrase-ID format updated, "Response-shape convention" block added, DELETE semantics paragraph rewritten.
+- **ARCHITECTURE.md §16**: phrase-ID format updated.
+
 ### Watch — Directive-native periodic monitoring (Week-1 scaffold + R1 hardening)
 
 Standalone surface, peer to Bureau. Operators describe what to watch in
