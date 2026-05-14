@@ -27,10 +27,12 @@ import {
   RUN_STATUSES,
 } from "../src/lib/v1/run-spec.ts";
 import {
+  ALERT_CHANNEL_KEYS,
   AUTONOMY_MODES,
   FETCHER_KINDS,
   OBSERVATION_CLASSIFICATIONS,
   OBSERVATION_KINDS,
+  OPERATOR_MUTABLE_STATUSES,
   WATCH_STATUSES,
 } from "../src/lib/v1/watch-spec.ts";
 
@@ -225,7 +227,8 @@ const schemas = {
   },
   AlertChannels: {
     type: "object",
-    required: ["dashboard", "email", "webhook", "slack", "phraseId"],
+    // Derived from ALERT_CHANNEL_KEYS — drift-invariant test asserts equality.
+    required: [...ALERT_CHANNEL_KEYS],
     additionalProperties: false,
     properties: {
       dashboard: { type: "boolean" },
@@ -279,7 +282,7 @@ const schemas = {
       cron: { type: "string" },
       autonomyMode: { $ref: "#/components/schemas/AutonomyMode" },
       alertChannels: { $ref: "#/components/schemas/AlertChannels" },
-      status: { type: "string", enum: ["active", "paused", "archived"], description: "Operator-mutable subset of WatchStatus. `running` and `failed` are runtime-internal." },
+      status: { type: "string", enum: [...OPERATOR_MUTABLE_STATUSES], description: "Operator-mutable subset of WatchStatus. `running` and `failed` are runtime-internal." },
       confidenceThreshold: { type: "number", minimum: 0, maximum: 1 },
       diffThreshold: { type: "number", minimum: 0, maximum: 1 },
       ignoreSelectors: { type: "array", maxItems: 32, items: { type: "string" } },
@@ -432,8 +435,12 @@ const RESPONSES = {
     content: errBody({ error: "run is in final state 'anchored' and cannot be cancelled", status: "anchored" }),
   },
   TooManyRequests: {
-    description: "Per-IP+session rate limit exceeded.",
+    description: "Per-IP+session rate limit exceeded; or — on POST /v1/watches/{id}/trigger — the per-watch 15 s cooldown is still active (`retryAfterMs` present in body, `Retry-After` header set).",
     content: errBody({ error: "too many requests — slow down and try again in a minute" }),
+  },
+  PayloadTooLarge: {
+    description: "Request body exceeded the 64 KiB cap.",
+    content: errBody({ error: "request body too large" }),
   },
 } as const;
 
@@ -441,7 +448,7 @@ const RESPONSES = {
 // Path helpers
 // ---------------------------------------------------------------------------
 
-type Code = "200" | "400" | "401" | "403" | "404" | "409" | "429";
+type Code = "200" | "400" | "401" | "403" | "404" | "409" | "413" | "429";
 
 const errRefs = (...codes: Exclude<Code, "200">[]) =>
   Object.fromEntries(
@@ -453,6 +460,7 @@ const errRefs = (...codes: Exclude<Code, "200">[]) =>
         "403": { $ref: "#/components/responses/Forbidden" },
         "404": { $ref: "#/components/responses/NotFound" },
         "409": { $ref: "#/components/responses/Conflict" },
+        "413": { $ref: "#/components/responses/PayloadTooLarge" },
         "429": { $ref: "#/components/responses/TooManyRequests" },
       }[c],
     ]),
@@ -677,7 +685,7 @@ const paths = {
           "Watch created (or replayed via idempotency).",
           { watchId: EXAMPLE_WATCH_ID, receiptUrl: `/watch/${EXAMPLE_WATCH_ID}`, status: "active", reused: false },
         ),
-        ...errRefs("400", "401", "403", "429"),
+        ...errRefs("400", "401", "403", "413", "429"),
       },
     },
     get: {
@@ -767,7 +775,7 @@ const paths = {
       },
       responses: {
         "200": okJson("#/components/schemas/PublicWatchRecord", "Updated watch record.", undefined),
-        ...errRefs("400", "401", "403", "404", "409", "429"),
+        ...errRefs("400", "401", "403", "404", "409", "413", "429"),
       },
     },
     delete: {

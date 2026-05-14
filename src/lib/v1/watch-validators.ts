@@ -26,6 +26,7 @@ import {
   isAutonomyMode,
   isFetcherKind,
   isWatchStatus,
+  OPERATOR_MUTABLE_STATUSES,
   type WatchSpec,
   type WatchUpdate,
 } from "./watch-spec";
@@ -484,13 +485,13 @@ export type ValidateWatchUpdateResult =
   | { ok: false; error: string };
 
 // Operator-mutable subset of WatchStatus. `running` / `failed` are
-// runtime-internal transitions and MUST NOT come in via PATCH.
+// runtime-internal transitions and MUST NOT come in via PATCH. The
+// canonical list lives in `watch-spec.ts` so the validator, the type
+// definition, and the OpenAPI schema all stay in lock-step (R4 ARCH-A3).
 type PatchableStatus = NonNullable<WatchUpdate["status"]>;
-const PATCHABLE_STATUSES: ReadonlySet<string> = new Set<PatchableStatus>([
-  "active",
-  "paused",
-  "archived",
-]);
+const PATCHABLE_STATUSES: ReadonlySet<string> = new Set<string>(
+  OPERATOR_MUTABLE_STATUSES,
+);
 
 export function validateWatchUpdate(value: unknown): ValidateWatchUpdateResult {
   if (!isPlainObject(value)) {

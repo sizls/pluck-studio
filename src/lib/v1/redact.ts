@@ -220,7 +220,10 @@ interface WatchRecordLike {
   agentTokensSpentTotal: number;
   agentCostUsdTotal: number;
   lastObservationId: string | null;
-  lastFiredAt: number | string | null;
+  // Internal encoding is Unix ms — `store.ts` is the only writer and it
+  // always writes `number | null`. The earlier `string` arm was defensive
+  // polymorphism that is now dead post-R3. R5 ARCH-A1 lockdown.
+  lastFiredAt: number | null;
   receiptUrl: string;
   createdAt: string;
   updatedAt: string;
@@ -266,9 +269,7 @@ export function redactWatchForGet(record: WatchRecordLike): PublicWatchRecord {
     lastFiredAt:
       record.lastFiredAt === null
         ? null
-        : typeof record.lastFiredAt === "number"
-          ? new Date(record.lastFiredAt).toISOString()
-          : record.lastFiredAt,
+        : new Date(record.lastFiredAt).toISOString(),
     receiptUrl: record.receiptUrl,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,

@@ -68,6 +68,34 @@ export function isWatchStatus(s: string): s is WatchStatus {
   return STATUS_SET.has(s);
 }
 
+/**
+ * Subset of `WATCH_STATUSES` an operator can write via PATCH. `running`
+ * and `failed` are runtime-internal transitions; exposing them via PATCH
+ * would let a caller spoof a state the runtime never observed. Validators
+ * + OpenAPI both reference this constant; the drift-invariant test
+ * asserts the schema enum matches. R4 ARCH-A3.
+ */
+export const OPERATOR_MUTABLE_STATUSES = [
+  "active",
+  "paused",
+  "archived",
+] as const;
+export type OperatorMutableStatus = (typeof OPERATOR_MUTABLE_STATUSES)[number];
+
+/**
+ * Canonical field list for `AlertChannels`. Used by the OpenAPI drift-
+ * invariant test so adding a new channel shape trips CI if the schema's
+ * `required` array doesn't match. R4 ARCH-A5.
+ */
+export const ALERT_CHANNEL_KEYS = [
+  "dashboard",
+  "email",
+  "webhook",
+  "slack",
+  "phraseId",
+] as const;
+export type AlertChannelKey = (typeof ALERT_CHANNEL_KEYS)[number];
+
 // ---------------------------------------------------------------------------
 // Alert channels
 // ---------------------------------------------------------------------------

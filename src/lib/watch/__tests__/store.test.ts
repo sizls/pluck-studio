@@ -371,6 +371,124 @@ describe("triggerWatch (Week-1 mock)", () => {
     }
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
+
+  // -------------------------------------------------------------------------
+  // R5: SSRF v2 — DNS rebinding, HTTPS-downgrade, cooldown failure-latch
+  // -------------------------------------------------------------------------
+
+  it("blocks DNS rebinding when guard lookup returns a private IP", async () => {
+    const { record } = createWatch(baseSpec);
+    const mockFetch = vi.fn(async () => new Response("ok", { status: 200 }));
+    const mockLookup = vi.fn(async () => [
+      { address: "10.0.0.5", family: 4 },
+    ]);
+    const r = await triggerWatch(
+      record.watchId,
+      mockFetch as typeof fetch,
+      Date.now(),
+      mockLookup,
+    );
+    expect(r.kind).toBe("ok");
+    if (r.kind === "ok") {
+      expect(r.observation.kind).toBe("error");
+      expect(r.observation.errorMessage).toMatch(/dns rebind blocked/);
+    }
+    // We must NOT have reached fetch — the guard fails before any wire I/O.
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when DNS lookup errors (SEC-R4-M1)", async () => {
+    const { record } = createWatch(baseSpec);
+    const mockFetch = vi.fn(async () => new Response("ok", { status: 200 }));
+    const mockLookup = vi.fn(async () => {
+      throw new Error("SERVFAIL");
+    });
+    const r = await triggerWatch(
+      record.watchId,
+      mockFetch as typeof fetch,
+      Date.now(),
+      mockLookup as unknown as Parameters<typeof triggerWatch>[3],
+    );
+    expect(r.kind).toBe("ok");
+    if (r.kind === "ok") {
+      expect(r.observation.kind).toBe("error");
+      expect(r.observation.errorMessage).toMatch(/dns lookup failed/);
+    }
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("blocks HTTPS→HTTP downgrade through a redirect", async () => {
+    const { record } = createWatch(baseSpec);
+    const mockFetch = vi.fn(async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: "http://example.org/downgrade" },
+      }),
+    );
+    const mockLookup = vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]);
+    const r = await triggerWatch(
+      record.watchId,
+      mockFetch as typeof fetch,
+      Date.now(),
+      mockLookup,
+    );
+    expect(r.kind).toBe("ok");
+    if (r.kind === "ok") {
+      expect(r.observation.kind).toBe("error");
+      expect(r.observation.errorMessage).toMatch(/downgrade/);
+    }
+  });
+
+  it("restores lastFiredAt on fetch failure (SEC-R4-M3 — no DoS latch)", async () => {
+    const { record } = createWatch(baseSpec);
+    // Successful fire FIRST to advance lastFiredAt, then a long wait so
+    // cooldown clears, then a failing fire — the failure must NOT extend
+    // the cooldown beyond what the FIRST fire established.
+    const okFetch = vi.fn(async () => new Response("ok", { status: 200 }));
+    const okLookup = vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]);
+    const t0 = 1_000_000;
+    const first = await triggerWatch(record.watchId, okFetch as typeof fetch, t0, okLookup);
+    expect(first.kind).toBe("ok");
+
+    // 30s later (past cooldown), fire fails.
+    const failFetch = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    const t1 = t0 + 30_000;
+    const second = await triggerWatch(record.watchId, failFetch as typeof fetch, t1, okLookup);
+    expect(second.kind).toBe("ok");
+    if (second.kind === "ok") {
+      expect(second.observation.kind).toBe("error");
+    }
+    // 5s later: failure path should NOT have latched a 15s lockout —
+    // lastFiredAt was rolled back to t0, so 5s after t1 is t0+35s, far
+    // outside any cooldown window from t0.
+    const t2 = t1 + 5_000;
+    const third = await triggerWatch(record.watchId, okFetch as typeof fetch, t2, okLookup);
+    expect(third.kind).toBe("ok");
+    if (third.kind === "ok") {
+      expect(third.observation.kind).toBe("baseline");
+    }
+  });
+
+  it("TOCTOU: parallel triggers collapse to one successful fire", async () => {
+    const { record } = createWatch(baseSpec);
+    const mockFetch = vi.fn(async () => new Response("ok", { status: 200 }));
+    const mockLookup = vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]);
+    const t0 = 1_000_000;
+    // Fire two triggers in the same tick. The R3 sync-claim flips status
+    // to "running" + advances lastFiredAt BEFORE the first await — the
+    // second concurrent caller reads `status === "running"` and is
+    // rejected by the status gate (returns `not-active`). Either gate
+    // (status OR cooldown) closing the TOCTOU is acceptable.
+    const [a, b] = await Promise.all([
+      triggerWatch(record.watchId, mockFetch as typeof fetch, t0, mockLookup),
+      triggerWatch(record.watchId, mockFetch as typeof fetch, t0, mockLookup),
+    ]);
+    const kinds = [a.kind, b.kind].sort();
+    expect(kinds.filter((k) => k === "ok")).toHaveLength(1);
+    expect(kinds.some((k) => k === "not-active" || k === "cooldown")).toBe(true);
+  });
 });
 
 describe("recordObservation — per-watch FIFO", () => {

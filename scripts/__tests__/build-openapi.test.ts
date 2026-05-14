@@ -23,10 +23,12 @@ import {
   RUN_STATUSES,
 } from "../../src/lib/v1/run-spec.js";
 import {
+  ALERT_CHANNEL_KEYS,
   AUTONOMY_MODES,
   FETCHER_KINDS,
   OBSERVATION_CLASSIFICATIONS,
   OBSERVATION_KINDS,
+  OPERATOR_MUTABLE_STATUSES,
   WATCH_STATUSES,
 } from "../../src/lib/v1/watch-spec.js";
 import { buildOpenApiDocument } from "../build-openapi.ts";
@@ -199,6 +201,27 @@ describe("OpenAPI document — drift invariants (taxonomy ↔ enum)", () => {
     expect(doc().components.schemas.ObservationClassification?.enum).toEqual([
       ...OBSERVATION_CLASSIFICATIONS,
     ]);
+  });
+
+  // R5 ARCH-A3: WatchUpdate.status enum must match OPERATOR_MUTABLE_STATUSES.
+  // The validator + the spec MUST agree on which statuses an operator can
+  // write via PATCH — adding a new operator-mutable status (e.g. "muted")
+  // requires changing OPERATOR_MUTABLE_STATUSES, which trips this test
+  // until the schema is regenerated.
+  it("WatchUpdate.status enum matches OPERATOR_MUTABLE_STATUSES", () => {
+    const props = (doc().components.schemas.WatchUpdate as unknown as {
+      properties?: { status?: { enum?: string[] } };
+    }).properties;
+    expect(props?.status?.enum).toEqual([...OPERATOR_MUTABLE_STATUSES]);
+  });
+
+  // R5 ARCH-A5: AlertChannels.required must match ALERT_CHANNEL_KEYS — adding
+  // a 6th channel (push? in-app?) trips this test until the schema lists it.
+  it("AlertChannels.required matches ALERT_CHANNEL_KEYS", () => {
+    const ac = doc().components.schemas.AlertChannels as unknown as {
+      required?: string[];
+    };
+    expect([...(ac.required ?? [])].sort()).toEqual([...ALERT_CHANNEL_KEYS].sort());
   });
 });
 

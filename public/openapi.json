@@ -503,6 +503,9 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           }
@@ -735,6 +738,9 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -1890,7 +1896,7 @@
         }
       },
       "TooManyRequests": {
-        "description": "Per-IP+session rate limit exceeded.",
+        "description": "Per-IP+session rate limit exceeded; or — on POST /v1/watches/{id}/trigger — the per-watch 15 s cooldown is still active (`retryAfterMs` present in body, `Retry-After` header set).",
         "content": {
           "application/json": {
             "schema": {
@@ -1898,6 +1904,19 @@
             },
             "example": {
               "error": "too many requests — slow down and try again in a minute"
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "Request body exceeded the 64 KiB cap.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "request body too large"
             }
           }
         }

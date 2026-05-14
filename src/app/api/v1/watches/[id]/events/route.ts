@@ -154,13 +154,10 @@ export async function GET(
           send("state", redactWatchForGet(event.record));
         } else if (event.kind === "observation") {
           send("observation", event.record);
-        } else if (event.kind === "alert") {
-          send("alert", {
-            observationId: event.observationId,
-            channel: event.channel,
-            status: event.status,
-          });
         }
+        // The Week-2 alert dispatcher will add a third `alert` variant
+        // here alongside the publish call in `store.ts`. Until then the
+        // switch is exhaustive over the two-variant union.
       });
       if (sub === null) {
         send("error", { code: "subscriber-cap-reached" });

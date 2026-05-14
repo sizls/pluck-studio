@@ -147,6 +147,28 @@ test.describe("Watch — create + list + trigger", () => {
     await expect(page.getByTestId("watch-list")).toContainText(uniqueName);
   });
 
+  test("trigger result renders with a STUB ribbon (Week-1 mock disclosure)", async ({
+    page,
+    context,
+  }) => {
+    await authenticate(context);
+
+    await page.goto("/watch/new");
+    await page.getByTestId("watch-name").fill("STUB ribbon check");
+    await page.getByTestId("watch-url").fill(VALID_URL);
+    await page.getByTestId("watch-intent").fill(VALID_INTENT);
+    await page.getByTestId("watch-submit").click();
+    await page.waitForURL(/\/watch\/[^/]+$/);
+
+    await page.getByTestId("watch-trigger").click();
+
+    // The first observation card carries the STUB chip (modelUsed === null
+    // && kind !== "error"), telling the operator this is the Week-1 mock.
+    const stub = page.locator('[data-testid^="observation-stub-"]').first();
+    await expect(stub).toBeVisible({ timeout: 30_000 });
+    await expect(stub).toContainText(/STUB/);
+  });
+
   test("unauthenticated submit surfaces the sign-in prompt", async ({
     page,
   }) => {

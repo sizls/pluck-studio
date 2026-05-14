@@ -2,7 +2,38 @@
 
 These items came out of the R2 AE-review domain-expert lane (commit `2c8aecb` baseline). They are **contract-shape decisions for the Worker swap** — they all change the `WatchSpec` / `Observation` / receipt shape and therefore MUST land before the public API freezes at Week-2 GA. Sorted by must-have → nice-to-have.
 
-The Week-1 R1+R3 hardening (SSRF, redaction, cooldown, FIFO, OpenAPI, phrase-id format) is orthogonal to these — those are already shipped.
+The Week-1 R1+R3+R5 hardening (SSRF, DNS rebinding, HTTPS-downgrade, cooldown TOCTOU + failure-rollback, redaction, FIFO, OpenAPI, phrase-id format, taxonomy drift invariants) is orthogonal to these — those are already shipped.
+
+---
+
+## Stub-mode contract today
+
+For each P0/P1 item: what the Week-1 stub currently does, what the Week-2 contract requires, and the smallest server-side change we could ship NOW (Week-1 stub) to keep demo behavior aligned with the future contract. The "fix now" column is the de-risking checklist before the Worker swap.
+
+| # | Item | Stub today | Week-2 contract | Fix now (low-cost de-risk) |
+|---|---|---|---|---|
+| 1 | Alert hysteresis | Mock trigger emits a fresh STUB observation each click; no alert dispatcher exists yet → no spam, but no dedupe either | `alertCooldownMs` + `alertGroupingWindowMs` per watch; per-(watch, classification) suppression | Hardcode `alertCooldownMs: 60_000` server-side in the store; cap mock observations to 1/minute regardless of trigger spam |
+| 2 | Per-channel routing rules | All enabled channels fire identically (no dispatcher yet) | `channelRules[]` with `minConfidence` + `classifications[]` per channel | Defer — needs the dispatcher to exist first |
+| 3 | Trust feedback loop | Receipt is read-only | `POST /observations/[id]/feedback` + Vendor Honesty Index rollup | Add a `feedback` button stub on `WatchDetailView` that POSTs to a 501-returning endpoint, so the UX seam ships early |
+| 4 | Classification enum | 6 states (unchanged / minor-change / meaningful-change / layout-shifted / blocked / missing) | + `rate-limited`, `auth-wall`, `consent-gate`, `geo-blocked`, `soft-404` | Add the 5 missing enum values to `OBSERVATION_CLASSIFICATIONS` now — the OpenAPI drift-invariant test will assert them across the wire, even though the mock never emits them |
+| 5 | Maintenance windows + TZ | Cron interpreted in server UTC; no quiet hours | `timezone` + `quietHours[]` on WatchSpec | Add `timezone?: string` to WatchSpec validator (accept any IANA TZ string, default `"UTC"`); store but don't act on it Week-1 |
+| 6 | Calibration period | Trigger always emits an observation | `calibrationRuns` (default 3) — agent observes-but-never-alerts | Defer — alerting doesn't fire Week-1 anyway |
+| 7 | 4th autonomy mode | 3 modes | `auto-confident` OR fold into per-channel rules | Defer — design call coupled to #2 |
+| 8 | `extractedFields` typing | `Record<string, string\|number\|boolean\|null>` | `intentCategory` + `fieldsSchema` | Add `intentCategory?` enum (pricing/status/changelog/inventory/jobs/custom) to WatchSpec now, stored opaquely — Worker uses it Week-2 |
+| 9 | Polling politeness | Trigger fetches without `If-None-Match` / robots.txt | Honor Retry-After, ETag, robots.txt, per-target 1 RPS cap | Worker concern — defer |
+| 10 | Stagger / jitter | No scheduler yet | `hash(watchId) % jitterWindowMs` offset | Worker concern — defer |
+| 11 | Bureau composition seam | No on-alert verb | `WatchSpec.onAlert.fireBureauProgram` | Add `onAlert?` to WatchSpec validator now, stored opaquely. Critical-path because removing it from the public API later is breaking |
+| 12 | Internal-host allowlist | Hardcoded RFC1918/.internal block | Org-scoped `hostnameAllowlist[]` | Defer — needs org concept |
+| 13 | `always-agent` queue | No queue, no API | `GET /review-queue` + `POST /review-queue/[id]/resolve` | Defer — coupled to alert dispatcher |
+| 14 | Diff strategy | Levenshtein only (Worker will run this) | `diffStrategy` enum + per-strategy threshold | Add `diffStrategy?` to WatchSpec validator now, stored opaquely |
+| 15 | `lastFiredAt: null` UX | Renders "never" | Distinguish `awaiting-first-run` from `failing` | Tiny UI fix: render "Awaiting first fire" when `lastFiredAt === null && status === "active"` |
+| 16 | `intent` onboarding | Empty textarea | Template gallery | UI: add 3-4 placeholder examples below the intent field as click-to-fill |
+| 17 | Idempotency hash drops `name` | Hashes `name` currently | Hash without `name` | Drop `name` from `idempotencyHashOf` canonical input — 1-line change |
+| 18 | Vocabulary clash | `/monitors` + `/watch` both live, no comparison copy | Either rename `/monitors` → `/timelines` OR add comparison block | **Recommended:** rename. Only 4 callsites + 1 layout file + 1 type alias |
+| 19 | Receipt URL plural | `/watch/<id>` (singular) | Pick — `/watches/<id>` is REST canonical | Defer — coupled to #18 |
+| 20 | Per-org budget rollup | Per-watch `dailyBudgetUsd` only | Org-scoped cap | Defer — needs org concept |
+
+**Recommendation: ship "fix now" for items 1, 3, 4, 5, 8, 11, 14, 15, 16, 17 in a focused PR before Week-2 starts.** Each is hours of work; collectively they de-risk most of the Week-2 contract freeze. Item 18 is its own decision (rename or comparison), see below.
 
 ---
 

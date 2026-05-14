@@ -111,8 +111,12 @@ const observationIndex: Map<string, string[]> =
 
 export type WatchEvent =
   | { kind: "state"; record: WatchRecord }
-  | { kind: "observation"; record: ObservationRecord }
-  | { kind: "alert"; observationId: string; channel: string; status: string };
+  | { kind: "observation"; record: ObservationRecord };
+// NOTE: A third `alert` variant existed in Week-1 in anticipation of the
+// Week-2 alert dispatcher. R4 DX-4 removed it — keeping a dead union arm
+// in a public type misleads consumers into pattern-matching against a
+// case that will never arrive. When the dispatcher ships, re-add the
+// variant alongside the publisher in the same commit.
 
 export type WatchSubscriber = (event: WatchEvent) => void;
 
@@ -663,7 +667,11 @@ export function recordObservation(
 
   const updatedWatch: WatchRecord = {
     ...watch,
-    lastFiredAt: now,
+    // On `error` kind, preserve whatever the caller wrote (triggerWatch
+    // rolls `lastFiredAt` back to its pre-claim value on fetch failure
+    // so a failed fetch doesn't latch the watch into a cooldown lockout).
+    // On any other kind, advance to `now`. R5 SEC-R4-M3 follow-through.
+    lastFiredAt: input.kind === "error" ? watch.lastFiredAt : now,
     lastObservationId:
       input.kind === "error" ? watch.lastObservationId : observationId,
     agentTokensSpentTotal:
@@ -753,10 +761,21 @@ const MOCK_FETCH_MAX_BYTES = 1_000_000;
  *
  * Returns the final successful Response, or throws a redacted error.
  */
+/**
+ * Function shape for the DNS-resolution-time guard. Injectable so tests
+ * can simulate rebind (an A record that flips between public + private)
+ * without standing up real DNS. The production binding is `node:dns/promises.lookup`.
+ */
+export type DnsLookupImpl = (
+  hostname: string,
+  options: { all: true },
+) => Promise<{ address: string; family: number }[]>;
+
 async function safeFetchFollowingRedirects(
   fetchImpl: typeof fetch,
   startUrl: string,
   signal: AbortSignal,
+  dnsLookupImpl: DnsLookupImpl = dnsLookup,
 ): Promise<Response> {
   const startProtocol = (() => {
     try {
@@ -769,12 +788,19 @@ async function safeFetchFollowingRedirects(
   let currentUrl = startUrl;
   for (let hop = 0; hop <= TRIGGER_MAX_REDIRECTS; hop += 1) {
     // DNS-resolution-time IP check (defeats rebinding).
-    await assertResolvedHostnameIsPublic(currentUrl);
+    await assertResolvedHostnameIsPublic(currentUrl, dnsLookupImpl);
 
     const res = await fetchImpl(currentUrl, {
       method: "GET",
       signal,
       redirect: "manual",
+      // R5 SEC-M4 defense: disable transparent decompression. We cap
+      // BYTES, not CPU spent decompressing; a 4 KiB gzipped target that
+      // unpacks to GB would abort at 1 MiB of decompressed text, but the
+      // CPU spent getting there is unmetered. `identity` keeps the body
+      // byte-bounded all the way through. Worker (Week-2) will add
+      // proper streaming + decompression accounting.
+      headers: { "Accept-Encoding": "identity" },
     });
     // 3xx with Location → re-validate, then keep walking.
     if (res.status >= 300 && res.status < 400) {
@@ -830,7 +856,10 @@ async function safeFetchFollowingRedirects(
  * failure will surface as an `error` observation, so we don't need to
  * preemptively reject on transient DNS hiccups.
  */
-async function assertResolvedHostnameIsPublic(url: string): Promise<void> {
+async function assertResolvedHostnameIsPublic(
+  url: string,
+  dnsLookupImpl: DnsLookupImpl,
+): Promise<void> {
   let hostname: string;
   try {
     hostname = new URL(url).hostname;
@@ -849,17 +878,25 @@ async function assertResolvedHostnameIsPublic(url: string): Promise<void> {
   // for private IPs but `validatePublicUrl` already gated on them.
   let resolved: { address: string; family: number }[];
   try {
-    resolved = await dnsLookup(hostname, { all: true });
-  } catch {
-    // DNS failure → let fetch handle it (it'll error and we'll record
-    // an error observation). No reason to fail early.
-    return;
+    resolved = await dnsLookupImpl(hostname, { all: true });
+  } catch (err) {
+    // R5 SEC-M1 fail-closed: a hostile DNS server can return SERVFAIL on
+    // the GUARD lookup (or rate-limit just our resolver) — fetch then
+    // re-resolves and gets the rebind. Refuse the fetch rather than fall
+    // through. Operators see this as an `error` observation, no different
+    // from a real DNS failure on the target.
+    throw new Error(
+      `dns lookup failed (${err instanceof Error ? err.message : "unknown"}) for ${redactUrl(url)}`,
+    );
+  }
+  if (resolved.length === 0) {
+    throw new Error(`dns lookup returned no addresses for ${redactUrl(url)}`);
   }
   for (const r of resolved) {
-    const err = validateResolvedIp(r.address);
-    if (err !== null) {
+    const guardErr = validateResolvedIp(r.address);
+    if (guardErr !== null) {
       throw new Error(
-        `dns rebind blocked (${err}: ${r.address}) for ${redactUrl(url)}`,
+        `dns rebind blocked (${guardErr}: ${r.address}) for ${redactUrl(url)}`,
       );
     }
   }
@@ -911,6 +948,7 @@ export async function triggerWatch(
   watchId: string,
   fetchImpl: typeof fetch = fetch,
   now: number = Date.now(),
+  dnsLookupImpl: DnsLookupImpl = dnsLookup,
 ): Promise<TriggerResult> {
   const watch = watches.get(watchId);
   if (watch === undefined) {
@@ -934,6 +972,11 @@ export async function triggerWatch(
   }
 
   // Atomic claim — set running AND advance lastFiredAt in the same tick.
+  // Capture the prior `lastFiredAt` so the failure path can roll it back
+  // (R5 SEC-M3): without rollback, a failed fetch latches the watch into
+  // a 15-second lockout even though no observation was recorded —
+  // operators investigating a flaking site rage-click against the gate.
+  const prevLastFiredAt = watch.lastFiredAt;
   const running: WatchRecord = {
     ...watch,
     status: "running",
@@ -953,6 +996,7 @@ export async function triggerWatch(
         fetchImpl,
         watch.url,
         controller.signal,
+        dnsLookupImpl,
       );
       bodyText = await readBoundedText(res, MOCK_FETCH_MAX_BYTES);
     } finally {
@@ -965,12 +1009,16 @@ export async function triggerWatch(
         : "fetch failed";
   }
 
-  // Restore status to active (or failed if the fetch died).
+  // Restore status to active (or failed if the fetch died). On failure,
+  // roll `lastFiredAt` back to its pre-claim value so the cooldown gate
+  // does not punish operators for a failed observation. Successful fires
+  // keep the new timestamp — the cooldown is only meant to bound
+  // _successful_ amplification.
   const postStatus: WatchStatus = fetchError === null ? "active" : "failed";
   const postWatch: WatchRecord = {
     ...running,
     status: postStatus,
-    lastFiredAt: now,
+    lastFiredAt: fetchError === null ? now : prevLastFiredAt,
     updatedAt: nowIso(now),
   };
   watches.set(watchId, postWatch);

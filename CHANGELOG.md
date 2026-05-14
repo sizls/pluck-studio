@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Watch R5 — DNS fail-closed, cooldown rollback, taxonomy invariants, dead-code
+
+Closes R4 review: 0 criticals, 7 majors closed (SEC-M1 DNS fail-closed, SEC-M3 cooldown failure-latch, SEC-M4 Accept-Encoding identity, ARCH-A1 lastFiredAt polymorphism, ARCH-A2 OpenAPI 413, ARCH-A3 OPERATOR_MUTABLE_STATUSES invariant, ARCH-A5 ALERT_CHANNEL_KEYS invariant, DX-4 WatchEvent.alert dead union). All R3 fixes confirmed holding by R4 security agent ("ALL R3 FIXES HOLD").
+
+Tests: 1322 → 1329 (+7 SSRF v2 / cooldown / taxonomy tests). Playwright +1 STUB-ribbon spec. Typecheck clean.
+
+Security:
+- **DNS fail-closed (SEC-R4-M1)**: `assertResolvedHostnameIsPublic` now throws on lookup error instead of silently falling through. A hostile DNS server that SERVFAILs or rate-limits our resolver can no longer bypass the rebind guard.
+- **Cooldown failure rollback (SEC-R4-M3)**: triggerWatch captures `prevLastFiredAt` and restores it on fetch failure; `recordObservation` preserves `watch.lastFiredAt` on `error` kind. A failed fetch no longer latches the watch into a 15s cooldown lockout — operators investigating a flaking site can re-trigger immediately.
+- **Accept-Encoding: identity (SEC-R4-M4)**: `safeFetchFollowingRedirects` disables transparent gzip/br decompression so a small compressed body can't drive unbounded CPU before the 1 MiB text cap aborts.
+- DNS lookup function injectable via `DnsLookupImpl` for tests (parameterized like `fetchImpl`).
+
+Architecture:
+- **ARCH-R4-A1 lastFiredAt polymorphism removed**: `redactWatchForGet`'s input type locked to `number | null`. The `string` arm was dead post-R3.
+- **ARCH-R4-A3 OPERATOR_MUTABLE_STATUSES constant** in `watch-spec.ts` — `validateWatchUpdate` references it; OpenAPI builder references it; drift-invariant test asserts equality. Adding a new operator-mutable status trips CI until all three sites agree.
+- **ARCH-R4-A5 ALERT_CHANNEL_KEYS constant + invariant test**: OpenAPI `AlertChannels.required` array derived from the constant; test asserts equality. Adding a 6th channel trips CI.
+- **ARCH-R4-A2 OpenAPI 413**: `PayloadTooLarge` response component added; POST + PATCH responses reference it. The 64 KiB body cap is now visible in the public contract.
+
+DX:
+- **WatchEvent.alert dead union arm removed (DX-R4-4)** — the variant was exported + switch-handled but never published. Re-adds with the Week-2 alert dispatcher in the same commit. Type consumers stop seeing a phantom case.
+
+Tests:
+- DNS rebinding rejection (mocked lookup returns 10.0.0.5 → error observation)
+- DNS lookup failure (SERVFAIL → error observation, fetch never called)
+- HTTPS→HTTP downgrade rejection (302 with http:// Location → error)
+- Cooldown failure rollback (failed fire doesn't extend cooldown window)
+- TOCTOU parallel triggers (one succeeds, other blocked)
+- OPERATOR_MUTABLE_STATUSES drift invariant
+- ALERT_CHANNEL_KEYS drift invariant
+- Playwright STUB ribbon visibility on Week-1 mock observations
+
+Docs:
+- `docs/WATCH_WEEK2.md` — added "Stub-mode contract today" table mapping each of the 20 contract-design items to (stub today / Week-2 contract / fix-now de-risk). Recommends 10 of 20 ship in a focused PR before Week-2 starts.
+
 ### Watch R3 — SSRF v2 (DNS rebinding + no-downgrade), TOCTOU, OpenAPI, UX
 
 Closes R2 review: 5 criticals (SSRF DNS rebinding, HTTPS→HTTP downgrade, phrase-id slashes, API shape inconsistency, OpenAPI gap) + ~12 majors (cooldown TOCTOU, readBoundedText cancel hang, nosniff headers, observation NN predictability, /watch landing raw record, runtime on /new, SSE reconnect pill, 429 countdown, STUB ribbon, cron preset active state, autonomy label flip, plus the Watch-Week-2 design backlog).
