@@ -1,4 +1,4 @@
-import { BureauChrome } from "@/components/bureau-ui";
+import { StudioChrome } from "@/components/programs-ui";
 import type { ReactNode } from "react";
 
 export default function PrivacyLayout({
@@ -6,5 +6,5 @@ export default function PrivacyLayout({
 }: {
   children: ReactNode;
 }): ReactNode {
-  return <BureauChrome active="privacy">{children}</BureauChrome>;
+  return <StudioChrome active="privacy">{children}</StudioChrome>;
 }

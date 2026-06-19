@@ -48,7 +48,7 @@ const EXAMPLE_WATCH_ID = "openai-amber-falcon-3742";
 const EXAMPLE_OBS_ID = "9c2a3e6a-3b6a-4d9f-9a3e-4d9f9a3e4d9f";
 const EXAMPLE_OBS_PHRASE = "pluck:watch:openai-amber-falcon-3742:2026-05-13:obs-01-9f3a";
 const EXAMPLE_RUN_ID = "openai-swift-falcon-3742";
-const EXAMPLE_RECEIPT_URL = `/bureau/dragnet/runs/${EXAMPLE_RUN_ID}`;
+const EXAMPLE_RECEIPT_URL = `/programs/dragnet/runs/${EXAMPLE_RUN_ID}`;
 const EXAMPLE_TS = "2026-05-04T17:00:00.000Z";
 
 const exampleRunRecord = {
@@ -74,17 +74,17 @@ const exampleRunRecord = {
 // ---------------------------------------------------------------------------
 
 const schemas = {
-  BureauPipeline: {
+  StudioPipeline: {
     type: "string",
     enum: [...BUREAU_PIPELINES],
     description:
-      "One of the 11 Bureau program slugs. Each maps 1:1 to the legacy `/api/bureau/<slug>/run` route.",
+      "One of the 11 program slugs. Each maps 1:1 to the legacy `/api/programs/<slug>/run` route.",
   },
   RunSpecPipeline: {
     type: "string",
     enum: [...BUREAU_PIPELINES, ...FUTURE_PIPELINES],
     description:
-      "All known pipelines — 11 Bureau slugs (shipped) + 4 future surface slugs (extract/sense/act/fleet, return 400 today).",
+      "All known pipelines — 11 Pluck slugs (shipped) + 4 future surface slugs (extract/sense/act/fleet, return 400 today).",
   },
   RunStatus: {
     type: "string",
@@ -147,7 +147,7 @@ const schemas = {
       response: { type: ["object", "null"], additionalProperties: true, description: "Pipeline-specific response — null until data exists." },
       createdAt: { type: "string", format: "date-time" },
       updatedAt: { type: "string", format: "date-time" },
-      receiptUrl: { type: "string", description: "Path to receipt page, e.g. `/bureau/dragnet/runs/<runId>`." },
+      receiptUrl: { type: "string", description: "Path to receipt page, e.g. `/programs/dragnet/runs/<runId>`." },
     },
   },
   CreateRunResponse: {
@@ -423,7 +423,7 @@ const RESPONSES = {
   BadRequest: { description: "Invalid body, query, or path parameter.", content: errBody({ error: "`pipeline` is required." }) },
   Unauthorized: {
     description: "Missing or invalid Bearer token / session cookie.",
-    content: errBody({ error: "authentication required", signInUrl: "/sign-in?redirect=/bureau/dragnet/run" }),
+    content: errBody({ error: "authentication required", signInUrl: "/sign-in?redirect=/programs/dragnet/run" }),
   },
   Forbidden: {
     description: "Cross-site request rejected. Sec-Fetch-Site / Origin / Referer enforcement.",
@@ -501,7 +501,7 @@ const paths = {
             schema: { $ref: "#/components/schemas/RunSpec" },
             examples: {
               dragnet: {
-                summary: "Bureau DRAGNET — endpoint honesty probe",
+                summary: "Pluck DRAGNET — endpoint honesty probe",
                 value: {
                   pipeline: "bureau:dragnet",
                   payload: {
@@ -535,7 +535,7 @@ const paths = {
         "Public-read by phraseId model. Same-site (CSRF) and rate-limit gates apply. Per-pipeline GET-side redaction applied to each item's `payload`.",
       security: [],
       parameters: [
-        { name: "pipeline", in: "query", required: false, schema: { $ref: "#/components/schemas/BureauPipeline" }, description: "Filter to one Bureau pipeline." },
+        { name: "pipeline", in: "query", required: false, schema: { $ref: "#/components/schemas/StudioPipeline" }, description: "Filter to one Pluck pipeline." },
         { name: "since", in: "query", required: false, schema: { type: "string", format: "date-time" }, description: "Runs created strictly after this ISO-8601 timestamp." },
         { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
         { name: "cursor", in: "query", required: false, schema: { type: "string", maxLength: 128 }, description: "Opaque pagination cursor." },
@@ -629,7 +629,7 @@ const paths = {
             "text/event-stream": {
               schema: { type: "string" },
               example:
-                "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"bureau:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/bureau/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n",
+                "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"bureau:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/programs/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n",
             },
           },
         },
@@ -873,7 +873,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       title: "Pluck Studio — /v1/runs + /v1/watches API",
       version: pkg.version,
       summary:
-        "Unified pipeline activation (Bureau /v1/runs) + periodic semantic monitoring (/v1/watches).",
+        "Unified pipeline activation (Pluck /v1/runs) + periodic semantic monitoring (/v1/watches).",
       description:
         "Auto-generated from `src/lib/v1/run-spec.ts` and `src/lib/v1/watch-spec.ts`. Pipeline + status enums are derived from the TypeScript taxonomy (`BUREAU_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`, `AUTONOMY_MODES` / `FETCHER_KINDS` / `WATCH_STATUSES` / `OBSERVATION_KINDS` / `OBSERVATION_CLASSIFICATIONS`). Per-pipeline run payload schemas live in `docs/V1_API.md`. Re-run `pnpm openapi:build` after any spec / validator / redactor change.",
       license: { name: "Proprietary", identifier: "LicenseRef-Sizls-Internal" },

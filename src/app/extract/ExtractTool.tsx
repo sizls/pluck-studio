@@ -19,10 +19,10 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent, type CSSPro
 
 import { extractAssertionsStub, type AssertionConfidence, type ExtractedAssertion } from "../../lib/extract/stub-extractor";
 
-const mono = "var(--bureau-mono)";
-const dim = "var(--bureau-fg-dim)";
-const fg = "var(--bureau-fg)";
-const bg = "var(--bureau-bg)";
+const mono = "var(--studio-mono)";
+const dim = "var(--studio-fg-dim)";
+const fg = "var(--studio-fg)";
+const bg = "var(--studio-bg)";
 
 const dropZone: CSSProperties = { border: `1px dashed ${dim}`, borderRadius: 6, padding: 32, marginTop: 16, fontFamily: mono, fontSize: 13, color: dim, textAlign: "center", background: "rgba(255,255,255,0.02)", cursor: "pointer" };
 const dropZoneActive: CSSProperties = { ...dropZone, borderStyle: "solid", borderColor: "var(--bureau-accent)", color: fg };
@@ -46,7 +46,7 @@ function badgeStyle(c: AssertionConfidence): CSSProperties {
 
 function probeHref(a: ExtractedAssertion): string {
   const p = new URLSearchParams({ vendor: a.vendor, assertion: a.testableForm });
-  return `/bureau/dragnet/run?${p.toString()}`;
+  return `/programs/dragnet/run?${p.toString()}`;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {

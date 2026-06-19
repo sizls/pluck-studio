@@ -12,7 +12,7 @@
 //   - target: "hackerone" | "bugcrowd"
 //   - program: vendor slug for the platform-specific program (e.g.
 //     "openai" for hackerone.com/openai). Free-form short slug.
-//   - vendor + model: canonical Bureau identifiers for the affected
+//   - vendor + model: canonical Pluck identifiers for the affected
 //     vendor/model pair, included in the EvidencePacket body so
 //     readers don't have to parse the rekor uuid to learn the target.
 //   - ToS-ack: required.

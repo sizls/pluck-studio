@@ -3,10 +3,10 @@
 // ---------------------------------------------------------------------------
 //
 // Locks two contracts:
-//   1. The DRAGNET validator enforces every legacy /api/bureau/dragnet/run
+//   1. The DRAGNET validator enforces every legacy /api/programs/dragnet/run
 //      rule (URL scheme allowlist, private-IP block, pack-ID grammar,
 //      cadence, authorization ack).
-//   2. The registry has an entry for every BureauPipeline — exhaustiveness
+//   2. The registry has an entry for every StudioPipeline — exhaustiveness
 //      is enforced at the type level, but we belt-and-suspenders runtime
 //      check it so import-time errors surface immediately.
 // ---------------------------------------------------------------------------
@@ -162,7 +162,7 @@ describe("validateDragnetPayload", () => {
 });
 
 describe("PIPELINE_VALIDATORS registry", () => {
-  it("has a validator for every BureauPipeline", () => {
+  it("has a validator for every StudioPipeline", () => {
     for (const p of BUREAU_PIPELINES) {
       expect(PIPELINE_VALIDATORS[p]).toBeTypeOf("function");
     }
@@ -173,7 +173,7 @@ describe("PIPELINE_VALIDATORS registry", () => {
   });
 
   it("all 11 validators reject arrays + primitives", () => {
-    // After Wave 3, ALL Bureau validators are real — none are stubs.
+    // After Wave 3, ALL Pluck validators are real — none are stubs.
     // Every validator MUST reject non-object payloads as the first
     // gate. Loop through the registry to lock the contract.
     for (const p of BUREAU_PIPELINES) {

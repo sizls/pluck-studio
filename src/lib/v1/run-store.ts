@@ -39,9 +39,9 @@ import {
   generateScopedPhraseId,
 } from "../phrase-id";
 import {
-  type BureauPipeline,
+  type StudioPipeline,
   bureauSlugOf,
-  isBureauPipeline,
+  isProgramPipeline,
   type RunRecord,
   type RunSpec,
   type RunSpecPipeline,
@@ -281,24 +281,24 @@ function enforceCap(): void {
 }
 
 /**
- * Generate a runId for the given pipeline. Bureau pipelines reuse the
+ * Generate a runId for the given pipeline. Pluck pipelines reuse the
  * existing vendor-scoped or bare phrase-id helpers so receipt URLs stay
  * consistent with the legacy per-program routes. Future pipelines fall
  * back to a generic `<slug>-<adj>-<noun>-<NNNN>`.
  */
 function runIdFor(pipeline: RunSpecPipeline, payload: Record<string, unknown>): string {
-  if (isBureauPipeline(pipeline)) {
-    return runIdForBureau(pipeline, payload);
+  if (isProgramPipeline(pipeline)) {
+    return runIdForProgram(pipeline, payload);
   }
   // extract / sense / act / fleet — generic prefix.
   return `${pipeline}-${generatePhraseId()}`;
 }
 
-function runIdForBureau(
-  pipeline: BureauPipeline,
+function runIdForProgram(
+  pipeline: StudioPipeline,
   payload: Record<string, unknown>,
 ): string {
-  // Bureau programs that probe a URL get a vendor-scoped phrase
+  // Pluck programs that probe a URL get a vendor-scoped phrase
   // (`openai-swift-falcon-3742`); the rest get a slug-prefixed one
   // so the program is readable from the URL alone.
   //
@@ -338,7 +338,7 @@ function runIdForBureau(
   // the target platform, NOT the source operator or affected vendor.
   // Receipt URL self-discloses *which platform was filed against*; the
   // affected vendor lives in the receipt body. Anchored on the legacy
-  // route's intent (see /api/bureau/bounty/run).
+  // route's intent (see /api/programs/bounty/run).
   //
   // ORDERING: BOUNTY's payload also carries `vendor` (the affected
   // model's vendor) — we resolve `target` BEFORE `vendor` so BOUNTY
@@ -513,8 +513,8 @@ function uniqueRunId(
 }
 
 function receiptUrlFor(pipeline: RunSpecPipeline, runId: string): string {
-  if (isBureauPipeline(pipeline)) {
-    return `/bureau/${bureauSlugOf(pipeline)}/runs/${runId}`;
+  if (isProgramPipeline(pipeline)) {
+    return `/programs/${bureauSlugOf(pipeline)}/runs/${runId}`;
   }
   return `/${pipeline}/runs/${runId}`;
 }
@@ -526,7 +526,7 @@ function receiptUrlFor(pipeline: RunSpecPipeline, runId: string): string {
  * does not expose internal indexing).
  */
 export interface ListRunsFilter {
-  readonly pipeline?: BureauPipeline;
+  readonly pipeline?: StudioPipeline;
   /** Unix ms — only runs created strictly AFTER this timestamp are returned. */
   readonly since?: number;
   /** Page size. Clamped to [1, 100]; default 20 when omitted. */

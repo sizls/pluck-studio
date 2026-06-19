@@ -5,8 +5,8 @@
 // ---------------------------------------------------------------------------
 //
 // The /today page is server-rendered overall; only this button is a
-// client component. It mirrors the Bureau-canonical onCopy pattern from
-// `src/app/bureau/dragnet/runs/[id]/ReceiptView.tsx`:
+// client component. It mirrors the Pluck-canonical onCopy pattern from
+// `src/app/programs/dragnet/runs/[id]/ReceiptView.tsx`:
 //
 //   - reads `window.location.href` on click
 //   - guards against missing clipboard API (insecure context, sandboxed

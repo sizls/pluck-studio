@@ -10,7 +10,7 @@
 //   - Pass-through programs (DRAGNET / OATH / FINGERPRINT / CUSTODY /
 //     BOUNTY / SBOM-AI / TRIPWIRE / NUCLEI / MOLE) preserve the payload
 //     byte-for-byte.
-//   - Registry is exhaustive — every Bureau pipeline has a redactor and
+//   - Registry is exhaustive — every Pluck pipeline has a redactor and
 //     calling redactPayloadForGet(...) for any of them never throws.
 //   - Redactor is non-mutating (returns a fresh object — store record
 //     stays intact for idempotency).
@@ -221,13 +221,13 @@ describe("redact — pass-through programs", () => {
 });
 
 describe("redact — registry exhaustiveness", () => {
-  it("every Bureau pipeline has a redactor entry", () => {
+  it("every Pluck pipeline has a redactor entry", () => {
     for (const p of BUREAU_PIPELINES) {
       expect(PAYLOAD_REDACTORS[p]).toBeTypeOf("function");
     }
   });
 
-  it("redactPayloadForGet runs for every Bureau pipeline without throwing", () => {
+  it("redactPayloadForGet runs for every Pluck pipeline without throwing", () => {
     const sample = { foo: "bar", nested: { x: 1 }, arr: [1, 2, 3] };
     for (const p of BUREAU_PIPELINES) {
       expect(() => redactPayloadForGet(p, sample)).not.toThrow();

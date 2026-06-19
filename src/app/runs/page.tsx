@@ -27,16 +27,16 @@ export const metadata = {
 };
 
 const SectionHeadingStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginTop: 32,
 };
 
 const CardStyle: CSSProperties = {
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 6,
   padding: 24,
   marginTop: 16,
@@ -44,10 +44,10 @@ const CardStyle: CSSProperties = {
 };
 
 const ProgramNameStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 18,
   letterSpacing: "0.06em",
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
 };
 
 const SummaryStyle: CSSProperties = {
@@ -56,9 +56,9 @@ const SummaryStyle: CSSProperties = {
 };
 
 const MetaLineStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   marginTop: 8,
   wordBreak: "break-all",
 };
@@ -68,10 +68,10 @@ const CTAButtonStyle: CSSProperties = {
   marginTop: 16,
   marginRight: 12,
   padding: "8px 16px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  background: "var(--bureau-fg)",
-  color: "var(--bureau-bg)",
+  background: "var(--studio-fg)",
+  color: "var(--studio-bg)",
   textDecoration: "none",
   borderRadius: 4,
 };
@@ -79,12 +79,12 @@ const CTAButtonStyle: CSSProperties = {
 const SecondaryButtonStyle: CSSProperties = {
   ...CTAButtonStyle,
   background: "transparent",
-  color: "var(--bureau-fg)",
-  border: "1px solid var(--bureau-fg-dim)",
+  color: "var(--studio-fg)",
+  border: "1px solid var(--studio-fg-dim)",
 };
 
 const ComingSoonRowStyle: CSSProperties = {
-  borderBottom: "1px solid var(--bureau-fg-dim)",
+  borderBottom: "1px solid var(--studio-fg-dim)",
   padding: "12px 0",
 };
 
@@ -122,10 +122,10 @@ function ProgramCard({ program }: { program: ActiveProgram }): ReactNode {
 export default function RunsPage(): ReactNode {
   return (
     <>
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Activations</h1>
-        <p className="bureau-hero-tagline">
-          Every Bureau program wired through the Studio activation
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">Activations</h1>
+        <p className="studio-hero-tagline">
+          Every program wired through the Studio activation
           pattern lands here. Pick a program, fill in the form, get a
           signed receipt URL anchored in the Sigstore Rekor transparency log. Each program's
           domain shape differs — but the run → receipt → share loop is
@@ -173,7 +173,7 @@ export default function RunsPage(): ReactNode {
                   style={{
                     marginLeft: 12,
                     fontSize: 12,
-                    color: "var(--bureau-fg-dim)",
+                    color: "var(--studio-fg-dim)",
                   }}
                 >
                   landing →
@@ -182,7 +182,7 @@ export default function RunsPage(): ReactNode {
                   style={{
                     marginTop: 4,
                     fontSize: 13,
-                    color: "var(--bureau-fg-dim)",
+                    color: "var(--studio-fg-dim)",
                     lineHeight: 1.6,
                   }}
                 >
@@ -215,7 +215,7 @@ export default function RunsPage(): ReactNode {
           same partner, same platform. The keystone search experience.
         </p>
         <p
-          style={{ marginTop: 8, color: "var(--bureau-fg-dim)", fontSize: 13 }}
+          style={{ marginTop: 8, color: "var(--studio-fg-dim)", fontSize: 13 }}
           data-testid="open-cross-link"
         >
           Speed-dial: paste any phrase ID into <a href="/open">/open/&lt;phrase&gt;</a>{" "}
@@ -223,7 +223,7 @@ export default function RunsPage(): ReactNode {
           jump straight to the canonical receipt.
         </p>
         <p
-          style={{ marginTop: 8, color: "var(--bureau-fg-dim)", fontSize: 13 }}
+          style={{ marginTop: 8, color: "var(--studio-fg-dim)", fontSize: 13 }}
           data-testid="diff-cross-link"
         >
           Compare receipts: open{" "}
@@ -257,7 +257,7 @@ export default function RunsPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Supply-chain loop: SBOM-AI → NUCLEI</h2>
         <p style={{ marginTop: 8 }} data-testid="sbom-ai-nuclei-loop-cross-link">
           Publish a probe-pack via{" "}
-          <a href="/bureau/sbom-ai/run">/bureau/sbom-ai/run</a> and the
+          <a href="/programs/sbom-ai/run">/programs/sbom-ai/run</a> and the
           receipt surfaces a "Publish to NUCLEI registry →" CTA with
           your rekor UUID pre-filled. NUCLEI receipts back-link the
           SBOM-AI source artifact so the provenance chain is one
@@ -316,7 +316,7 @@ export default function RunsPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>MCP integration</h2>
         <p style={{ marginTop: 8 }}>
           Wire Studio into Claude Desktop, Cursor, or any Model
-          Context Protocol client. Discover Bureau programs as MCP
+          Context Protocol client. Discover Pluck programs as MCP
           resources and call <code>pluck.*</code> tools from the
           agent — see <a href="/mcp">/mcp</a> for the quick-start
           and the canonical manifest at{" "}

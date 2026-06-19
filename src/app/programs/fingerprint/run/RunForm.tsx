@@ -1,0 +1,307 @@
+"use client";
+
+// ---------------------------------------------------------------------------
+// FINGERPRINT Run form — Wave-2 migration to /v1/runs
+// ---------------------------------------------------------------------------
+//
+// FINGERPRINT is the fourth program migrated to the unified /v1/runs
+// surface (after DRAGNET, NUCLEI, OATH). The legacy
+// /api/programs/fingerprint/run route stays alive as a deprecated alias
+// for callers that haven't migrated; new client code POSTs here.
+// ---------------------------------------------------------------------------
+
+import { createSystem } from "@directive-run/core";
+import { useDerived, useFact } from "@directive-run/react";
+import { useRouter } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+
+import {
+  StudioButton,
+  StudioCheckbox,
+  StudioError,
+  StudioHelpText,
+  StudioInput,
+  StudioLabel,
+  StudioSignInPrompt,
+} from "../../../../components/programs-ui/forms";
+import {
+  SUPPORTED_VENDORS,
+  fingerprintRunFormModule,
+  isSupportedVendor,
+  isValidModelSlug,
+  isValidVendorSlug,
+} from "../../../../lib/fingerprint/run-form-module";
+
+interface RunResponse {
+  runId?: string;
+  /** Legacy /api/programs/fingerprint/run shape. */
+  phraseId?: string;
+  /** /v1/runs shape — receiptUrl returned alongside runId. */
+  receiptUrl?: string;
+  signInUrl?: string;
+  error?: string;
+}
+
+/**
+ * Build a per-submit idempotency key for the /v1/runs POST. Bucketed by
+ * minute so a double-click within ~60s collapses to the same runId.
+ * Mirrors the legacy synthesized key — both surfaces dedupe to the same
+ * stored record for the same payload.
+ */
+function idempotencyKeyFor(vendor: string, model: string): string {
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `fingerprint:${vendor}:${model}:${minuteBucket}`;
+}
+
+function isClientSideBadVendor(raw: string): string | null {
+  const v = raw.trim().toLowerCase();
+  if (!v) {
+    return "Vendor is required.";
+  }
+  if (!isValidVendorSlug(v)) {
+    return "Vendor must be a short lowercase slug (e.g. 'openai').";
+  }
+  if (!isSupportedVendor(v)) {
+    return `Vendor '${v}' is not yet supported in hosted mode. Supported: ${SUPPORTED_VENDORS.join(", ")}.`;
+  }
+  return null;
+}
+
+function isClientSideBadModel(raw: string): string | null {
+  const m = raw.trim().toLowerCase();
+  if (!m) {
+    return "Model is required.";
+  }
+  if (!isValidModelSlug(m)) {
+    return "Model must be a slug like 'gpt-4o' or 'claude-3-5-sonnet'.";
+  }
+  return null;
+}
+
+export function FingerprintRunForm(): ReactNode {
+  const router = useRouter();
+  const system = useMemo(() => {
+    const sys = createSystem({ module: fingerprintRunFormModule });
+    sys.start();
+    return sys;
+  }, []);
+
+  const vendor = useFact(system, "vendor");
+  const model = useFact(system, "model");
+  const authAck = useFact(system, "authorizationAcknowledged");
+  const submitStatus = useFact(system, "submitStatus");
+  const errorMessage = useFact(system, "errorMessage");
+  const signInUrl = useFact(system, "signInUrl");
+
+  const isSubmitting = useDerived(system, "isSubmitting");
+  const canSubmit = useDerived(system, "canSubmit");
+  const hasError = useDerived(system, "hasError");
+  const needsSignIn = useDerived(system, "needsSignIn");
+  const targetSlug = useDerived(system, "targetSlug");
+
+  const setVendor = useCallback(
+    (v: string) => {
+      system.facts.vendor = v;
+    },
+    [system],
+  );
+  const setModel = useCallback(
+    (v: string) => {
+      system.facts.model = v;
+    },
+    [system],
+  );
+  const setAuthAck = useCallback(
+    (v: boolean) => {
+      system.facts.authorizationAcknowledged = v;
+    },
+    [system],
+  );
+
+  const [clientGuardError, setClientGuardError] = useState<string | null>(null);
+
+  useEffect(
+    () => () => {
+      system.destroy();
+    },
+    [system],
+  );
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    const vendorError = isClientSideBadVendor(vendor ?? "");
+    if (vendorError !== null) {
+      setClientGuardError(vendorError);
+      return;
+    }
+    const modelError = isClientSideBadModel(model ?? "");
+    if (modelError !== null) {
+      setClientGuardError(modelError);
+      return;
+    }
+    setClientGuardError(null);
+
+    system.facts.errorMessage = null;
+    system.facts.signInUrl = null;
+    system.facts.submitStatus = "submitting";
+
+    try {
+      const normalizedVendor = (vendor ?? "").trim().toLowerCase();
+      const normalizedModel = (model ?? "").trim().toLowerCase();
+
+      const res = await fetch("/api/v1/runs", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          pipeline: "bureau:fingerprint",
+          payload: {
+            vendor: normalizedVendor,
+            model: normalizedModel,
+            authorizationAcknowledged: authAck,
+          },
+          idempotencyKey: idempotencyKeyFor(normalizedVendor, normalizedModel),
+        }),
+      });
+
+      const body = (await res.json()) as RunResponse;
+
+      if (res.status === 401) {
+        system.facts.signInUrl = body.signInUrl ?? "/sign-in";
+        system.facts.submitStatus = "failed";
+        return;
+      }
+      if (!res.ok || !body.runId) {
+        system.facts.errorMessage =
+          body.error ?? `Scan failed (HTTP ${res.status})`;
+        system.facts.submitStatus = "failed";
+        return;
+      }
+      system.facts.lastResult = {
+        runId: body.runId,
+        phraseId: body.runId,
+      };
+      system.facts.submitStatus = "succeeded";
+
+      router.push(body.receiptUrl ?? `/programs/fingerprint/runs/${body.runId}`);
+    } catch (err) {
+      system.facts.errorMessage =
+        err instanceof Error ? err.message : "Network error";
+      system.facts.submitStatus = "failed";
+    }
+  }
+
+  const errorToShow = clientGuardError ?? (hasError ? errorMessage : null);
+
+  return (
+    <form onSubmit={onSubmit} data-testid="fingerprint-run-form">
+      <StudioLabel text="Vendor">
+        <StudioInput
+          type="text"
+          name="vendor"
+          required
+          autoFocus
+          placeholder="openai"
+          value={vendor ?? ""}
+          onChange={setVendor}
+          testId="vendor"
+        />
+      </StudioLabel>
+      <StudioHelpText>
+        Short slug. Hosted-mode supports:{" "}
+        {SUPPORTED_VENDORS.map((v, i) => (
+          <span key={v}>
+            <code>{v}</code>
+            {i < SUPPORTED_VENDORS.length - 1 ? ", " : ""}
+          </span>
+        ))}
+        . For other vendors, run <code>pluck fingerprint scan --responder</code>{" "}
+        in the CLI.
+      </StudioHelpText>
+
+      <StudioLabel text="Model">
+        <StudioInput
+          type="text"
+          name="model"
+          required
+          placeholder="gpt-4o"
+          value={model ?? ""}
+          onChange={setModel}
+          testId="model"
+        />
+      </StudioLabel>
+      <StudioHelpText>
+        Vendor-specific model identifier. Slug-style: lowercase,
+        digits, dots, hyphens, underscores. Examples:{" "}
+        <code>gpt-4o</code>, <code>claude-3-5-sonnet</code>,{" "}
+        <code>llama-3.1-70b</code>.
+      </StudioHelpText>
+
+      {targetSlug ? (
+        <p
+          style={{
+            marginTop: 8,
+            fontSize: 12,
+            color: "var(--studio-fg-dim)",
+          }}
+          data-testid="target-slug-preview"
+        >
+          Target: <code>{targetSlug}</code> — the dossier at{" "}
+          <code>/programs/fingerprint/{targetSlug}</code> updates with this
+          scan.
+        </p>
+      ) : null}
+
+      <StudioCheckbox
+        checked={authAck ?? false}
+        onChange={setAuthAck}
+        testId="auth-ack"
+      >
+        I am authorized to scan this vendor's model, and I understand
+        that this scan will be public — the signed cassette + the
+        delta envelope are anchored to the public Sigstore Rekor log
+        and the receipt URL is shareable.
+      </StudioCheckbox>
+
+      <p
+        style={{ marginTop: 16, fontSize: 12, color: "var(--studio-fg-dim)" }}
+      >
+        Hosted-mode scans are signed by the Pluck-fleet hosted key
+        (
+        <a href="/.well-known/pluck-keys.json">
+          <code>/.well-known/pluck-keys.json</code>
+        </a>
+        ). The 5-probe calibration set is fixed; the responder
+        transport (OpenAI / Anthropic / OpenRouter / Ollama) is wired
+        per-vendor.
+      </p>
+
+      <StudioButton type="submit" disabled={!canSubmit} testId="run-submit">
+        {isSubmitting ? "Scanning…" : "Scan model"}
+      </StudioButton>
+
+      {needsSignIn && signInUrl ? (
+        <StudioSignInPrompt
+          signInUrl={signInUrl}
+          action="scan a model"
+          testId="sign-in-prompt"
+        />
+      ) : null}
+
+      {errorToShow ? (
+        <StudioError message={errorToShow} testId="run-error" />
+      ) : null}
+
+      <span data-testid="submit-status" hidden>
+        {submitStatus}
+      </span>
+    </form>
+  );
+}

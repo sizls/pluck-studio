@@ -46,7 +46,7 @@ test.describe("Verdict-Verbose badge", () => {
     // Author-scoped phrase IDs land on the receipt page even before the
     // pluck-api swap; the stub renders 'publish pending' or a published
     // verdict depending on the path.
-    await page.goto("/bureau/nuclei/runs/alice-bold-marlin-1188");
+    await page.goto("/programs/nuclei/runs/alice-bold-marlin-1188");
     const badge = page.getByTestId("verdict-badge").first();
     await expect(badge).toBeVisible();
     const variant = await badge.getAttribute("data-variant");
@@ -61,7 +61,7 @@ test.describe("Verdict-Verbose badge", () => {
   test("MOLE receipt surfaces a verified, re-witnessed, failed, or pending badge", async ({
     page,
   }) => {
-    await page.goto("/bureau/mole/runs/nyt20240115-bold-marlin-1188");
+    await page.goto("/programs/mole/runs/nyt20240115-bold-marlin-1188");
     const badge = page.getByTestId("verdict-badge").first();
     await expect(badge).toBeVisible();
     const variant = await badge.getAttribute("data-variant");

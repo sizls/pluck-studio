@@ -10,7 +10,7 @@
 //   - Ephemeral signing-key fingerprint (NOT the operator's stable key —
 //     WHISTLE rotates per-submission for anonymity)
 //
-// Verdicts (canonical, anchored on /bureau/whistle landing):
+// Verdicts (canonical, anchored on /programs/whistle landing):
 //   - accepted          — bundle parsed, redaction passed, routed to
 //                          partner endpoint, Rekor anchor emitted
 //   - held-redaction    — secret-scrub OR k-anonymity floor OR
@@ -74,7 +74,7 @@ export interface RedactionLayer {
 export const WHISTLE_PREDICATE_URI =
   "https://pluck.run/WhistleSubmission/v1";
 
-/** Bureau cassette wire prefix (shared across programs). */
+/** Pluck cassette wire prefix (shared across programs). */
 export const CASSETTE_HASH_PREFIX = "local:";
 
 export function formatCassetteHash(raw: string): string {

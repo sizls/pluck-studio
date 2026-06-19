@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   webpack: (config, { isServer }) => {
     config.resolve = config.resolve ?? {};
 
-    // Vendored bureau-ui sources use NodeNext-style imports
+    // Vendored programs-ui sources use NodeNext-style imports
     // (`./foo.js` resolving to `./foo.tsx` source). Webpack only honors
     // those mappings when `extensionAlias` is configured.
     config.resolve.extensionAlias = {
@@ -116,7 +116,7 @@ const nextConfig: NextConfig = {
   },
 
   // Vanity rewrites – `studio.pluck.run/dragnet/...` resolves to the
-  // canonical `/bureau/dragnet/...` route. Every shared link is a
+  // canonical `/programs/dragnet/...` route. Every shared link is a
   // Pluck ad.
   async rewrites() {
     const programs = [
@@ -135,7 +135,7 @@ const nextConfig: NextConfig = {
 
     return programs.map((p) => ({
       source: `/${p}/:path*`,
-      destination: `/bureau/${p}/:path*`,
+      destination: `/programs/${p}/:path*`,
     }));
   },
 };

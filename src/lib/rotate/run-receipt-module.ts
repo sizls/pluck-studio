@@ -13,7 +13,7 @@
 //                                annotations queued for all prior
 //                                cassettes signed by old key
 //   - old-key-not-found       — old SPKI doesn't match any prior
-//                                Bureau signer the operator owns
+//                                Pluck signer the operator owns
 //   - new-key-already-active  — new SPKI is in use elsewhere; pick a
 //                                fresh key and resubmit
 //   - old-key-already-revoked — old key was already revoked in a

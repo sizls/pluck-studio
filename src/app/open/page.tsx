@@ -44,21 +44,21 @@ export const metadata: Metadata = {
 
 const Styles: Record<string, CSSProperties> = {
   header: {
-    borderBottom: "1px solid var(--bureau-fg-dim)",
+    borderBottom: "1px solid var(--studio-fg-dim)",
     paddingBottom: 16,
     marginBottom: 24,
   },
   h2: {
-    fontFamily: "var(--bureau-mono)",
+    fontFamily: "var(--studio-mono)",
     fontSize: 13,
-    color: "var(--bureau-fg-dim)",
+    color: "var(--studio-fg-dim)",
     textTransform: "uppercase",
     letterSpacing: "0.08em",
     marginTop: 32,
     marginBottom: 12,
   },
   code: {
-    fontFamily: "var(--bureau-mono)",
+    fontFamily: "var(--studio-mono)",
     fontSize: 13,
     background: "rgba(255, 255, 255, 0.05)",
     padding: "2px 6px",
@@ -67,7 +67,7 @@ const Styles: Record<string, CSSProperties> = {
   },
   list: { display: "grid", gap: 8, marginTop: 12, paddingLeft: 0, listStyle: "none" },
   sample: {
-    border: "1px solid var(--bureau-fg-dim)",
+    border: "1px solid var(--studio-fg-dim)",
     borderRadius: 6,
     padding: 16,
     background: "rgba(255, 255, 255, 0.02)",
@@ -77,7 +77,7 @@ const Styles: Record<string, CSSProperties> = {
     gap: 12,
     textDecoration: "none",
     color: "inherit",
-    fontFamily: "var(--bureau-mono)",
+    fontFamily: "var(--studio-mono)",
     fontSize: 13,
   },
 };
@@ -92,7 +92,7 @@ function SampleLink({ phraseId, index }: { phraseId: string; index: number }): R
         data-sample-index={index}
       >
         <span>/open/{phraseId}</span>
-        <span style={{ color: "var(--bureau-fg-dim)" }}>→ receipt</span>
+        <span style={{ color: "var(--studio-fg-dim)" }}>→ receipt</span>
       </a>
     </li>
   );
@@ -113,7 +113,7 @@ export default function OpenIndexPage(): ReactNode {
       <header style={Styles.header}>
         <h1
           style={{
-            fontFamily: "var(--bureau-mono)",
+            fontFamily: "var(--studio-mono)",
             fontSize: 28,
             margin: 0,
           }}
@@ -123,7 +123,7 @@ export default function OpenIndexPage(): ReactNode {
         <p
           style={{
             marginTop: 8,
-            color: "var(--bureau-fg-dim)",
+            color: "var(--studio-fg-dim)",
             lineHeight: 1.5,
           }}
         >
@@ -136,7 +136,7 @@ export default function OpenIndexPage(): ReactNode {
         <p style={{ lineHeight: 1.6 }}>
           Paste any phrase ID into the URL bar after{" "}
           <code style={Styles.code}>/open/</code> and you'll be redirected
-          to whichever Bureau program owns that receipt. PhraseIds are a
+          to whichever program owns that receipt. PhraseIds are a
           global namespace — you don't have to remember which program a
           run came from to land on its receipt page.
         </p>
@@ -144,7 +144,7 @@ export default function OpenIndexPage(): ReactNode {
           Example: <code style={Styles.code}>/open/swift-falcon-3742</code>{" "}
           resolves to the canonical receipt URL (e.g.{" "}
           <code style={Styles.code}>
-            /bureau/dragnet/runs/openai-bold-marlin-1188
+            /programs/dragnet/runs/openai-bold-marlin-1188
           </code>
           ).
         </p>
@@ -158,7 +158,7 @@ export default function OpenIndexPage(): ReactNode {
       {samples.length > 0 ? (
         <section>
           <h2 style={Styles.h2}>Try it</h2>
-          <p style={{ color: "var(--bureau-fg-dim)" }}>
+          <p style={{ color: "var(--studio-fg-dim)" }}>
             A handful of round-trip-safe sample IDs from the live
             preview data:
           </p>

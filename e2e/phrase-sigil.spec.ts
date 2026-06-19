@@ -39,7 +39,7 @@ test.describe("Phrase Crest sigil", () => {
   test("DRAGNET receipt page renders a 96px sigil in the header", async ({
     page,
   }) => {
-    await page.goto(`/bureau/dragnet/runs/${KNOWN_QUERY}`);
+    await page.goto(`/programs/dragnet/runs/${KNOWN_QUERY}`);
     const sigil = page.getByTestId("phrase-sigil").first();
     await expect(sigil).toBeVisible();
     // The sigil ships data-phrase-id matching the route param.

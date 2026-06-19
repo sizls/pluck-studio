@@ -11,7 +11,7 @@
 //
 // Unknown slugs render a neutral placeholder rather than 404 — the
 // social-platform crawler shouldn't see a JSON 404 + image; it should
-// see a rendered, generic Bureau card.
+// see a rendered, generic Pluck card.
 // ---------------------------------------------------------------------------
 
 import { ImageResponse } from "next/og";
@@ -240,7 +240,7 @@ export default async function Image({ params }: OgProps): Promise<Response> {
           }}
         >
           <span>
-            {total} total receipts · across {VENDOR_BEARING_COUNT} Bureau programs
+            {total} total receipts · across {VENDOR_BEARING_COUNT} Pluck programs
           </span>
           <span style={{ letterSpacing: "0.08em" }}>studio.pluck.run</span>
         </div>

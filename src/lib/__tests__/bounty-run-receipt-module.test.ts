@@ -77,7 +77,7 @@ describe("bountyRunReceiptModule", () => {
     sys.facts.vendor = "openai";
     sys.facts.model = "gpt-4o";
     expect(sys.derive.programDossierUrl).toBe(
-      "/bureau/fingerprint/openai/gpt-4o",
+      "/programs/fingerprint/openai/gpt-4o",
     );
   });
 

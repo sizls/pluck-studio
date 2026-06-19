@@ -4,7 +4,7 @@
 //
 // The canonical surface for periodic semantic monitoring. Mirrors the
 // /api/v1/runs shape (auth gate, CSRF gate, rate-limit gate, idempotency,
-// stub-store persistence). Standalone — Watches are NOT Bureau runs.
+// stub-store persistence). Standalone — Watches are NOT Pluck runs.
 //
 // Day-N contract:
 //   1. Same-site (CSRF) gate.

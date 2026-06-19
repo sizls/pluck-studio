@@ -11,7 +11,7 @@
 //     of the same target, plus the raw fingerprint hash + per-probe
 //     responses
 //
-// Classifications (canonical, anchored on the /bureau/fingerprint
+// Classifications (canonical, anchored on the /programs/fingerprint
 // landing page):
 //   - stable  — fingerprint matches the previous scan within tolerance
 //   - minor   — measurable drift but not load-bearing (e.g. small
@@ -69,7 +69,7 @@ export interface ProbeResponse {
 }
 
 /**
- * Bureau cassette wire spec — `local:<sha256-hex>` is the canonical
+ * Pluck cassette wire spec — `local:<sha256-hex>` is the canonical
  * local-cassette address per the FINGERPRINT landing page. The receipt
  * always renders hashes through `formatCassetteHash` so the prefix is
  * never silently dropped.
@@ -77,7 +77,7 @@ export interface ProbeResponse {
 export const CASSETTE_HASH_PREFIX = "local:";
 
 /**
- * Canonicalize a raw 64-hex-char SHA-256 into the Bureau wire form
+ * Canonicalize a raw 64-hex-char SHA-256 into the Pluck wire form
  * `local:<sha256>`. Idempotent: passing already-prefixed input is
  * returned unchanged. Returns the raw input on a malformed hash so
  * the receipt UI doesn't drop debug info.
@@ -111,7 +111,7 @@ export const FINGERPRINT_PREDICATE_URI =
 export const FINGERPRINT_DELTA_PREDICATE_URI =
   "https://pluck.run/FingerprintDelta/v1";
 
-/** Bureau R1 convention: 64-char hex SPKI fingerprint. */
+/** Pluck R1 convention: 64-char hex SPKI fingerprint. */
 export const SPKI_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/;
 
 export const fingerprintRunReceiptModule = createModule(
@@ -201,7 +201,7 @@ export const fingerprintRunReceiptModule = createModule(
         if (facts.vendor === null || facts.model === null) {
           return null;
         }
-        return `/bureau/fingerprint/${facts.vendor}/${facts.model}`;
+        return `/programs/fingerprint/${facts.vendor}/${facts.model}`;
       },
     },
   },

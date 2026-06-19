@@ -9,7 +9,7 @@
 //   - Cache-Control: public, max-age=300 (matches typical RSS poll cadence)
 //   - X-Content-Type-Options: nosniff
 //   - "(illustrative)" suffix appears on every entry's <summary>
-//   - Every <id> is a fully-qualified `/bureau/<program>/runs/<phraseId>` URL
+//   - Every <id> is a fully-qualified `/programs/<program>/runs/<phraseId>` URL
 //   - PRIVACY: redacted fields (e.g. WHISTLE bundleUrl, ROTATE operatorNote)
 //     never appear in the body. Spot-check by name.
 // ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ describe("GET /vendor/[slug]/feed.xml", () => {
     }
   });
 
-  it("every entry's <id> points at a /bureau/<program>/runs/<phraseId> URL", async () => {
+  it("every entry's <id> points at a /programs/<program>/runs/<phraseId> URL", async () => {
     const { body } = await getBody("openai");
     const idMatches = body.match(/<id>([^<]+)<\/id>/g) ?? [];
     // First <id> is the feed self-id; subsequent are entry ids.
@@ -113,7 +113,7 @@ describe("GET /vendor/[slug]/feed.xml", () => {
     for (const raw of entryIds) {
       const url = raw.replace(/^<id>/, "").replace(/<\/id>$/, "");
       expect(url).toMatch(
-        /^https:\/\/studio\.pluck\.run\/bureau\/(dragnet|oath|fingerprint|custody|nuclei|mole)\/runs\/openai-[a-z0-9-]+$/,
+        /^https:\/\/studio\.pluck\.run\/programs\/(dragnet|oath|fingerprint|custody|nuclei|mole)\/runs\/openai-[a-z0-9-]+$/,
       );
     }
   });
@@ -132,9 +132,9 @@ describe("GET /vendor/[slug]/feed.xml", () => {
     const entries = body.match(/<entry>[\s\S]*?<\/entry>/g) ?? [];
     expect(entries.length).toBeGreaterThan(0);
     for (const e of entries) {
-      expect(e).toMatch(/<id>https:\/\/studio\.pluck\.run\/bureau\//);
+      expect(e).toMatch(/<id>https:\/\/studio\.pluck\.run\/programs\//);
       expect(e).toMatch(/<title>[A-Z]+ — /); // "DRAGNET — ", "OATH — " etc.
-      expect(e).toMatch(/<link href="https:\/\/studio\.pluck\.run\/bureau\//);
+      expect(e).toMatch(/<link href="https:\/\/studio\.pluck\.run\/programs\//);
       expect(e).toMatch(/<updated>\d{4}-\d{2}-\d{2}T/);
       expect(e).toMatch(/<published>\d{4}-\d{2}-\d{2}T/);
       expect(e).toContain("<author><name>Pluck Studio</name></author>");

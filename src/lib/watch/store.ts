@@ -265,7 +265,7 @@ function idempotencyHashOf(
 
 /**
  * Watch IDs reuse the scoped phrase-id helper so the receipt URL self-
- * discloses the vendor. Symmetric with Bureau program runIds.
+ * discloses the vendor. Symmetric with program runIds.
  */
 function uniqueWatchId(url: string): string {
   for (let i = 0; i < 5; i += 1) {

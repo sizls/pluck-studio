@@ -22,7 +22,7 @@ For each P0/P1 item: what the Week-1 stub currently does, what the Week-2 contra
 | 8 | `extractedFields` typing | `Record<string, string\|number\|boolean\|null>` | `intentCategory` + `fieldsSchema` | Add `intentCategory?` enum (pricing/status/changelog/inventory/jobs/custom) to WatchSpec now, stored opaquely — Worker uses it Week-2 |
 | 9 | Polling politeness | Trigger fetches without `If-None-Match` / robots.txt | Honor Retry-After, ETag, robots.txt, per-target 1 RPS cap | Worker concern — defer |
 | 10 | Stagger / jitter | No scheduler yet | `hash(watchId) % jitterWindowMs` offset | Worker concern — defer |
-| 11 | Bureau composition seam | No on-alert verb | `WatchSpec.onAlert.fireBureauProgram` | Add `onAlert?` to WatchSpec validator now, stored opaquely. Critical-path because removing it from the public API later is breaking |
+| 11 | Pluck composition seam | No on-alert verb | `WatchSpec.onAlert.fireBureauProgram` | Add `onAlert?` to WatchSpec validator now, stored opaquely. Critical-path because removing it from the public API later is breaking |
 | 12 | Internal-host allowlist | Hardcoded RFC1918/.internal block | Org-scoped `hostnameAllowlist[]` | Defer — needs org concept |
 | 13 | `always-agent` queue | No queue, no API | `GET /review-queue` + `POST /review-queue/[id]/resolve` | Defer — coupled to alert dispatcher |
 | 14 | Diff strategy | Levenshtein only (Worker will run this) | `diffStrategy` enum + per-strategy threshold | Add `diffStrategy?` to WatchSpec validator now, stored opaquely |
@@ -121,9 +121,9 @@ Either add the mode, OR fold per-channel `minConfidence` (P0 #2) which obsoletes
 
 Worker: `(hash(watchId) % jitterWindowMs)` deterministic offset.
 
-### 11. Bureau composition seam (R-Watch2 wedge)
+### 11. Pluck composition seam (R-Watch2 wedge)
 
-- `WatchSpec.onAlert?: { fireBureauProgram?: BureauPipeline; inputs?: Record<string, unknown> }` (templating: `{{watch.url}}`).
+- `WatchSpec.onAlert?: { fireBureauProgram?: StudioPipeline; inputs?: Record<string, unknown> }` (templating: `{{watch.url}}`).
 - `WatchSpec.onAlertBudgetUsd?: number` — auto-budget cap.
 
 (This is the **Provocation Probe** in `docs/IDEAS.md` R-Watch2 #1.)

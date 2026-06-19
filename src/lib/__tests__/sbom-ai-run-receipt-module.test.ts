@@ -65,11 +65,11 @@ describe("sbomAiRunReceiptModule", () => {
     expect(sys.derive.hashesMatch).toBe(false);
   });
 
-  it("lookupUrl points at /bureau/sbom-ai/<sha256>", () => {
+  it("lookupUrl points at /programs/sbom-ai/<sha256>", () => {
     const sys = setup();
     sys.facts.computedSha256 = "abc".repeat(22).toLowerCase();
     expect(sys.derive.lookupUrl).toBe(
-      `/bureau/sbom-ai/${"abc".repeat(22).toLowerCase()}`,
+      `/programs/sbom-ai/${"abc".repeat(22).toLowerCase()}`,
     );
   });
 

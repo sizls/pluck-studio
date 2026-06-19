@@ -15,7 +15,7 @@
 //     typos that would otherwise slip past visual review.
 //   - Auth: non-empty (operators MUST know how to authenticate).
 //
-// Adding a new Bureau program means the snapshot rebases; the
+// Adding a new program means the snapshot rebases; the
 // per-slug invariant catches drift even if you forget to rebase.
 // ---------------------------------------------------------------------------
 

@@ -106,14 +106,14 @@ describe("POST /api/v1/runs — auth + same-site", () => {
     const res = await POST(postReq(validBody(), SAME_SITE));
     expect(res.status).toBe(401);
     const body = (await res.json()) as { signInUrl: string };
-    expect(body.signInUrl).toBe("/sign-in?redirect=/bureau/dragnet/run");
+    expect(body.signInUrl).toBe("/sign-in?redirect=/programs/dragnet/run");
   });
 
-  it("401 falls back to /bureau when the body doesn't name a known bureau pipeline", async () => {
+  it("401 falls back to /programs when the body doesn't name a known bureau pipeline", async () => {
     const res = await POST(postReq({ pipeline: "extract", payload: {} }, SAME_SITE));
     expect(res.status).toBe(401);
     const body = (await res.json()) as { signInUrl: string };
-    expect(body.signInUrl).toBe("/sign-in?redirect=/bureau");
+    expect(body.signInUrl).toBe("/sign-in?redirect=/programs");
   });
 
   it("accepts same-site authed POST", async () => {
@@ -188,7 +188,7 @@ describe("POST /api/v1/runs — success shape", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/dragnet/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/dragnet/runs/${body.runId}`);
     expect(body.status).toBe("pending");
     expect(body.reused).toBe(false);
   });
@@ -414,7 +414,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
     // Vendor-scoped phrase ID — OATH carries `vendorDomain`, so the
     // run-store derives `generateScopedPhraseId("https://openai.com")`.
     expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/oath/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/oath/runs/${body.runId}`);
   });
 
   it("rejects OATH payload missing vendorDomain", async () => {
@@ -488,7 +488,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
     // Author-scoped phrase ID — the run-store derives
     // `generateScopedPhraseId("https://alice.example")` for NUCLEI.
     expect(body.runId).toMatch(/^alice-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/nuclei/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/nuclei/runs/${body.runId}`);
   });
 });
 
@@ -510,7 +510,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^hackerone-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/bounty/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/bounty/runs/${body.runId}`);
   });
 
   it("BOUNTY — PRIVACY INVARIANT: rejects payloads carrying Bearer token", async () => {
@@ -550,7 +550,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     // strips non-alphanum). Three-segment match guards against a future
     // slug-shape change.
     expect(body.runId).toMatch(/^[a-z]+-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/sbom-ai/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/sbom-ai/runs/${body.runId}`);
   });
 
   it("SBOM-AI — rejects http:// artifactUrl", async () => {
@@ -582,7 +582,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^compromised-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/rotate/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/rotate/runs/${body.runId}`);
   });
 
   it("ROTATE — PRIVACY INVARIANT: rejects payloads carrying privateKey", async () => {
@@ -618,7 +618,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^alicembp-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/tripwire/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/tripwire/runs/${body.runId}`);
   });
 
   it("TRIPWIRE — rejects custom policySource without customPolicyUrl", async () => {
@@ -652,7 +652,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^propublica-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/whistle/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/whistle/runs/${body.runId}`);
   });
 
   it("WHISTLE — PRIVACY INVARIANT: rejects payloads carrying sourceName", async () => {
@@ -708,7 +708,7 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/fingerprint/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/fingerprint/runs/${body.runId}`);
   });
 
   it("FINGERPRINT — rejects unsupported vendor slug", async () => {
@@ -744,7 +744,7 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
     // expectedVendor is promoted to vendorDomain so the run-store
     // assigns a vendor-scoped phrase rather than the bundle hostname.
     expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/custody/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/custody/runs/${body.runId}`);
   });
 
   it("CUSTODY — falls back to bundleUrl hostname when no expectedVendor", async () => {
@@ -793,7 +793,7 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
     // Phrase prefix is the canaryId with hyphens stripped per slug
     // normalization (nyt-2024-01-15 → nyt20240115).
     expect(body.runId).toMatch(/^nyt20240115-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/mole/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/mole/runs/${body.runId}`);
   });
 
   it("MOLE — PRIVACY INVARIANT: rejects payloads with canaryBody", async () => {

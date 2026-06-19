@@ -21,8 +21,8 @@ import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 import { notFound } from "next/navigation";
 
-import { PhraseSigil } from "../../../components/bureau-ui/PhraseSigil";
-import { VerdictBadge } from "../../../components/bureau-ui/VerdictBadge";
+import { PhraseSigil } from "../../../components/programs-ui/PhraseSigil";
+import { VerdictBadge } from "../../../components/programs-ui/VerdictBadge";
 import {
   ACTIVE_PROGRAMS,
   VENDOR_BEARING_PROGRAMS,
@@ -120,13 +120,13 @@ const PROGRAM_LABEL: Readonly<Record<VendorProgramSlug, string>> =
   );
 
 const HeaderStyle: CSSProperties = {
-  borderBottom: "1px solid var(--bureau-fg-dim)",
+  borderBottom: "1px solid var(--studio-fg-dim)",
   paddingBottom: 24,
   marginBottom: 32,
 };
 
 const VendorNameStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 36,
   fontWeight: 700,
   letterSpacing: "0.02em",
@@ -134,9 +134,9 @@ const VendorNameStyle: CSSProperties = {
 };
 
 const SlugLineStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   marginTop: 8,
 };
 
@@ -151,9 +151,9 @@ const BreakdownStyle: CSSProperties = {
   gap: 24,
   marginTop: 16,
   flexWrap: "wrap",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
 };
 
 const ProgramSectionStyle: CSSProperties = {
@@ -161,7 +161,7 @@ const ProgramSectionStyle: CSSProperties = {
 };
 
 const ProgramHeadingStyle = (slug: VendorProgramSlug): CSSProperties => ({
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
   textTransform: "uppercase",
   letterSpacing: "0.08em",
@@ -198,9 +198,9 @@ const RESPONSIVE_RECEIPT_CSS = `
   line-height: 1.5;
 }
 .${RECEIPT_PHRASE_CLASS} {
-  font-family: var(--bureau-mono);
+  font-family: var(--studio-mono);
   font-size: 12px;
-  color: var(--bureau-fg);
+  color: var(--studio-fg);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -208,9 +208,9 @@ const RESPONSIVE_RECEIPT_CSS = `
   min-width: 0;
 }
 .${RECEIPT_TIME_CLASS} {
-  font-family: var(--bureau-mono);
+  font-family: var(--studio-mono);
   font-size: 11px;
-  color: var(--bureau-fg-dim);
+  color: var(--studio-fg-dim);
   white-space: nowrap;
 }
 @media (max-width: 720px) {
@@ -235,10 +235,10 @@ const RESPONSIVE_RECEIPT_CSS = `
 const SubscribeRowStyle: CSSProperties = {
   marginTop: 32,
   paddingTop: 16,
-  borderTop: "1px solid var(--bureau-fg-dim)",
-  fontFamily: "var(--bureau-mono)",
+  borderTop: "1px solid var(--studio-fg-dim)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   display: "flex",
   flexWrap: "wrap",
   gap: 12,
@@ -248,11 +248,11 @@ const SubscribeRowStyle: CSSProperties = {
 function programRunPath(programSlug: VendorProgramSlug): string {
   const entry = ACTIVE_PROGRAMS.find((p) => p.slug === programSlug);
 
-  return entry?.landingPath ?? `/bureau/${programSlug}`;
+  return entry?.landingPath ?? `/programs/${programSlug}`;
 }
 
 function receiptUrl(programSlug: VendorProgramSlug, phraseId: string): string {
-  return `/bureau/${programSlug}/runs/${phraseId}`;
+  return `/programs/${programSlug}/runs/${phraseId}`;
 }
 
 function VerdictDot({ verdict }: { verdict: VendorReceipt["verdict"] }): ReactNode {

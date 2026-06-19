@@ -38,28 +38,28 @@ const STUDIO_BASE_URL =
   process.env.STUDIO_BASE_URL ?? "https://studio.pluck.run";
 
 const SectionHeadingStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginTop: 32,
 };
 
 const SubHeadingStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
   marginTop: 20,
 };
 
 const CalloutStyle: CSSProperties = {
   marginTop: 16,
   padding: "12px 16px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  color: "var(--bureau-fg-dim)",
-  border: "1px dashed var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
+  border: "1px dashed var(--studio-fg-dim)",
   borderRadius: 4,
   background: "rgba(255,255,255,0.02)",
 };
@@ -70,7 +70,7 @@ const CalloutStyle: CSSProperties = {
 const WarningCalloutStyle: CSSProperties = {
   marginTop: 16,
   padding: "12px 16px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
   color: "rgb(255, 200, 120)",
   border: "1px solid rgb(220, 150, 60)",
@@ -81,31 +81,31 @@ const WarningCalloutStyle: CSSProperties = {
 const PreStyle: CSSProperties = {
   marginTop: 12,
   padding: 16,
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
   lineHeight: 1.55,
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
   background: "rgba(0,0,0,0.35)",
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 4,
   overflowX: "auto",
 };
 
 const RowStyle: CSSProperties = {
-  borderBottom: "1px solid var(--bureau-fg-dim)",
+  borderBottom: "1px solid var(--studio-fg-dim)",
   padding: "10px 0",
 };
 
 const UriStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
 };
 
 const DimStyle: CSSProperties = {
   marginTop: 4,
   fontSize: 13,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   lineHeight: 1.55,
 };
 
@@ -121,7 +121,7 @@ const CURL_SNIPPET = `curl -s ${MANIFEST_URL} | jq .`;
 const CURL_LOOP_SNIPPET = `# 1. Inspect the discovery document.
 curl -s ${MANIFEST_URL} | jq .
 
-# 2. Pick a Bureau pipeline from the pluck.run tool's enum, then
+# 2. Pick a Pluck pipeline from the pluck.run tool's enum, then
 #    POST a run directly. (Auth: bearer or Supabase JWT cookie.)
 curl -s -X POST ${STUDIO_BASE_URL}/api/v1/runs \\
   -H 'content-type: application/json' \\
@@ -155,11 +155,11 @@ export default function McpPage(): ReactNode {
 
   return (
     <main data-testid="mcp-page">
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">MCP integration</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">MCP integration</h1>
+        <p className="studio-hero-tagline">
           Wire Pluck Studio into Claude Desktop, Cursor, or any
-          Model Context Protocol client. Discover the 11 Bureau
+          Model Context Protocol client. Discover the eleven Pluck
           programs as MCP resources, call <code>pluck.*</code> tools
           from the agent, fetch signed receipts (anchored in Rekor)
           by phrase ID.

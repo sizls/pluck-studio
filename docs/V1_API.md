@@ -2,7 +2,7 @@
 
 The `/v1/runs` endpoint is the canonical surface for kicking off any
 pipeline run inside Pluck Studio. It consolidates the 11 per-program
-Bureau activation stubs (`/api/bureau/<slug>/run`) into a single
+Pluck activation stubs (`/api/programs/<slug>/run`) into a single
 contract and is the seam where the real backend (Hono + Supabase +
 Kite + Rekor) will swap in when the runner ships.
 
@@ -25,7 +25,7 @@ interface RunSpec {
 }
 
 type RunSpecPipeline =
-  // Bureau programs — shipped in stub form today
+  // Pluck programs — shipped in stub form today
   | "bureau:dragnet"
   | "bureau:oath"
   | "bureau:fingerprint"
@@ -71,12 +71,12 @@ interface RunRecord {
   response: Record<string, unknown> | null;
   createdAt: string; // ISO
   updatedAt: string; // ISO
-  receiptUrl: string; // /bureau/<program>/runs/<runId>
+  receiptUrl: string; // /programs/<program>/runs/<runId>
 }
 ```
 
 The `runId` is a phrase ID, not a UUID — same primitive that anchors
-the receipt URL. Bureau pipelines that target a URL get a vendor-scoped
+the receipt URL. Pluck pipelines that target a URL get a vendor-scoped
 phrase (`openai-swift-falcon-3742`); the rest are slug-prefixed
 (`custody-bright-stag-4012`).
 
@@ -126,7 +126,7 @@ minutes later is a fresh run.
 > arbitrary time window. Clients that need a stronger guarantee
 > should pass an explicit caller-controlled `idempotencyKey`.
 
-The legacy `POST /api/bureau/dragnet/run` route synthesizes the same
+The legacy `POST /api/programs/dragnet/run` route synthesizes the same
 minute-bucketed key before delegating to the v1 store, so a legacy
 double-click and a `/v1/runs` double-click with the same payload
 return the SAME `phraseId`. Without this synthesis, every legacy POST
@@ -156,7 +156,7 @@ curl -sS -X POST http://localhost:3030/api/v1/runs \
     "idempotencyKey": "demo-run-2026-05-04"
   }'
 # → { "runId": "openai-swift-falcon-3742",
-#     "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742",
+#     "receiptUrl": "/programs/dragnet/runs/openai-swift-falcon-3742",
 #     "status": "pending", "reused": false }
 
 # Replay with the SAME body returns the SAME runId — reused:true tells
@@ -462,7 +462,7 @@ The /v1/runs surface is published as an auto-generated OpenAPI 3.1
 document at [`/openapi.json`](https://studio.pluck.run/openapi.json).
 The spec is regenerated from `src/lib/v1/run-spec.ts` by the
 `scripts/build-openapi.ts` generator and committed to
-`public/openapi.json`. The `BureauPipeline` and `RunStatus` enums are
+`public/openapi.json`. The `StudioPipeline` and `RunStatus` enums are
 derived directly from `BUREAU_PIPELINES` and `RUN_STATUSES`, so adding
 a new pipeline cannot drift the spec without a regeneration step (a
 unit test asserts the invariant).
@@ -499,7 +499,7 @@ the per-pipeline validators in `src/lib/v1/pipeline-validators.ts`.
 
 The /v1/runs surface is also published as a **Studio MCP discovery
 document** at [`/api/mcp/manifest.json`](https://studio.pluck.run/api/mcp/manifest.json).
-The document declares the 11 Bureau programs as
+The document declares the the Pluck programs as
 `pluck://program/<slug>` resources, the canonical `pluck.search` /
 `pluck.diff` / `pluck.run` / `pluck.list` / `pluck.get` tools (with
 JSON-Schema input shapes), the cross-cutting `pluck://phrase/<id>`
@@ -512,11 +512,11 @@ its tool catalog to the document's tool list.
 The tool list pairs **resource fetch** (`pluck.get` for one receipt by
 phraseId, `pluck.list` for cursor-paginated enumeration) with
 **execute** (`pluck.run`) and **investigate** (`pluck.search`,
-`pluck.diff`). Splitting fetch from execute keeps Bureau-aware agents
+`pluck.diff`). Splitting fetch from execute keeps Pluck-aware agents
 inside the MCP `tools/call` lane instead of conflating it with
 `resources/read` — most MCP clients trip over that conflation.
 
-The prompt catalog now includes a third Bureau-canonical verb,
+The prompt catalog now includes a third Pluck-canonical verb,
 `pluck.compare-cycles`, which drives the /diff page across two
 cycles of the same vendor.
 
@@ -544,7 +544,7 @@ so operators can experiment today.
 
 The document is built by `src/lib/mcp/build-manifest.ts` — pure
 function over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Adding a new
-Bureau program auto-extends the resources list and the
+program auto-extends the resources list and the
 `pluck.run` tool's pipeline enum; a snapshot test locks the
 deterministic output, and an ajv-backed test compiles every
 inputSchema against a real JSON-Schema validator (catches typos
@@ -580,9 +580,9 @@ openapi.json. External clients use the `@sizls/pluck-mcp` bridge.
 
 ## Per-pipeline payload reference
 
-The canonical payload shape for each Bureau pipeline is defined by
+The canonical payload shape for each Pluck pipeline is defined by
 that program's `lib/<program>/run-form-module.ts` and validated by the
-legacy `/api/bureau/<program>/run` handler. Below is the migration
+legacy `/api/programs/<program>/run` handler. Below is the migration
 status. As each program migrates, its payload reference moves from
 "see legacy route" to "see this section."
 
@@ -600,9 +600,9 @@ status. As each program migrates, its payload reference moves from
 | `bureau:tripwire` | `src/lib/tripwire/run-form-module.ts` | **Yes (Wave 3)** |
 | `bureau:whistle` | `src/lib/whistle/run-form-module.ts` | **Yes (Wave 3)** |
 
-**Migration progress:** 11/11 Bureau pipelines now POST to `/v1/runs` —
+**Migration progress:** 11/11 Pluck pipelines now POST to `/v1/runs` —
 the entire alpha-program surface is on the unified contract. Every
-legacy `/api/bureau/<slug>/run` route stays alive as a deprecated alias
+legacy `/api/programs/<slug>/run` route stays alive as a deprecated alias
 that delegates to the same shared validator and dual-writes into the
 v1 store, so legacy and v1 callers converge on the same `phraseId` for
 the same payload.
@@ -639,7 +639,7 @@ the same payload.
 > which becomes an impersonation primitive once the registry goes
 > public. This will be bound to authenticated identity at NUCLEI v1.0
 > GA. See the SECURITY block in
-> `src/app/api/bureau/nuclei/run/route.ts` (AE R1 finding S1).
+> `src/app/api/programs/nuclei/run/route.ts` (AE R1 finding S1).
 
 The runId is **author-scoped** (`alice-swift-falcon-3742`) — receipt URL
 self-discloses the publishing operator. Idempotency key shape used by
@@ -648,7 +648,7 @@ the RunForm + legacy alias:
 
 #### Pre-fill via query params (SBOM-AI cross-publish)
 
-The NUCLEI run form (`/bureau/nuclei/run`) accepts two optional
+The NUCLEI run form (`/programs/nuclei/run`) accepts two optional
 query params for handoff from the SBOM-AI receipt CTA:
 
 | Param | Form field | Notes |
@@ -767,7 +767,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 > the wire. The shared `validateMolePayload` validator enforces this
 > as a defense-in-depth check: any payload carrying `canaryBody` or
 > `canaryContent` is rejected with a 400 — even on the legacy
-> `/api/bureau/mole/run` alias. Receipts schema-drops these fields
+> `/api/programs/mole/run` alias. Receipts schema-drops these fields
 > at render; the validator backstops the wire so a misbuilt client
 > can't accidentally leak the body. See "Sealing comes BEFORE
 > probing" in the MOLE landing for context.
@@ -858,7 +858,7 @@ anchored, the receipt surfaces a **"Publish to NUCLEI registry →"**
 CTA. The CTA links to:
 
 ```
-/bureau/nuclei/run?sbomRekorUuid=<rekorUuid>
+/programs/nuclei/run?sbomRekorUuid=<rekorUuid>
 ```
 
 The NUCLEI form pre-fills the `sbomRekorUuid` field from the query
@@ -1006,7 +1006,7 @@ intentionally NOT echoed.
 
 ## Migration runway
 
-**Status: 11/11 Bureau pipelines migrated — full alpha surface on the
+**Status: 11/11 Pluck pipelines migrated — full alpha surface on the
 unified contract.**
 
 DRAGNET was the **wedge migration** — the first program to POST to the
@@ -1036,8 +1036,8 @@ validator and dual-write into the v1 store.
      intentionally drops `bundleUrl` from the response (anonymity-
      by-default).
 
-**100% migration complete** — no Bureau pipeline still posts directly
-to its `/api/bureau/<slug>/run` route. New client code should target
+**100% migration complete** — no Pluck pipeline still posts directly
+to its `/api/programs/<slug>/run` route. New client code should target
 `/v1/runs`; existing legacy callers continue to work unchanged
 through the deprecated aliases until the runner GA + RFC 8594
 sunset.
@@ -1048,7 +1048,7 @@ work to graduate `/v1/runs` from stub to GA is the backend swap
 (Supabase + DSSE + Rekor + Realtime — see "Backend swap plan" below);
 the HTTP contract is frozen.
 
-The legacy `POST /api/bureau/<slug>/run` routes stay alive as
+The legacy `POST /api/programs/<slug>/run` routes stay alive as
 deprecated aliases throughout. Internally, the migrated routes
 delegate to `lib/v1/run-store` so old callers and new callers see the
 same record from `GET /api/v1/runs/[id]`.
@@ -1084,7 +1084,7 @@ The HTTP contract above does not change across the swap.
 
 Documented in `RunSpecPipeline` so client SDKs can be generated against
 the union today. The route returns 400 with a `documented but not yet
-implemented` error message. The non-Bureau shelves land per the
+implemented` error message. The non-Pluck shelves land per the
 plan in `~/.claude/plans/mighty-gliding-swan.md`.
 
 ---
@@ -1112,7 +1112,7 @@ share-link primitive.
 # /v1/watches — periodic semantic monitoring
 
 The `/v1/watches` endpoint is the canonical surface for **periodic** monitoring
-of arbitrary public URLs. Standalone — Watches are NOT Bureau runs. Operators
+of arbitrary public URLs. Standalone — Watches are NOT Pluck runs. Operators
 describe what to watch in plain language; the agent (Week-2) decides what
 changed. The wedge: **the agent IS the selector** — pages can be rewritten
 and the watch keeps working.

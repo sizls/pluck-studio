@@ -17,7 +17,7 @@ test.describe("OATH activation flow", () => {
   test("unauthenticated user is shown a sign-in prompt, not a redirect", async ({
     page,
   }) => {
-    await page.goto("/bureau/oath/run");
+    await page.goto("/programs/oath/run");
     await expect(page.getByTestId("oath-run-form")).toBeVisible();
 
     await page.getByTestId("vendor-domain").fill("openai.com");
@@ -47,12 +47,12 @@ test.describe("OATH activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/oath/run");
+    await page.goto("/programs/oath/run");
     await page.getByTestId("vendor-domain").fill("openai.com");
     await page.getByTestId("auth-ack").check();
     await page.getByTestId("run-submit").click();
 
-    await page.waitForURL(/\/bureau\/oath\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
+    await page.waitForURL(/\/programs\/oath\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("run-status")).toContainText(/pending/);
     await expect(page.getByTestId("vendor-domain")).toContainText("Vendor:");
@@ -64,7 +64,7 @@ test.describe("OATH activation flow", () => {
   test("submit blocked until vendorDomain + auth-ack are both present", async ({
     page,
   }) => {
-    await page.goto("/bureau/oath/run");
+    await page.goto("/programs/oath/run");
     await expect(page.getByTestId("run-submit")).toBeDisabled();
 
     await page.getByTestId("vendor-domain").fill("openai.com");
@@ -88,7 +88,7 @@ test.describe("OATH activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/oath/run");
+    await page.goto("/programs/oath/run");
     // Single-label hostname (no TLD) — fails HOSTNAME_PATTERN.
     // (URLs with scheme now auto-normalize to hostname per the v2-R1
     // domain fix, so paste of `https://openai.com` is now legal.)
@@ -102,9 +102,9 @@ test.describe("OATH activation flow", () => {
   });
 
   test("OATH landing exposes the Run CTA", async ({ page }) => {
-    await page.goto("/bureau/oath");
+    await page.goto("/programs/oath");
     await expect(page.getByTestId("run-cta")).toBeVisible();
     await page.getByTestId("run-cta").click();
-    await page.waitForURL(/\/bureau\/oath\/run$/);
+    await page.waitForURL(/\/programs\/oath\/run$/);
   });
 });

@@ -36,10 +36,10 @@ describe("ACTIVE_PROGRAMS", () => {
     );
   });
 
-  it("each program's runPath matches /bureau/<slug>/run", () => {
+  it("each program's runPath matches /programs/<slug>/run", () => {
     for (const p of ACTIVE_PROGRAMS) {
-      expect(p.runPath).toBe(`/bureau/${p.slug}/run`);
-      expect(p.landingPath).toBe(`/bureau/${p.slug}`);
+      expect(p.runPath).toBe(`/programs/${p.slug}/run`);
+      expect(p.landingPath).toBe(`/programs/${p.slug}`);
     }
   });
 
@@ -49,7 +49,7 @@ describe("ACTIVE_PROGRAMS", () => {
     }
   });
 
-  it("name is ALL CAPS (Bureau program-name convention)", () => {
+  it("name is ALL CAPS (program-name convention)", () => {
     for (const p of ACTIVE_PROGRAMS) {
       expect(p.name).toBe(p.name.toUpperCase());
     }

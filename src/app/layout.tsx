@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Pluck Studio",
   description:
-    "Pluck Studio — Sigstore-anchored public ledger for AI-vendor trust. Bureau programs (DRAGNET, NUCLEI, OATH, FINGERPRINT, MOLE, WHISTLE, BOUNTY, CUSTODY, SBOM-AI, ROTATE, TRIPWIRE) catch AI vendors when they lie.",
+    "Pluck Studio — Sigstore-anchored public ledger for AI-vendor trust. Pluck programs (DRAGNET, NUCLEI, OATH, FINGERPRINT, MOLE, WHISTLE, BOUNTY, CUSTODY, SBOM-AI, ROTATE, TRIPWIRE) catch AI vendors when they lie.",
   metadataBase: new URL("https://studio.pluck.run"),
 };
 

@@ -27,7 +27,7 @@ test.describe("NUCLEI calendar strip", () => {
     // Navigate to a stub receipt URL — the receipt page renders against
     // local Directive state with the publish-pending defaults
     // (recommendedInterval = "@daily").
-    await page.goto("/bureau/nuclei/runs/alice-quiet-falcon-1234");
+    await page.goto("/programs/nuclei/runs/alice-quiet-falcon-1234");
     const strip = page.getByTestId("calendar-strip");
     await expect(strip).toBeVisible();
     const pills = page.getByTestId("calendar-pill");

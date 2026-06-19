@@ -13,7 +13,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { VendorVerdict } from "../../lib/programs/vendor-preview";
 
 export const VENDOR_PAGE_DESCRIPTION =
-  "Per-vendor live profile across all 11 Bureau programs. Every receipt that names a vendor enriches that vendor's permanent URL — bookmark it, cite it, watch it.";
+  "Per-vendor live profile across all the Pluck programs. Every receipt that names a vendor enriches that vendor's permanent URL — bookmark it, cite it, watch it.";
 
 export const VERDICT_COLORS: Readonly<Record<VendorVerdict, string>> = {
   green: "#4ade80",
@@ -23,13 +23,13 @@ export const VERDICT_COLORS: Readonly<Record<VendorVerdict, string>> = {
 };
 
 const PreviewBannerStyle: CSSProperties = {
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderLeft: "3px solid #fbbf24",
   background: "rgba(251, 191, 36, 0.06)",
   padding: "12px 16px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   margin: "16px 0",
   lineHeight: 1.6,
 };
@@ -57,9 +57,9 @@ const DotGroupStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 4,
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 11,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
 };
 
 interface VerdictBreakdown {

@@ -76,7 +76,7 @@ describe("ExtractTool — stub contract surface", () => {
     const params = new URLSearchParams();
     params.set("vendor", first.vendor);
     params.set("assertion", first.testableForm);
-    const url = `/bureau/dragnet/run?${params.toString()}`;
+    const url = `/programs/dragnet/run?${params.toString()}`;
     expect(url).toContain("vendor=openai");
     expect(url).toContain("assertion=");
     // The assertion query param is non-empty.

@@ -84,7 +84,7 @@ test.describe("Screenshot probe extractor", () => {
     // Click the first "Probe with DRAGNET" CTA. We expect to land on the
     // run form with both query params populated.
     await page.getByTestId("probe-with-dragnet-cta").first().click();
-    await page.waitForURL(/\/bureau\/dragnet\/run\?.*vendor=.*assertion=/);
+    await page.waitForURL(/\/programs\/dragnet\/run\?.*vendor=.*assertion=/);
     await expect(page.getByTestId("dragnet-prefill-banner")).toBeVisible();
     await expect(page.getByTestId("dragnet-prefill-assertion")).toBeVisible();
 

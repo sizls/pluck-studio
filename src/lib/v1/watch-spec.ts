@@ -4,7 +4,7 @@
 //
 // The /v1/watches API is the canonical surface for periodic semantic
 // monitoring inside Pluck Studio. Standalone — does NOT live under
-// /v1/runs. Bureau programs run once-per-activation; Watches run forever
+// /v1/runs. Pluck programs run once-per-activation; Watches run forever
 // on a cron and emit a stream of Observation records.
 //
 // Wedge: the agent IS the selector. Operators describe what to watch in
@@ -106,7 +106,7 @@ export type AlertChannelKey = (typeof ALERT_CHANNEL_KEYS)[number];
 //   - email:      Resend; operator supplies recipient list
 //   - webhook:    HMAC-signed POST to operator-supplied URL
 //   - slack:      Slack incoming webhook URL
-//   - phraseId:   write a Pluck-style receipt; composes with Bureau audit trail
+//   - phraseId:   write a Pluck-style receipt; composes with Pluck audit trail
 
 export interface AlertChannels {
   /** Always implicit-on for the watch owner. Stored explicit for forwards-compat. */

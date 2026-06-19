@@ -1,4 +1,4 @@
-import { BureauChrome } from "@/components/bureau-ui";
+import { StudioChrome } from "@/components/programs-ui";
 import type { ReactNode } from "react";
 
 export default function WatchLayout({
@@ -6,5 +6,5 @@ export default function WatchLayout({
 }: {
   children: ReactNode;
 }): ReactNode {
-  return <BureauChrome active="watch">{children}</BureauChrome>;
+  return <StudioChrome active="watch">{children}</StudioChrome>;
 }

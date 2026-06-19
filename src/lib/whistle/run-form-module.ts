@@ -33,7 +33,7 @@ export interface SubmitResult {
 }
 
 /**
- * Submission categories — anchored on the /bureau/whistle landing's
+ * Submission categories — anchored on the /programs/whistle landing's
  * CLI examples (`--category training-data | policy-violation |
  * safety-incident`).
  */
@@ -48,7 +48,7 @@ export const CATEGORY_LABELS: Readonly<Record<Category, string>> = Object.freeze
 );
 
 /**
- * Newsroom routing partners. Anchored on the /bureau/whistle landing's
+ * Newsroom routing partners. Anchored on the /programs/whistle landing's
  * "ProPublica / Bellingcat / 404Media / EFF Press" list. EFF Press is
  * the legal-aid + amplification path for non-newsroom-routable tips.
  */

@@ -4,7 +4,7 @@
 //
 // Validates the Phase-3 v1 wedge:
 //   1. The DRAGNET run form POSTs to /api/v1/runs (not the legacy
-//      /api/bureau/dragnet/run alias).
+//      /api/programs/dragnet/run alias).
 //   2. The phrase-id receipt page subsequently GETs from /api/v1/runs/[id]
 //      and renders the small "via /v1/runs" indicator, proving the round
 //      trip through the unified store.
@@ -34,7 +34,7 @@ test.describe("/v1/runs unified surface — DRAGNET wedge", () => {
       },
     ]);
 
-    await page.goto("/bureau/dragnet/run");
+    await page.goto("/programs/dragnet/run");
     await page
       .getByTestId("target-url")
       .fill("https://api.openai.com/v1/chat/completions");
@@ -42,7 +42,7 @@ test.describe("/v1/runs unified surface — DRAGNET wedge", () => {
     await page.getByTestId("auth-ack").check();
     await page.getByTestId("run-submit").click();
 
-    await page.waitForURL(/\/bureau\/dragnet\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
+    await page.waitForURL(/\/programs\/dragnet\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
     await expect(page.getByTestId("run-id")).toBeVisible();
 
     // The via-v1 indicator only appears when GET /api/v1/runs/[id]
@@ -67,7 +67,7 @@ test.describe("/v1/runs unified surface — DRAGNET wedge", () => {
 
     // A plausible-looking phrase ID that was never POSTed to /v1/runs
     // (cold cache after a server restart or TTL eviction).
-    await page.goto("/bureau/dragnet/runs/openai-arctic-fox-9999");
+    await page.goto("/programs/dragnet/runs/openai-arctic-fox-9999");
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("via-v1-indicator")).toHaveCount(0);
   });
@@ -122,7 +122,7 @@ test.describe("/v1/runs unified surface — DRAGNET wedge", () => {
     expect(delBody.status).toBe("cancelled");
 
     // 3. Visit the receipt page — banner must surface.
-    await page.goto(`/bureau/dragnet/runs/${runId}`);
+    await page.goto(`/programs/dragnet/runs/${runId}`);
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("v1-cancelled-banner")).toBeVisible();
     await expect(page.getByTestId("v1-cancelled-banner")).toContainText(

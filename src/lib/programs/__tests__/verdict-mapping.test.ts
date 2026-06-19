@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { VerdictBadgeVariant } from "../../../components/bureau-ui/VerdictBadge.js";
+import type { VerdictBadgeVariant } from "../../../components/programs-ui/VerdictBadge.js";
 import { verdictToBadgeVariant } from "../verdict-mapping.js";
 
 interface Row {

@@ -3,8 +3,8 @@
 // ---------------------------------------------------------------------------
 //
 // The single canonical surface for kicking off any pipeline run. Today
-// it consolidates the 11 per-program Bureau activation stubs at
-// `/api/bureau/<slug>/run`; tomorrow it unifies the non-Bureau shelves
+// it consolidates the 11 per-program Pluck activation stubs at
+// `/api/programs/<slug>/run`; tomorrow it unifies the non-Pluck shelves
 // (extract, sense, act, fleet) under the same shape.
 //
 // Day-N contract:
@@ -39,9 +39,9 @@ import { PIPELINE_VALIDATORS } from "../../../../lib/v1/pipeline-validators";
 import { redactPayloadForGet } from "../../../../lib/v1/redact";
 import { createRun, listRuns } from "../../../../lib/v1/run-store";
 import {
-  type BureauPipeline,
+  type StudioPipeline,
   bureauSlugOf,
-  isBureauPipeline,
+  isProgramPipeline,
   isFuturePipeline,
   isRunStatus,
   type RunStatus,
@@ -51,10 +51,10 @@ import {
 /**
  * Best-effort peek at the pipeline before full validation, used only to
  * pick a pipeline-aware sign-in redirect on the 401 path. Returns a
- * Bureau slug if the body is shaped like `{ pipeline: "bureau:<slug>", … }`,
- * otherwise null (caller falls back to the generic /bureau redirect).
+ * Pluck slug if the body is shaped like `{ pipeline: "bureau:<slug>", … }`,
+ * otherwise null (caller falls back to the generic /programs redirect).
  */
-function peekBureauSlug(req: Request, raw: unknown): string | null {
+function peekProgramSlug(req: Request, raw: unknown): string | null {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
     return null;
   }
@@ -62,7 +62,7 @@ function peekBureauSlug(req: Request, raw: unknown): string | null {
   if (typeof pipeline !== "string") {
     return null;
   }
-  if (!isBureauPipeline(pipeline)) {
+  if (!isProgramPipeline(pipeline)) {
     return null;
   }
   // Belt — bureauSlugOf trusts the prefix; we already validated it.
@@ -83,7 +83,7 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
   // Parse body BEFORE the auth check so the 401 can carry a pipeline-aware
-  // sign-in redirect (e.g. `/sign-in?redirect=/bureau/dragnet/run`). Body
+  // sign-in redirect (e.g. `/sign-in?redirect=/programs/dragnet/run`). Body
   // parsing is cheap and the same-site + rate-limit gates above already
   // mitigate body-payload abuse.
   let raw: unknown;
@@ -97,8 +97,8 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   if (!isAuthed(req)) {
-    const slug = peekBureauSlug(req, raw);
-    const redirect = slug !== null ? `/bureau/${slug}/run` : "/bureau";
+    const slug = peekProgramSlug(req, raw);
+    const redirect = slug !== null ? `/programs/${slug}/run` : "/programs";
     return NextResponse.json(
       {
         error: "authentication required",
@@ -117,12 +117,12 @@ export async function POST(req: Request): Promise<Response> {
   if (isFuturePipeline(spec.pipeline)) {
     return NextResponse.json(
       {
-        error: `Pipeline \`${spec.pipeline}\` is documented but not yet implemented. Use a bureau:* pipeline today; the non-Bureau shelves land in a future release.`,
+        error: `Pipeline \`${spec.pipeline}\` is documented but not yet implemented. Use a bureau:* pipeline today; the non-Pluck shelves land in a future release.`,
       },
       { status: 400 },
     );
   }
-  if (!isBureauPipeline(spec.pipeline)) {
+  if (!isProgramPipeline(spec.pipeline)) {
     // Belt-and-suspenders — validateRunSpec already rejects unknowns.
     return NextResponse.json(
       { error: `Unknown pipeline \`${spec.pipeline}\`.` },
@@ -133,7 +133,7 @@ export async function POST(req: Request): Promise<Response> {
   // Per-pipeline payload validation. `validateRunSpec` only shape-checks
   // the envelope; the program-specific rules (DRAGNET URL allowlist +
   // private-IP block + pack-ID grammar; NUCLEI cron grammar; …) live in
-  // the registry so /v1/runs and the legacy /api/bureau/<slug>/run share
+  // the registry so /v1/runs and the legacy /api/programs/<slug>/run share
   // a single source of truth. M1 fix.
   const validator = PIPELINE_VALIDATORS[spec.pipeline];
   const payloadResult = validator(spec.payload);
@@ -192,7 +192,7 @@ const MAX_CURSOR_LEN = 128;
 
 interface ParsedQuery {
   ok: true;
-  pipeline?: BureauPipeline;
+  pipeline?: StudioPipeline;
   since?: number;
   limit?: number;
   cursor?: string;
@@ -209,7 +209,7 @@ function parseListQuery(url: URL): ParsedQuery | ParsedQueryErr {
 
   const pipeline = url.searchParams.get("pipeline");
   if (pipeline !== null) {
-    if (!isBureauPipeline(pipeline)) {
+    if (!isProgramPipeline(pipeline)) {
       return {
         ok: false,
         error: `Unknown pipeline \`${pipeline}\`. Filter must be one of the bureau:* slugs.`,

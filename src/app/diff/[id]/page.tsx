@@ -11,8 +11,8 @@
 import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 
-import { PhraseSigil } from "../../../components/bureau-ui/PhraseSigil.js";
-import { VerdictBadge } from "../../../components/bureau-ui/VerdictBadge.js";
+import { PhraseSigil } from "../../../components/programs-ui/PhraseSigil.js";
+import { VerdictBadge } from "../../../components/programs-ui/VerdictBadge.js";
 import {
   diffReceipts,
   formatTimeDelta,
@@ -39,19 +39,19 @@ export const metadata: Metadata = {
 };
 
 const S: Record<string, CSSProperties> = {
-  header: { borderBottom: "1px solid var(--bureau-fg-dim)", paddingBottom: 16, marginBottom: 24 },
-  h2: { fontFamily: "var(--bureau-mono)", fontSize: 13, color: "var(--bureau-fg-dim)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 32, marginBottom: 12 },
-  card: { border: "1px solid var(--bureau-fg-dim)", borderRadius: 6, padding: 16, marginTop: 12, background: "rgba(255, 255, 255, 0.02)" },
-  err: { border: "1px solid var(--bureau-fg-dim)", borderLeft: "3px solid #ef4444", borderRadius: 6, padding: 16, marginTop: 12, background: "rgba(239, 68, 68, 0.06)", fontFamily: "var(--bureau-mono)", fontSize: 13, lineHeight: 1.7 },
-  info: { border: "1px solid var(--bureau-fg-dim)", borderLeft: "3px solid #fbbf24", borderRadius: 6, padding: 16, marginTop: 12, background: "rgba(251, 191, 36, 0.06)", fontFamily: "var(--bureau-mono)", fontSize: 13, lineHeight: 1.7 },
+  header: { borderBottom: "1px solid var(--studio-fg-dim)", paddingBottom: 16, marginBottom: 24 },
+  h2: { fontFamily: "var(--studio-mono)", fontSize: 13, color: "var(--studio-fg-dim)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 32, marginBottom: 12 },
+  card: { border: "1px solid var(--studio-fg-dim)", borderRadius: 6, padding: 16, marginTop: 12, background: "rgba(255, 255, 255, 0.02)" },
+  err: { border: "1px solid var(--studio-fg-dim)", borderLeft: "3px solid #ef4444", borderRadius: 6, padding: 16, marginTop: 12, background: "rgba(239, 68, 68, 0.06)", fontFamily: "var(--studio-mono)", fontSize: 13, lineHeight: 1.7 },
+  info: { border: "1px solid var(--studio-fg-dim)", borderLeft: "3px solid #fbbf24", borderRadius: 6, padding: 16, marginTop: 12, background: "rgba(251, 191, 36, 0.06)", fontFamily: "var(--studio-mono)", fontSize: 13, lineHeight: 1.7 },
   // Stacks at <640px, two columns above. Same `auto-fit` trick /vendor and /search use.
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginTop: 12 },
   topRow: { display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" },
-  programLabel: { fontFamily: "var(--bureau-mono)", fontSize: 12, letterSpacing: "0.08em", color: "var(--bureau-fg-dim)" },
-  phrase: { fontFamily: "var(--bureau-mono)", fontSize: 14, color: "var(--bureau-fg)", marginTop: 4, wordBreak: "break-all" },
+  programLabel: { fontFamily: "var(--studio-mono)", fontSize: 12, letterSpacing: "0.08em", color: "var(--studio-fg-dim)" },
+  phrase: { fontFamily: "var(--studio-mono)", fontSize: 14, color: "var(--studio-fg)", marginTop: 4, wordBreak: "break-all" },
   summary: { marginTop: 8, fontSize: 13, lineHeight: 1.5 },
-  meta: { marginTop: 8, fontFamily: "var(--bureau-mono)", fontSize: 11, color: "var(--bureau-fg-dim)" },
-  arrow: { fontFamily: "var(--bureau-mono)", color: "var(--bureau-fg-dim)", fontSize: 16 },
+  meta: { marginTop: 8, fontFamily: "var(--studio-mono)", fontSize: 11, color: "var(--studio-fg-dim)" },
+  arrow: { fontFamily: "var(--studio-mono)", color: "var(--studio-fg-dim)", fontSize: 16 },
   sigilRow: { display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap", marginTop: 16 },
   txStyle: { display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" },
 };
@@ -72,7 +72,7 @@ const cardStyle = (accent: string): CSSProperties => ({
 });
 
 function colorFor(v: string): string {
-  return VERDICT_COLORS[v as keyof typeof VERDICT_COLORS] ?? "var(--bureau-fg-dim)";
+  return VERDICT_COLORS[v as keyof typeof VERDICT_COLORS] ?? "var(--studio-fg-dim)";
 }
 
 function ReceiptCard({ side, testid }: { side: ReceiptDiffSide; testid: string }): ReactNode {
@@ -318,9 +318,9 @@ export default async function DiffPage({ params, searchParams }: PageProps): Pro
 
   return (
     <div data-testid="diff-page">
-      <section className="bureau-hero" style={S.header}>
-        <h1 className="bureau-hero-title">Receipt Diff</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero" style={S.header}>
+        <h1 className="studio-hero-title">Receipt Diff</h1>
+        <p className="studio-hero-tagline">
           Two cycles. One vendor. Side by side. Vendor-honesty time machine.
         </p>
       </section>
@@ -348,7 +348,7 @@ export default async function DiffPage({ params, searchParams }: PageProps): Pro
         </ul>
       </section>
 
-      <p style={{ marginTop: 32, fontFamily: "var(--bureau-mono)", fontSize: 11, color: "var(--bureau-fg-dim)" }}>
+      <p style={{ marginTop: 32, fontFamily: "var(--studio-mono)", fontSize: 11, color: "var(--studio-fg-dim)" }}>
         Sample cross-vendor pair (rejected as expected):{" "}
         <a href={`/diff/${cross.base}?since=${cross.target}`} data-testid="diff-cross-vendor-sample-link">
           /diff/openai-…?since=anthropic-…

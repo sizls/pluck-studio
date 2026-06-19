@@ -11,7 +11,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("WHISTLE activation flow", () => {
   test("unauthenticated user is shown a sign-in prompt", async ({ page }) => {
-    await page.goto("/bureau/whistle/run");
+    await page.goto("/programs/whistle/run");
     await expect(page.getByTestId("whistle-run-form")).toBeVisible();
 
     await page
@@ -25,7 +25,7 @@ test.describe("WHISTLE activation flow", () => {
   });
 
   test("submit blocked until URL + BOTH acks present", async ({ page }) => {
-    await page.goto("/bureau/whistle/run");
+    await page.goto("/programs/whistle/run");
     await expect(page.getByTestId("run-submit")).toBeDisabled();
 
     await page
@@ -55,7 +55,7 @@ test.describe("WHISTLE activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/whistle/run");
+    await page.goto("/programs/whistle/run");
     await page
       .getByTestId("bundle-url")
       .fill("https://anonymous-host.example/tip.json");
@@ -67,7 +67,7 @@ test.describe("WHISTLE activation flow", () => {
 
     // Phrase prefix is the routing-partner slug, NOT the bundle source.
     await page.waitForURL(
-      /\/bureau\/whistle\/runs\/bellingcat-[a-z]+-[a-z]+-\d{4}$/,
+      /\/programs\/whistle\/runs\/bellingcat-[a-z]+-[a-z]+-\d{4}$/,
     );
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("run-status")).toContainText(/pending/);
@@ -90,7 +90,7 @@ test.describe("WHISTLE activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/whistle/run");
+    await page.goto("/programs/whistle/run");
     await page
       .getByTestId("bundle-url")
       .fill("http://anonymous-host.example/tip.json");
@@ -102,9 +102,9 @@ test.describe("WHISTLE activation flow", () => {
   });
 
   test("WHISTLE landing exposes the Submit CTA", async ({ page }) => {
-    await page.goto("/bureau/whistle");
+    await page.goto("/programs/whistle");
     await expect(page.getByTestId("run-cta")).toBeVisible();
     await page.getByTestId("run-cta").click();
-    await page.waitForURL(/\/bureau\/whistle\/run$/);
+    await page.waitForURL(/\/programs\/whistle\/run$/);
   });
 });

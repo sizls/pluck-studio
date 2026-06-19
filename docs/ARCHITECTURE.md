@@ -28,7 +28,7 @@ funnels through one shared persistence-and-redaction surface
 (`/api/v1/runs`) so the underlying machinery is uniform. The 11 alpha
 programs all activate via the same five-step pattern (landing → run
 form → run API → receipt page → OG image). The `/v1/runs` API is the
-canonical write surface; the per-program `/api/bureau/<slug>/run`
+canonical write surface; the per-program `/api/programs/<slug>/run`
 routes are deprecated aliases that exist only so legacy callers keep
 working until the runner GA. The UI is built on top of `/v1/runs`,
 not on top of the legacy aliases.
@@ -37,7 +37,7 @@ The architecture optimizes for one property above all: **a new program
 is a registry entry plus eight small per-program files, not a
 re-architecture.** Adding the twelfth program touches the registry, the
 pipeline-validator map, the redactor map, the run-store scoping
-function, and a single program directory under `src/app/bureau/<slug>/`
+function, and a single program directory under `src/app/programs/<slug>/`
 plus `src/lib/<slug>/`. Nothing else in the codebase moves.
 
 ---
@@ -61,7 +61,7 @@ src/
 │   ├── sign-in/page.tsx                 "/sign-in" — Supabase auth entrypoint
 │   ├── sitemap.ts + robots.ts           "/sitemap.xml" + "/robots.txt"
 │   ├── bureau/                          per-program landing/run/receipt
-│   │   ├── page.tsx                       "/bureau" — full program library
+│   │   ├── page.tsx                       "/programs" — full program library
 │   │   ├── monitors/[name]/page.tsx       per-program monitor detail
 │   │   └── <11 program slugs>/            see § 3
 │   └── api/
@@ -92,8 +92,8 @@ src/
 │   │   └── run-form-module.ts | run-receipt-module.ts
 │   └── __tests__/                       per-program unit tests
 │
-├── components/bureau-ui/                shared UI primitives
-│   ├── chrome.tsx, forms.tsx              BureauChrome, BureauButton, BureauInput, …
+├── components/programs-ui/                shared UI primitives
+│   ├── chrome.tsx, forms.tsx              StudioChrome, StudioButton, StudioInput, …
 │   ├── TimelineDot.tsx, RekorSearch.tsx   per-program shared atoms
 │   ├── EmbedBadge.tsx, QuorumBadge.tsx
 │   ├── DossierViewer.tsx                  BOUNTY EvidencePacket viewer
@@ -117,7 +117,7 @@ docs/
 ```
 
 1203 unit tests across `src/lib/**/__tests__` and
-`src/components/bureau-ui/__tests__`; 115 Playwright tests across `e2e/`.
+`src/components/programs-ui/__tests__`; 115 Playwright tests across `e2e/`.
 Both suites green at `0ac4668`.
 
 ---
@@ -131,10 +131,10 @@ field schemas, validators, and redactors.
 
 **The five steps**
 
-1. **Landing page** — `src/app/bureau/<slug>/page.tsx`. Server-rendered.
+1. **Landing page** — `src/app/programs/<slug>/page.tsx`. Server-rendered.
    No state. Marketing copy + CTA into the run form.
-2. **Run form** — `src/app/bureau/<slug>/run/page.tsx` +
-   `src/app/bureau/<slug>/run/RunForm.tsx`. Form is a client component
+2. **Run form** — `src/app/programs/<slug>/run/page.tsx` +
+   `src/app/programs/<slug>/run/RunForm.tsx`. Form is a client component
    backed by a Directive module
    (`src/lib/<slug>/run-form-module.ts`). State, validation
    short-circuits, and submit-side effects all flow through Directive
@@ -142,17 +142,17 @@ field schemas, validators, and redactors.
 3. **Run API** — Two endpoints:
    - `/api/v1/runs` (canonical) — accepts
      `{ pipeline: "bureau:<slug>", payload, idempotencyKey }`.
-   - `/api/bureau/<slug>/run` (deprecated alias, RFC 8594 signaled) —
+   - `/api/programs/<slug>/run` (deprecated alias, RFC 8594 signaled) —
      accepts the legacy per-program body shape, runs the same shared
      validator, dual-writes into the same v1 store. Both surfaces
      return the SAME `phraseId` for the same payload.
-4. **Receipt page** — `src/app/bureau/<slug>/runs/[id]/page.tsx` +
+4. **Receipt page** — `src/app/programs/<slug>/runs/[id]/page.tsx` +
    `ReceiptView.tsx`. Receipt is a client component backed by a second
    Directive module (`src/lib/<slug>/run-receipt-module.ts`). When
    pluck-api lands, the in-memory facts get replaced by a
    `@directive-run/query`-backed Realtime subscription — the render
    code does not change.
-5. **OG image** — `src/app/bureau/<slug>/runs/[id]/opengraph-image.tsx`.
+5. **OG image** — `src/app/programs/<slug>/runs/[id]/opengraph-image.tsx`.
    1200×630 PNG. Renders the receipt's verdict as a self-marketing
    social-card preview when the URL is pasted into Slack/X/Discord.
 
@@ -160,17 +160,17 @@ field schemas, validators, and redactors.
 
 | Step | File |
 |---|---|
-| Landing | `src/app/bureau/dragnet/page.tsx` |
-| Run form | `src/app/bureau/dragnet/run/RunForm.tsx` |
+| Landing | `src/app/programs/dragnet/page.tsx` |
+| Run form | `src/app/programs/dragnet/run/RunForm.tsx` |
 | Form module | `src/lib/dragnet/run-form-module.ts` |
 | v1 API | `src/app/api/v1/runs/route.ts` |
-| Legacy alias | `src/app/api/bureau/dragnet/run/route.ts` |
+| Legacy alias | `src/app/api/programs/dragnet/run/route.ts` |
 | Validator | `validateDragnetPayload` in `src/lib/v1/pipeline-validators.ts` |
 | Redactor | `PAYLOAD_REDACTORS["bureau:dragnet"]` in `src/lib/v1/redact.ts` |
-| Run-store scoping | `runIdForBureau` in `src/lib/v1/run-store.ts` |
-| Receipt page | `src/app/bureau/dragnet/runs/[id]/ReceiptView.tsx` |
+| Run-store scoping | `runIdForProgram` in `src/lib/v1/run-store.ts` |
+| Receipt page | `src/app/programs/dragnet/runs/[id]/ReceiptView.tsx` |
 | Receipt module | `src/lib/dragnet/run-receipt-module.ts` |
-| OG image | `src/app/bureau/dragnet/runs/[id]/opengraph-image.tsx` |
+| OG image | `src/app/programs/dragnet/runs/[id]/opengraph-image.tsx` |
 
 **The 51 programs**
 
@@ -225,7 +225,7 @@ src/app/api/v1/runs/route.ts
 src/lib/v1/run-store.ts → createRun(spec)
    │  - idempotencyHashOf(spec)         sha256(canonicalJson({pipeline,payload,key}))
    │  - hit cache → return existing record + reused:true
-   │  - miss      → runIdForBureau(pipeline, payload) → phrase-id
+   │  - miss      → runIdForProgram(pipeline, payload) → phrase-id
    │  - persist to in-memory Map        TTL 24h, FIFO cap 10K
    ▼
 { runId, receiptUrl, status: "pending", reused }
@@ -244,13 +244,13 @@ src/lib/v1/run-store.ts → createRun(spec)
 
 | File | Responsibility |
 |---|---|
-| `src/lib/v1/run-spec.ts` | TypeScript types (`RunSpec`, `RunRecord`, `RunStatus`, `BureauPipeline`), the `BUREAU_PIPELINES` array, and `validateRunSpec` (envelope shape — rejects unknown top-level keys, `idempotencyKey` length cap, etc.). Persistence-agnostic. |
-| `src/lib/v1/pipeline-validators.ts` | Per-pipeline payload contracts. One function per program (`validateDragnetPayload`, `validateNucleiPayload`, …) and a `PIPELINE_VALIDATORS` map keyed by `BureauPipeline`. **Single source of truth** between `/v1/runs` and the legacy aliases. Belt-and-suspenders runtime check at module load throws if `BUREAU_PIPELINES` ever drifts from the map. |
-| `src/lib/v1/run-store.ts` | In-memory stub with idempotency cache, 24h TTL eviction, 10K-entry FIFO cap, cursor pagination, status filtering, per-program `runIdForBureau` scoping, and an in-memory pub/sub layer that feeds the SSE route. **Public API**: `createRun`, `getRun`, `listRuns`, `cancelRun`, `subscribeToRun`. **Internal**: `idempotencyHashOf`, `canonicalJson`, `__INTERNAL_TTL_MS`, `__INTERNAL_MAX_ENTRIES`, `__INTERNAL_SUBSCRIBERS_PER_RUN_CAP` (gated behind `PLUCK_REAL_BACKEND` env in tests). |
-| `src/lib/v1/redact.ts` | Per-pipeline GET-side payload redaction. `PAYLOAD_REDACTORS` map keyed by `BureauPipeline`. WHISTLE strips `bundleUrl`+`manualRedactPhrase`; ROTATE strips `operatorNote`; the other 9 pass through. The store record is untouched (idempotency must remain stable); redaction happens at the GET / SSE boundary only. |
+| `src/lib/v1/run-spec.ts` | TypeScript types (`RunSpec`, `RunRecord`, `RunStatus`, `StudioPipeline`), the `BUREAU_PIPELINES` array, and `validateRunSpec` (envelope shape — rejects unknown top-level keys, `idempotencyKey` length cap, etc.). Persistence-agnostic. |
+| `src/lib/v1/pipeline-validators.ts` | Per-pipeline payload contracts. One function per program (`validateDragnetPayload`, `validateNucleiPayload`, …) and a `PIPELINE_VALIDATORS` map keyed by `StudioPipeline`. **Single source of truth** between `/v1/runs` and the legacy aliases. Belt-and-suspenders runtime check at module load throws if `BUREAU_PIPELINES` ever drifts from the map. |
+| `src/lib/v1/run-store.ts` | In-memory stub with idempotency cache, 24h TTL eviction, 10K-entry FIFO cap, cursor pagination, status filtering, per-program `runIdForProgram` scoping, and an in-memory pub/sub layer that feeds the SSE route. **Public API**: `createRun`, `getRun`, `listRuns`, `cancelRun`, `subscribeToRun`. **Internal**: `idempotencyHashOf`, `canonicalJson`, `__INTERNAL_TTL_MS`, `__INTERNAL_MAX_ENTRIES`, `__INTERNAL_SUBSCRIBERS_PER_RUN_CAP` (gated behind `PLUCK_REAL_BACKEND` env in tests). |
+| `src/lib/v1/redact.ts` | Per-pipeline GET-side payload redaction. `PAYLOAD_REDACTORS` map keyed by `StudioPipeline`. WHISTLE strips `bundleUrl`+`manualRedactPhrase`; ROTATE strips `operatorNote`; the other 9 pass through. The store record is untouched (idempotency must remain stable); redaction happens at the GET / SSE boundary only. |
 | `src/app/api/v1/runs/route.ts` + `[id]/route.ts` + `[id]/events/route.ts` | Security gates (CSRF / rate-limit / auth) + delegation. Zero business logic — they call `validateRunSpec`, `PIPELINE_VALIDATORS[…]`, `createRun`/`getRun`/`listRuns`/`cancelRun`/`subscribeToRun`, and `redactPayloadForGet`. The events route additionally manages the SSE stream lifecycle (heartbeat, terminal-state close, 5min cap). Replaceable as a unit when pluck-api lands. |
 | `src/lib/security/request-guards.ts` | `isAuthed`, `isSameSiteRequest`, `rateLimitOk`, `isPrivateOrLocalHost`. Shared by `/v1/runs` and the 11 legacy aliases. |
-| `src/lib/mcp/build-manifest.ts` | **Auto-generator — parallel to OpenAPI.** Pure function `buildManifest({ baseUrl, version })` over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Emits a Studio-invented MCP **discovery document** (NOT an MCP-spec conformant manifest — MCP is a JSON-RPC runtime protocol, not a static schema): `pluck://program/<slug>` resources, `pluck.search` / `pluck.diff` / `pluck.run` tools with JSON-Schema input shapes, prompts, auth. Top-level fields: `specReference` (protocol homepage), `description` (framing), `name`, `version`, `homepage`, `openapi`, `resources`, `tools`, `prompts`, `auth` — deliberately no `$schema`. Deterministic; snapshot-tested; ajv-tested (every inputSchema compiles + accepts the shapes it's meant to). Adding a Bureau program auto-extends the document. The route at `src/app/api/mcp/manifest.json/route.ts` serves it under the same public-read posture as `/openapi.json` (5-min cache, same-site CSRF + rate-limit, no auth) and derives `baseUrl` from `req.nextUrl.origin` so local dev / preview deploys advertise their own host. The `/mcp` operator page reads `STUDIO_BASE_URL` from the environment (defaulting to `https://studio.pluck.run`) for the same reason. |
+| `src/lib/mcp/build-manifest.ts` | **Auto-generator — parallel to OpenAPI.** Pure function `buildManifest({ baseUrl, version })` over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Emits a Studio-invented MCP **discovery document** (NOT an MCP-spec conformant manifest — MCP is a JSON-RPC runtime protocol, not a static schema): `pluck://program/<slug>` resources, `pluck.search` / `pluck.diff` / `pluck.run` tools with JSON-Schema input shapes, prompts, auth. Top-level fields: `specReference` (protocol homepage), `description` (framing), `name`, `version`, `homepage`, `openapi`, `resources`, `tools`, `prompts`, `auth` — deliberately no `$schema`. Deterministic; snapshot-tested; ajv-tested (every inputSchema compiles + accepts the shapes it's meant to). Adding a program auto-extends the document. The route at `src/app/api/mcp/manifest.json/route.ts` serves it under the same public-read posture as `/openapi.json` (5-min cache, same-site CSRF + rate-limit, no auth) and derives `baseUrl` from `req.nextUrl.origin` so local dev / preview deploys advertise their own host. The `/mcp` operator page reads `STUDIO_BASE_URL` from the environment (defaulting to `https://studio.pluck.run`) for the same reason. |
 | `src/lib/diff/receipt-diff.ts` | **Pure aggregator behind `/diff/<base>?since=<target>`.** `diffReceipts(basePhraseId, targetPhraseId)` returns a `DiffResult` discriminated union (`ok` \| `invalid-phrase` \| `not-found` \| `different-vendors`); cross-program same-vendor diffs flag `sameProgram: false` for cross-program corroboration copy. The internal `resolveSide()` helper is the **single seam to swap** when /v1/runs Realtime lands — today it falls through `getRun` (v1 store) → `searchPhraseId` directMatch (vendor-preview), tomorrow it queries `/v1/runs?phraseIdPrefix=<scope>`. The public `diffReceipts()` signature stays stable across the swap. Persistence-agnostic; no coupling to the v1 route handlers. |
 
 **Environment** — `STUDIO_BASE_URL` (optional). Production default
@@ -260,8 +260,8 @@ server-rendered `/mcp` page (the route handler at
 request origin and only consults `STUDIO_BASE_URL` as an explicit
 override — useful when Studio sits behind a proxy that rewrites the
 visible host).
-| `src/lib/sigil/phrase-sigil.ts` | Pure deterministic generator for the **Phrase Crest** sigil (R2 game-changer #1). `phraseSigilData(phraseId, opts)` decomposes via `parsePhraseId`, hashes adjective → HSL hue + noun → shape (one of 10 hand-built primitives); `renderPhraseSigil(data, size)` emits the SVG bytes. No `Math.random`, no `Date.now`, no external font loads, no animal silhouette assets — every byte is derived from the phrase ID + program accent. Snapshotted in `__tests__` so any drift trips the determinism contract every share-target relies on. Consumed by the `<PhraseSigil>` server component (in `src/components/bureau-ui/`), wired into /search results, /vendor receipt rows, and all 11 receipt-page headers. |
-| `src/components/bureau-ui/VerdictBadge.tsx` + `src/lib/programs/verdict-mapping.ts` | **VerdictBadge is the shared visual primitive for trust-tier distinctions** (v3-R2 game-changer #3). Server component, 6 variants (`verified` / `registry-fenced` / `re-witnessed` / `expired` / `failed` / `pending`), two sizes (`sm` 20px for inline tile use, `md` 28px for receipt headers). Each variant: muted HSL pill background + bureau-mono label + unicode glyph (`✓` `↻` `⚠` `✕` — no emoji). The `verdictToBadgeVariant(programSlug, verdict)` mapping is the single source of truth — wired into /search results, /vendor receipt rows, NUCLEI + MOLE receipt verdict lines. Programs without nuanced trust tiers get `null` from the mapping and keep the bare verdict-color dot. The badge SUPPLEMENTS the dot for load-bearing tiers (NUCLEI's `published-ingested-only`, MOLE's `re-witnessed`); it does not replace it. |
+| `src/lib/sigil/phrase-sigil.ts` | Pure deterministic generator for the **Phrase Crest** sigil (R2 game-changer #1). `phraseSigilData(phraseId, opts)` decomposes via `parsePhraseId`, hashes adjective → HSL hue + noun → shape (one of 10 hand-built primitives); `renderPhraseSigil(data, size)` emits the SVG bytes. No `Math.random`, no `Date.now`, no external font loads, no animal silhouette assets — every byte is derived from the phrase ID + program accent. Snapshotted in `__tests__` so any drift trips the determinism contract every share-target relies on. Consumed by the `<PhraseSigil>` server component (in `src/components/programs-ui/`), wired into /search results, /vendor receipt rows, and all 11 receipt-page headers. |
+| `src/components/programs-ui/VerdictBadge.tsx` + `src/lib/programs/verdict-mapping.ts` | **VerdictBadge is the shared visual primitive for trust-tier distinctions** (v3-R2 game-changer #3). Server component, 6 variants (`verified` / `registry-fenced` / `re-witnessed` / `expired` / `failed` / `pending`), two sizes (`sm` 20px for inline tile use, `md` 28px for receipt headers). Each variant: muted HSL pill background + studio-mono label + unicode glyph (`✓` `↻` `⚠` `✕` — no emoji). The `verdictToBadgeVariant(programSlug, verdict)` mapping is the single source of truth — wired into /search results, /vendor receipt rows, NUCLEI + MOLE receipt verdict lines. Programs without nuanced trust tiers get `null` from the mapping and keep the bare verdict-color dot. The badge SUPPLEMENTS the dot for load-bearing tiers (NUCLEI's `published-ingested-only`, MOLE's `re-witnessed`); it does not replace it. |
 
 ---
 
@@ -330,14 +330,14 @@ registry goes public.
 | Schema | `NucleiPayload` carries `author` + `packName` + `sbomRekorUuid` + `vendorScope` + `license` + `recommendedInterval` + ack. |
 | GET redaction | `PASS_THROUGH` — author handle is by-design public. |
 | Test | `pipeline-validators.test.ts` locks the slug grammar but cannot prove ownership today. |
-| **Caveat** | Documented in the SECURITY block of `src/app/api/bureau/nuclei/run/route.ts` and on the `/what-we-dont-know` NUCLEI row. Binds to authenticated identity at NUCLEI v1.0 GA — same pluck-api inflection that adds `runs.owner_id`. |
+| **Caveat** | Documented in the SECURITY block of `src/app/api/programs/nuclei/run/route.ts` and on the `/what-we-dont-know` NUCLEI row. Binds to authenticated identity at NUCLEI v1.0 GA — same pluck-api inflection that adds `runs.owner_id`. |
 
 ---
 
 ## 6. The legacy → /v1 migration runway
 
 All 11 alpha programs originally posted to per-program
-`/api/bureau/<slug>/run` routes. Wave 0 (the DRAGNET wedge), Wave 1
+`/api/programs/<slug>/run` routes. Wave 0 (the DRAGNET wedge), Wave 1
 (NUCLEI + OATH), Wave 2 (FINGERPRINT + CUSTODY + MOLE), and Wave 3
 (BOUNTY + SBOM-AI + ROTATE + TRIPWIRE + WHISTLE) migrated each program's
 RunForm to POST to `/api/v1/runs` instead. The old endpoints stay alive
@@ -405,7 +405,7 @@ adding a registry entry; this page auto-includes it. Tests:
 
 ### `/vendor` + `/vendor/[slug]` — Vendor Honesty Index
 
-Per-vendor live profile across the 11 Bureau programs. Every receipt
+Per-vendor live profile across the the Pluck programs. Every receipt
 that names a vendor (DRAGNET / OATH / FINGERPRINT / CUSTODY phrase-ID
 prefix; NUCLEI vendorScope tag; MOLE canaryUrl host) enriches that
 vendor's permanent URL.
@@ -459,7 +459,7 @@ per curated vendor via `generateStaticParams()`.
 ### `/today` + `/today/opengraph-image` — Daily Roll-Up
 
 The shareable daily honesty card. Server-rendered page at
-`/today` shows one tile per Bureau program (registry-driven) with
+`/today` shows one tile per program (registry-driven) with
 last-24h verdict density; `/today/opengraph-image` emits a 1200×630
 PNG via next/og's edge-runtime `ImageResponse` so any paste of the
 URL into Slack / X / Discord / iMessage auto-unfurls into the daily
@@ -483,7 +483,7 @@ honesty signal.
 
 ### `/search` — Phrase-ID Auto-Stitch Search
 
-Paste any phrase ID. Get every related receipt across all 11 Bureau
+Paste any phrase ID. Get every related receipt across all 11 Pluck
 programs out. The receipt URL becomes a discoverable nexus.
 
 - **Parser** — `parsePhraseId(input)` in `src/lib/phrase-id.ts`.
@@ -569,7 +569,7 @@ vendor.
 ### `/open/<phrase>` + `/o/<phrase>` — Phrase-ID Speed-Dial
 
 URL-bar shortcut that resolves any phrase ID to its canonical receipt
-page across every Bureau program. PhraseIds become a global namespace —
+page across every program. PhraseIds become a global namespace —
 `studio.pluck.run/open/openai-bold-marlin-1188` 302-redirects to
 whichever program owns it; no UUID lookup, no menu navigation.
 
@@ -601,7 +601,7 @@ by `nextNRuns(cron, n, from)` from `src/lib/cron/next-runs.ts` — pure
 deterministic walker (UTC) with a 5M-iteration ceiling. Today the data
 lives in `src/lib/programs/monitors-preview.ts`; swaps to
 `/v1/monitors` when pluck-api ships. Per-monitor detail at
-`/bureau/monitors/[name]`. Tests: `e2e/calendar-strip.spec.ts`.
+`/programs/monitors/[name]`. Tests: `e2e/calendar-strip.spec.ts`.
 
 ### `/what-we-dont-know` — privacy posture per program
 
@@ -631,8 +631,8 @@ just two component additions and a banner.
 
 - **SBOM-AI receipt → NUCLEI form.** When `artifactKind === "probe-pack"`
   the receipt renders a "Publish to NUCLEI registry →" CTA at
-  `src/app/bureau/sbom-ai/runs/[id]/NucleiPublishCta.tsx`. The CTA
-  links to `/bureau/nuclei/run?sbomRekorUuid=<uuid>`. While the
+  `src/app/programs/sbom-ai/runs/[id]/NucleiPublishCta.tsx`. The CTA
+  links to `/programs/nuclei/run?sbomRekorUuid=<uuid>`. While the
   SBOM-AI publish is still pending the CTA renders greyed out so the
   operator sees the next step early but can't accidentally publish
   with a placeholder UUID. `model-card` and `mcp-server` artifacts
@@ -645,7 +645,7 @@ just two component additions and a banner.
   `?vendor=&assertion=` pattern from `/extract`.
 - **NUCLEI receipt → SBOM-AI back-link.** The NUCLEI receipt renders
   a "Source artifact" section
-  (`src/app/bureau/nuclei/runs/[id]/SbomAiSourceArtifact.tsx`) with the
+  (`src/app/programs/nuclei/runs/[id]/SbomAiSourceArtifact.tsx`) with the
   rekor UUID as a code block plus the offline `cosign verify-blob`
   command. We deliberately don't resolve the rekor UUID to a phraseId
   — that would require a new route and the cosign command itself
@@ -675,7 +675,7 @@ shape to `/openapi.json` but oriented at MCP clients.
 
 - **Generator** — `src/lib/mcp/build-manifest.ts`. Pure function
   `buildManifest({ baseUrl, version })` over `ACTIVE_PROGRAMS` +
-  `BUREAU_PIPELINES`. Auto-extends when a Bureau program is added —
+  `BUREAU_PIPELINES`. Auto-extends when a program is added —
   no hand-edits, no per-program scaffolding. Deterministic;
   snapshot-tested; ajv-tested (every `inputSchema` compiles + accepts
   the shapes it advertises).
@@ -726,7 +726,7 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
 
 3. **Register the pipeline in the v1 type system.**
    Add `"bureau:tenth"` to `BUREAU_PIPELINES` in
-   `src/lib/v1/run-spec.ts`. The `BureauPipeline` union and
+   `src/lib/v1/run-spec.ts`. The `StudioPipeline` union and
    `bureau:tenth` runtime guards auto-derive.
 
 4. **Register the program in `ACTIVE_PROGRAMS`.**
@@ -749,7 +749,7 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
    field (then write a per-program redactor — see `REDACT_WHISTLE` /
    `REDACT_ROTATE` for the pattern).
 
-7. **Extend `runIdForBureau` in the run-store.**
+7. **Extend `runIdForProgram` in the run-store.**
    `src/lib/v1/run-store.ts`. Add a branch that resolves TENTH's
    phrase-ID prefix (whatever the registry says — vendor / artifact /
    author / etc.). Order matters: more-specific scoping (canary ID,
@@ -757,25 +757,25 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
    carries both. Document the ordering in a comment.
 
 8. **Build the Next.js routes.**
-   - `src/app/bureau/tenth/page.tsx` — landing.
-   - `src/app/bureau/tenth/run/page.tsx` — server shell.
-   - `src/app/bureau/tenth/run/RunForm.tsx` — client component, reads
+   - `src/app/programs/tenth/page.tsx` — landing.
+   - `src/app/programs/tenth/run/page.tsx` — server shell.
+   - `src/app/programs/tenth/run/RunForm.tsx` — client component, reads
      the form module via `useFact` / `useDerived`. Posts to
      `/api/v1/runs` with `pipeline: "bureau:tenth"`.
-   - `src/app/bureau/tenth/runs/[id]/page.tsx` — server shell.
-   - `src/app/bureau/tenth/runs/[id]/ReceiptView.tsx` — client
+   - `src/app/programs/tenth/runs/[id]/page.tsx` — server shell.
+   - `src/app/programs/tenth/runs/[id]/ReceiptView.tsx` — client
      component, reads the receipt module + the v1 status via
      `V1RunStatusBanner`.
-   - `src/app/bureau/tenth/runs/[id]/opengraph-image.tsx` — 1200×630
+   - `src/app/programs/tenth/runs/[id]/opengraph-image.tsx` — 1200×630
      PNG. Mirror DRAGNET's structure.
 
 9. **Build the legacy alias.**
-   `src/app/api/bureau/tenth/run/route.ts`. CSRF + rate-limit + auth
+   `src/app/api/programs/tenth/run/route.ts`. CSRF + rate-limit + auth
    gates → `validateTenthPayload` → synthesize idempotency key →
    `createRun({ pipeline: "bureau:tenth", … })` → return `{ runId,
    phraseId, status, deprecated: true, replacement: "/api/v1/runs" }`
    with the standard `Deprecation` / `Sunset` / `Link` headers.
-   Mirror `src/app/api/bureau/dragnet/run/route.ts` exactly.
+   Mirror `src/app/api/programs/dragnet/run/route.ts` exactly.
 
 10. **Add tests.**
     - **Unit:** `validateTenthPayload` happy path + each rejection
@@ -804,7 +804,7 @@ entries.
 ## 9. Testing strategy
 
 **1203 unit tests** across `src/lib/**/__tests__/` and
-`src/components/bureau-ui/__tests__/` — Vitest, run with
+`src/components/programs-ui/__tests__/` — Vitest, run with
 `pnpm test --run`. **115 Playwright tests** across `e2e/` — run with
 `pnpm test:e2e`. Both suites green at commit `0ac4668`.
 
@@ -816,12 +816,12 @@ run-store tests in `src/lib/v1/__tests__/run-store.test.ts` (stub-only
 TTL/FIFO assertions gated behind `PLUCK_REAL_BACKEND` env so the
 contract stays clean for the real-backend swap), redactor tests, cron
 tests (validator + nextNRuns walker), shared-UI primitive tests,
-registry exhaustiveness tests (every `BureauPipeline` must have a
+registry exhaustiveness tests (every `StudioPipeline` must have a
 validator AND a redactor AND a posture entry — drift fails CI).
 
 ### Integration tests
 
-Each `/api/bureau/<slug>/run` legacy alias has a route-handler test
+Each `/api/programs/<slug>/run` legacy alias has a route-handler test
 asserting the full security/auth/validation chain, the deprecation
 headers, and the dual-write into the v1 store. The `/api/v1/runs`
 POST/GET-list/GET-by-id/DELETE handlers have parallel coverage.
@@ -876,7 +876,7 @@ both produce the same `phraseId` — the test asserts this directly.
 
 ---
 
-## 10. Bureau-Directive Loyalty rule
+## 10. Pluck-Directive Loyalty rule
 
 From project memory:
 
@@ -901,7 +901,7 @@ zero-state page would add bundle weight for no semantic gain. The
 exempt list is bounded; everything that's *interactive* MUST use
 Directive.
 
-The 14 already-shipped Bureau programs (the imperative-TS ancestors of
+The 14 already-shipped Pluck programs (the imperative-TS ancestors of
 the alpha-program shelf) are tracked in project memory as a follow-on
 retrofit track — not in this codebase's scope.
 
@@ -994,10 +994,10 @@ across 26 spec files, all green. 11/11 alpha programs migrated to
 
 ---
 
-## 16. Watch — periodic semantic monitoring (peer to Bureau)
+## 16. Watch — periodic semantic monitoring (peer to Pluck)
 
 **Status:** Week-1 stub landed in commit `8af75f0`. Week-2 ships the
-Playwright worker + observation agent. **Not part of Bureau.**
+Playwright worker + observation agent. **Not part of Pluck.**
 
 ### Premise
 
@@ -1007,15 +1007,15 @@ scrapers die on a class rename — Watches survive.
 
 ### Surface
 
-Mirrors Bureau's 5-step cookbook without being under it:
+Mirrors Pluck's 5-step cookbook without being under it:
 
-| Step | Watch path | Bureau analog |
+| Step | Watch path | Pluck analog |
 |---|---|---|
-| Landing | `src/app/watch/page.tsx` | `src/app/bureau/<slug>/page.tsx` |
-| Form | `src/app/watch/new/{page.tsx, NewWatchForm.tsx}` | `src/app/bureau/<slug>/run/{page.tsx, RunForm.tsx}` |
+| Landing | `src/app/watch/page.tsx` | `src/app/programs/<slug>/page.tsx` |
+| Form | `src/app/watch/new/{page.tsx, NewWatchForm.tsx}` | `src/app/programs/<slug>/run/{page.tsx, RunForm.tsx}` |
 | Form module | `src/lib/watch/watch-form-module.ts` | `src/lib/<slug>/run-form-module.ts` |
 | API (v1) | `src/app/api/v1/watches/*` | `src/app/api/v1/runs/*` |
-| Receipt | `src/app/watch/[id]/{page.tsx, WatchDetailView.tsx}` | `src/app/bureau/<slug>/runs/[id]/{page.tsx, ReceiptView.tsx}` |
+| Receipt | `src/app/watch/[id]/{page.tsx, WatchDetailView.tsx}` | `src/app/programs/<slug>/runs/[id]/{page.tsx, ReceiptView.tsx}` |
 
 ### Stub seam
 
@@ -1077,10 +1077,10 @@ Supabase Postgres + Realtime + Storage, observation agent
 channels (dashboard + email + webhook/Slack + phrase-id receipts),
 self-healing reinvestigation on layout shift.
 
-### Bureau ↔ Watch composition
+### Pluck ↔ Watch composition
 
-Watches are NOT Bureau programs but compose cleanly: a Watch alert can
-become input to a Bureau probe (e.g. a competitor pricing change kicks
+Watches are NOT Pluck programs but compose cleanly: a Watch alert can
+become input to a Pluck probe (e.g. a competitor pricing change kicks
 off a DRAGNET run). Both surfaces share the `lib/security/url-guard.ts`
 hardening, the phrase-id receipt format, and the auth + CSRF +
 rate-limit posture via `lib/security/request-guards.ts`.

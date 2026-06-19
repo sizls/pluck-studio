@@ -35,13 +35,13 @@ const STATUS_COLOR: Record<WatchStatus, string> = {
   paused: "#e3a548",
   running: "#79c0ff",
   failed: "#ff8888",
-  archived: "var(--bureau-fg-dim)",
+  archived: "var(--studio-fg-dim)",
 };
 
 const SectionHeadingStyle = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -57,11 +57,11 @@ const KvRowStyle = {
 
 const ButtonStyle = {
   padding: "8px 16px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  background: "var(--bureau-bg)",
-  color: "var(--bureau-fg)",
-  border: "1px solid var(--bureau-fg-dim)",
+  background: "var(--studio-bg)",
+  color: "var(--studio-fg)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 4,
   cursor: "pointer",
   marginRight: 8,
@@ -244,20 +244,20 @@ export function WatchDetailView({
 
   return (
     <>
-      <section className="bureau-hero">
+      <section className="studio-hero">
         <h1
-          className="bureau-hero-title"
+          className="studio-hero-title"
           data-testid="watch-detail-name"
         >
           {watch.name}
         </h1>
-        <p className="bureau-hero-tagline">
+        <p className="studio-hero-tagline">
           <span
             data-testid="watch-detail-status"
             style={{
-              fontFamily: "var(--bureau-mono)",
+              fontFamily: "var(--studio-mono)",
               color:
-                STATUS_COLOR[watch.status as WatchStatus] ?? "var(--bureau-fg)",
+                STATUS_COLOR[watch.status as WatchStatus] ?? "var(--studio-fg)",
               marginRight: 12,
             }}
           >
@@ -273,12 +273,12 @@ export function WatchDetailView({
                   : "Live stream disconnected"
             }
             style={{
-              fontFamily: "var(--bureau-mono)",
+              fontFamily: "var(--studio-mono)",
               fontSize: 11,
               padding: "2px 8px",
               marginRight: 12,
               borderRadius: 10,
-              border: "1px solid var(--bureau-fg-dim)",
+              border: "1px solid var(--studio-fg-dim)",
               color:
                 sseState === "live"
                   ? "#7ee787"
@@ -290,7 +290,7 @@ export function WatchDetailView({
             ● {sseState}
           </span>
           ·{" "}
-          <span style={{ fontFamily: "var(--bureau-mono)" }}>
+          <span style={{ fontFamily: "var(--studio-mono)" }}>
             {watch.cron}
           </span>{" "}
           · {watch.autonomyMode} · {watch.fetcherKind}
@@ -352,7 +352,7 @@ export function WatchDetailView({
             marginTop: 12,
             padding: "12px 16px",
             background: "rgba(255,255,255,0.03)",
-            border: "1px solid var(--bureau-fg-dim)",
+            border: "1px solid var(--studio-fg-dim)",
             borderRadius: 4,
             whiteSpace: "pre-wrap",
           }}
@@ -365,33 +365,33 @@ export function WatchDetailView({
         <h2 style={SectionHeadingStyle}>Configuration</h2>
         <div style={{ marginTop: 12 }}>
           <div style={KvRowStyle}>
-            <span style={{ color: "var(--bureau-fg-dim)" }}>URL</span>
+            <span style={{ color: "var(--studio-fg-dim)" }}>URL</span>
             <code data-testid="watch-detail-url">{watch.url}</code>
           </div>
           <div style={KvRowStyle}>
-            <span style={{ color: "var(--bureau-fg-dim)" }}>Alert channels</span>
+            <span style={{ color: "var(--studio-fg-dim)" }}>Alert channels</span>
             <span>{channelsSummary || "—"}</span>
           </div>
           <div style={KvRowStyle}>
-            <span style={{ color: "var(--bureau-fg-dim)" }}>
+            <span style={{ color: "var(--studio-fg-dim)" }}>
               Confidence threshold
             </span>
             <span>{watch.confidenceThreshold}</span>
           </div>
           <div style={KvRowStyle}>
-            <span style={{ color: "var(--bureau-fg-dim)" }}>
+            <span style={{ color: "var(--studio-fg-dim)" }}>
               Diff threshold
             </span>
             <span>{watch.diffThreshold}</span>
           </div>
           <div style={KvRowStyle}>
-            <span style={{ color: "var(--bureau-fg-dim)" }}>
+            <span style={{ color: "var(--studio-fg-dim)" }}>
               Daily budget
             </span>
             <span>${watch.dailyBudgetUsd.toFixed(2)}</span>
           </div>
           <div style={KvRowStyle}>
-            <span style={{ color: "var(--bureau-fg-dim)" }}>Last fired</span>
+            <span style={{ color: "var(--studio-fg-dim)" }}>Last fired</span>
             <span>
               {watch.lastFiredAt === null
                 ? "never"
@@ -399,7 +399,7 @@ export function WatchDetailView({
             </span>
           </div>
           <div style={KvRowStyle}>
-            <span style={{ color: "var(--bureau-fg-dim)" }}>Created</span>
+            <span style={{ color: "var(--studio-fg-dim)" }}>Created</span>
             <span>{formatTs(watch.createdAt)}</span>
           </div>
         </div>
@@ -412,7 +412,7 @@ export function WatchDetailView({
         {observations.length === 0 ? (
           <p
             data-testid="watch-observations-empty"
-            style={{ color: "var(--bureau-fg-dim)", marginTop: 12 }}
+            style={{ color: "var(--studio-fg-dim)", marginTop: 12 }}
           >
             No observations yet. Click &quot;Trigger now&quot; to run one.
           </p>
@@ -430,7 +430,7 @@ export function WatchDetailView({
                 style={{
                   padding: "16px 20px",
                   marginTop: 12,
-                  border: `1px solid ${isStub ? "#e3a548" : "var(--bureau-fg-dim)"}`,
+                  border: `1px solid ${isStub ? "#e3a548" : "var(--studio-fg-dim)"}`,
                   borderRadius: 4,
                   background: "rgba(255,255,255,0.02)",
                   position: "relative",
@@ -444,12 +444,12 @@ export function WatchDetailView({
                       position: "absolute",
                       top: 10,
                       right: 12,
-                      fontFamily: "var(--bureau-mono)",
+                      fontFamily: "var(--studio-mono)",
                       fontSize: 10,
                       padding: "2px 6px",
                       borderRadius: 3,
                       background: "#e3a548",
-                      color: "var(--bureau-bg)",
+                      color: "var(--studio-bg)",
                       letterSpacing: "0.05em",
                     }}
                   >
@@ -466,21 +466,21 @@ export function WatchDetailView({
                   <code
                     style={{
                       fontSize: 11,
-                      color: "var(--bureau-fg-dim)",
+                      color: "var(--studio-fg-dim)",
                     }}
                   >
                     {o.phraseId}
                   </code>
                   <span
                     style={{
-                      fontFamily: "var(--bureau-mono)",
+                      fontFamily: "var(--studio-mono)",
                       fontSize: 12,
                       color:
                         o.kind === "error"
                           ? "#ff8888"
                           : o.observation?.alertWorthy
                             ? "#7ee787"
-                            : "var(--bureau-fg-dim)",
+                            : "var(--studio-fg-dim)",
                     }}
                   >
                     {o.kind}
@@ -504,7 +504,7 @@ export function WatchDetailView({
                         style={{
                           marginTop: 8,
                           fontSize: 13,
-                          color: "var(--bureau-fg-dim)",
+                          color: "var(--studio-fg-dim)",
                           fontStyle: "italic",
                         }}
                       >
@@ -516,9 +516,9 @@ export function WatchDetailView({
                         style={{
                           marginTop: 8,
                           padding: "8px 12px",
-                          borderLeft: "3px solid var(--bureau-fg-dim)",
+                          borderLeft: "3px solid var(--studio-fg-dim)",
                           fontSize: 12,
-                          color: "var(--bureau-fg-dim)",
+                          color: "var(--studio-fg-dim)",
                         }}
                       >
                         “{o.observation.evidenceQuote}”
@@ -529,9 +529,9 @@ export function WatchDetailView({
                 <p
                   style={{
                     marginTop: 8,
-                    fontFamily: "var(--bureau-mono)",
+                    fontFamily: "var(--studio-mono)",
                     fontSize: 11,
-                    color: "var(--bureau-fg-dim)",
+                    color: "var(--studio-fg-dim)",
                   }}
                 >
                   {formatTs(o.fetchedAt)}

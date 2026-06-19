@@ -46,4 +46,4 @@ pnpm build          # production build
 ## Notes
 
 - Studio's `@sizls/pluck-bureau-*` deps are private npm packages. The `.npmrc` reads `NPM_TOKEN` from the environment; without it, install fails.
-- Studio bundles `pluck-bureau-ui` as vendored source in `src/components/bureau-ui/` (no separate npm package).
+- Studio bundles `pluck-programs-ui` as vendored source in `src/components/programs-ui/` (no separate npm package).

@@ -28,7 +28,7 @@
 // DESIGN: per-pipeline registry, additive. Each program's redactor lists
 // the explicit fields to strip; everything else passes through. New
 // programs default to PASS_THROUGH and the type system enforces
-// exhaustiveness via `Record<BureauPipeline, …>`. The redactor receives
+// exhaustiveness via `Record<StudioPipeline, …>`. The redactor receives
 // the canonical-JSON-stable payload + returns a safe-to-publish version
 // (does not mutate the input — the run-store record still holds the
 // original for idempotency / audit).
@@ -40,7 +40,7 @@
 //   - THIS MODULE (GET): output-layer gate. Defense-in-depth.
 // ---------------------------------------------------------------------------
 
-import { type BureauPipeline, BUREAU_PIPELINES } from "./run-spec";
+import { type StudioPipeline, BUREAU_PIPELINES } from "./run-spec";
 
 export type PayloadRedactor = (
   payload: Record<string, unknown>,
@@ -79,7 +79,7 @@ const REDACT_ROTATE: PayloadRedactor = (payload) => {
 // BOUNTY: validator already rejects auth-token-shaped fields entirely at
 // POST. No persisted privacy-sensitive fields to redact on GET. PASS_THROUGH.
 
-export const PAYLOAD_REDACTORS: Record<BureauPipeline, PayloadRedactor> = {
+export const PAYLOAD_REDACTORS: Record<StudioPipeline, PayloadRedactor> = {
   "bureau:dragnet": PASS_THROUGH,
   "bureau:oath": PASS_THROUGH,
   "bureau:fingerprint": PASS_THROUGH,
@@ -95,7 +95,7 @@ export const PAYLOAD_REDACTORS: Record<BureauPipeline, PayloadRedactor> = {
 
 // Belt-and-suspenders runtime check — if BUREAU_PIPELINES grows and someone
 // forgets to add an entry to PAYLOAD_REDACTORS, this throws at import time
-// in dev. The `Record<BureauPipeline, …>` already enforces this at the type
+// in dev. The `Record<StudioPipeline, …>` already enforces this at the type
 // level; this catches the (rare) case where the union and the array drift.
 for (const p of BUREAU_PIPELINES) {
   if (!(p in PAYLOAD_REDACTORS)) {
@@ -137,7 +137,7 @@ export function redactPayloadForGet(
 // ---------------------------------------------------------------------------
 //
 // PROBLEM: `/api/v1/watches/[id]` is public-read by phraseId — the phraseId
-// is the share credential, mirroring the Bureau receipt-link model. The
+// is the share credential, mirroring the Pluck receipt-link model. The
 // stored WatchRecord carries operator-private fields that MUST NOT echo to
 // a phraseId-credentialed reader:
 //

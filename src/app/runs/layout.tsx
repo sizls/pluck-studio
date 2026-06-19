@@ -1,4 +1,4 @@
-import { BureauChrome } from "@/components/bureau-ui";
+import { StudioChrome } from "@/components/programs-ui";
 import type { ReactNode } from "react";
 
 export default function RunsLayout({
@@ -6,5 +6,5 @@ export default function RunsLayout({
 }: {
   children: ReactNode;
 }): ReactNode {
-  return <BureauChrome active="runs">{children}</BureauChrome>;
+  return <StudioChrome active="runs">{children}</StudioChrome>;
 }

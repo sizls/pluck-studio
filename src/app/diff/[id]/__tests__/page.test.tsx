@@ -81,8 +81,8 @@ describe("/diff/[id] page — server render", () => {
 
   it("each receipt card carries phraseId + receipt URL", async () => {
     const html = await render(BASE, TARGET);
-    expect(html).toContain(`/bureau/dragnet/runs/${BASE}`);
-    expect(html).toContain(`/bureau/dragnet/runs/${TARGET}`);
+    expect(html).toContain(`/programs/dragnet/runs/${BASE}`);
+    expect(html).toContain(`/programs/dragnet/runs/${TARGET}`);
   });
 
   it("renders PhraseSigil SVGs for both phrase IDs in OK state", async () => {

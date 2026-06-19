@@ -133,14 +133,14 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
       uri: "pluck://run/{id}",
       name: "A single signed run receipt",
       description:
-        "DSSE-signed in-toto envelope for one Bureau program run. The {id} is the phrase ID (e.g. `openai-swift-falcon-3742`) returned by /v1/runs POST. Anchored in the Sigstore Rekor transparency log; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
+        "DSSE-signed in-toto envelope for one program run. The {id} is the phrase ID (e.g. `openai-swift-falcon-3742`) returned by /v1/runs POST. Anchored in the Sigstore Rekor transparency log; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
       mimeType: DSSE_MIME,
     },
     {
       uri: "pluck://runs/recent",
       name: "Recent runs across all programs",
       description:
-        "Cursor-paginated list of recent runs across all 11 Bureau programs. Mirrors GET /api/v1/runs. Filters: pipeline, since (ISO timestamp), status. Payloads are GET-redacted per program.",
+        "Cursor-paginated list of recent runs across all the Pluck programs. Mirrors GET /api/v1/runs. Filters: pipeline, since (ISO timestamp), status. Payloads are GET-redacted per program.",
       mimeType: JSON_MIME,
     },
     {
@@ -229,14 +229,14 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
     {
       name: "pluck.run",
       description:
-        "Execute a Bureau program through /v1/runs. Returns the runId / phrase ID and the receipt URL. Mirrors POST /api/v1/runs — same idempotency, auth, and per-pipeline payload contract.",
+        "Execute a program through /v1/runs. Returns the runId / phrase ID and the receipt URL. Mirrors POST /api/v1/runs — same idempotency, auth, and per-pipeline payload contract.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
         properties: {
           pipeline: {
             type: "string",
-            description: "Bureau pipeline slug. Adding a new program auto-extends this enum.",
+            description: "Pluck pipeline slug. Adding a new program auto-extends this enum.",
             enum: bureauPipelineEnum,
           },
           payload: {
@@ -265,7 +265,7 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
         properties: {
           pipeline: {
             type: "string",
-            description: "Filter by Bureau pipeline slug. Adding a new program auto-extends this enum.",
+            description: "Filter by Pluck pipeline slug. Adding a new program auto-extends this enum.",
             enum: bureauPipelineEnum,
           },
           since: {

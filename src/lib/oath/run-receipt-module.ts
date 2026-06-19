@@ -10,7 +10,7 @@
 //     `oath body` (the vendor's commitments, claim by claim).
 //
 // Verification verdicts (canonical wire form, anchored on the
-// /bureau/oath landing page):
+// /programs/oath landing page):
 //   - verified         — DSSE signature valid, hosting Origin matches
 //                         body's `vendor`, content-type correct,
 //                         envelope itself within TTL
@@ -76,7 +76,7 @@ export interface OathClaim {
 /** OATH spec predicateType (canonical, surfaced in the receipt UI). */
 export const OATH_PREDICATE_URI = "https://pluck.run/PluckOath/v1";
 
-/** Bureau R1 convention: 64-char hex SPKI fingerprint. */
+/** Pluck R1 convention: 64-char hex SPKI fingerprint. */
 export const SPKI_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/;
 
 export const oathRunReceiptModule = createModule("oath-run-receipt", {

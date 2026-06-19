@@ -28,9 +28,9 @@ test.describe("/open — Phrase-ID Speed-Dial", () => {
     const sampleHref = await sample.getAttribute("href");
     expect(sampleHref).toMatch(/\/open\/[a-z0-9-]+/);
     await sample.click();
-    // After the redirect, the URL is /bureau/<program>/runs/<phrase>
-    await page.waitForURL(/\/bureau\/[a-z-]+\/runs\//);
-    expect(page.url()).toMatch(/\/bureau\/[a-z-]+\/runs\//);
+    // After the redirect, the URL is /programs/<program>/runs/<phrase>
+    await page.waitForURL(/\/programs\/[a-z-]+\/runs\//);
+    expect(page.url()).toMatch(/\/programs\/[a-z-]+\/runs\//);
   });
 
   test("redirects garbage input to /search?q=<input>", async ({ page }) => {

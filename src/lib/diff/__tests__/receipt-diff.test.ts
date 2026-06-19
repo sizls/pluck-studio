@@ -137,8 +137,8 @@ describe("diffReceipts — purity + determinism", () => {
   it("each side carries the program's receipt URL + accent", () => {
     const result = diffReceipts(OPENAI_DRAGNET_GREEN, OPENAI_FINGERPRINT_GREEN);
     if (result.kind !== "ok") throw new Error("expected ok");
-    expect(result.diff.base.receiptUrl).toBe(`/bureau/dragnet/runs/${OPENAI_DRAGNET_GREEN}`);
-    expect(result.diff.target.receiptUrl).toBe(`/bureau/fingerprint/runs/${OPENAI_FINGERPRINT_GREEN}`);
+    expect(result.diff.base.receiptUrl).toBe(`/programs/dragnet/runs/${OPENAI_DRAGNET_GREEN}`);
+    expect(result.diff.target.receiptUrl).toBe(`/programs/fingerprint/runs/${OPENAI_FINGERPRINT_GREEN}`);
     expect(result.diff.base.programAccent).toBe("#a3201d");
   });
 });

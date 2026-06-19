@@ -92,14 +92,14 @@ describe("searchPhraseId — known stub-era phrase ID", () => {
     }
   });
 
-  it("each related result carries a receipt URL like /bureau/<slug>/runs/<phraseId>", () => {
+  it("each related result carries a receipt URL like /programs/<slug>/runs/<phraseId>", () => {
     const result = searchPhraseId(KNOWN);
     for (const r of [
       ...(result.directMatch ? [result.directMatch] : []),
       ...result.relatedByScope,
     ]) {
       expect(r.receiptUrl).toMatch(
-        new RegExp(`^/bureau/${r.programSlug}/runs/`),
+        new RegExp(`^/programs/${r.programSlug}/runs/`),
       );
     }
   });

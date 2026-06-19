@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // Next.js App Router convention: this file becomes /robots.txt at
-// build time. Allows the public surfaces (Bureau pages, /runs,
+// build time. Allows the public surfaces (Pluck pages, /runs,
 // /vendor, /monitors, /what-we-dont-know, /privacy) and disallows
 // the API surface + the auth flow.
 // ---------------------------------------------------------------------------

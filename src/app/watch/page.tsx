@@ -2,7 +2,7 @@
 // /watch — Landing + Watch list
 // ---------------------------------------------------------------------------
 //
-// Standalone surface, peer to Bureau. Lists active watches for the
+// Standalone surface, peer to Pluck. Lists active watches for the
 // caller's org (Week-1 stub: lists every active watch; ownership lands
 // with pluck-api). "Create watch" CTA → /watch/new.
 // ---------------------------------------------------------------------------
@@ -28,9 +28,9 @@ export const metadata = {
 };
 
 const SectionHeadingStyle = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -40,10 +40,10 @@ const CardStyle = {
   display: "block",
   padding: "16px 20px",
   marginTop: 12,
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 4,
   textDecoration: "none",
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
   background: "rgba(255,255,255,0.02)",
 };
 
@@ -52,7 +52,7 @@ const STATUS_COLOR: Record<string, string> = {
   paused: "#e3a548",
   running: "#79c0ff",
   failed: "#ff8888",
-  archived: "var(--bureau-fg-dim)",
+  archived: "var(--studio-fg-dim)",
 };
 
 export default function WatchLandingPage(): ReactNode {
@@ -66,9 +66,9 @@ export default function WatchLandingPage(): ReactNode {
 
   return (
     <>
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Watch</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">Watch</h1>
+        <p className="studio-hero-tagline">
           Periodic semantic monitoring. Describe what to watch in plain
           language; the agent decides what changed. No CSS selectors. When
           the page is redesigned, your watches keep working.
@@ -80,10 +80,10 @@ export default function WatchLandingPage(): ReactNode {
             style={{
               display: "inline-block",
               padding: "10px 20px",
-              fontFamily: "var(--bureau-mono)",
+              fontFamily: "var(--studio-mono)",
               fontSize: 14,
-              color: "var(--bureau-bg)",
-              background: "var(--bureau-fg)",
+              color: "var(--studio-bg)",
+              background: "var(--studio-fg)",
               borderRadius: 4,
               textDecoration: "none",
             }}
@@ -100,7 +100,7 @@ export default function WatchLandingPage(): ReactNode {
         {watches.length === 0 ? (
           <p
             data-testid="watch-list-empty"
-            style={{ color: "var(--bureau-fg-dim)", marginTop: 12 }}
+            style={{ color: "var(--studio-fg-dim)", marginTop: 12 }}
           >
             No watches yet. Create one to start monitoring.
           </p>
@@ -131,9 +131,9 @@ export default function WatchLandingPage(): ReactNode {
                     </strong>
                     <span
                       style={{
-                        fontFamily: "var(--bureau-mono)",
+                        fontFamily: "var(--studio-mono)",
                         fontSize: 12,
-                        color: STATUS_COLOR[w.status] ?? "var(--bureau-fg)",
+                        color: STATUS_COLOR[w.status] ?? "var(--studio-fg)",
                       }}
                       data-testid={`watch-status-${w.watchId}`}
                     >
@@ -144,7 +144,7 @@ export default function WatchLandingPage(): ReactNode {
                     style={{
                       marginTop: 8,
                       fontSize: 13,
-                      color: "var(--bureau-fg-dim)",
+                      color: "var(--studio-fg-dim)",
                     }}
                   >
                     {w.intent.length > 200
@@ -154,9 +154,9 @@ export default function WatchLandingPage(): ReactNode {
                   <p
                     style={{
                       marginTop: 8,
-                      fontFamily: "var(--bureau-mono)",
+                      fontFamily: "var(--studio-mono)",
                       fontSize: 11,
-                      color: "var(--bureau-fg-dim)",
+                      color: "var(--studio-fg-dim)",
                     }}
                   >
                     {w.url} · {w.cron} · {w.autonomyMode}

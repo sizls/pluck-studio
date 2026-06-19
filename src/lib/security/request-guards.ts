@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
-// Shared request guards across Bureau program POST handlers
+// Shared request guards across program POST handlers
 // ---------------------------------------------------------------------------
 //
-// DRAGNET, OATH, and the rest of the Bureau programs share the same
+// DRAGNET, OATH, and the rest of the programs share the same
 // route-level security posture: CSRF defence, auth check, rate limit.
 // This module is the single source of truth so every program inherits
 // the same hardening (and a regression in one place fails for all).

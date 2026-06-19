@@ -22,16 +22,16 @@ import {
 } from "react";
 
 import {
-  BureauButton,
-  BureauCheckbox,
-  BureauError,
-  BureauHelpText,
-  BureauInput,
-  BureauLabel,
-  BureauRadioGroup,
-  BureauSignInPrompt,
-  BureauTextarea,
-} from "../../../components/bureau-ui/forms";
+  StudioButton,
+  StudioCheckbox,
+  StudioError,
+  StudioHelpText,
+  StudioInput,
+  StudioLabel,
+  StudioRadioGroup,
+  StudioSignInPrompt,
+  StudioTextarea,
+} from "../../../components/programs-ui/forms";
 import { watchFormModule } from "../../../lib/watch/watch-form-module";
 import type {
   AlertChannels,
@@ -319,8 +319,8 @@ export function NewWatchForm(): ReactNode {
 
   return (
     <form onSubmit={onSubmit} data-testid="new-watch-form">
-      <BureauLabel text="Name">
-        <BureauInput
+      <StudioLabel text="Name">
+        <StudioInput
           type="text"
           name="name"
           required
@@ -330,14 +330,14 @@ export function NewWatchForm(): ReactNode {
           onChange={setName}
           testId="watch-name"
         />
-      </BureauLabel>
-      <BureauHelpText>
+      </StudioLabel>
+      <StudioHelpText>
         A short, human label for this watch. Shown in lists and alert
         subjects.
-      </BureauHelpText>
+      </StudioHelpText>
 
-      <BureauLabel text="Page to watch">
-        <BureauInput
+      <StudioLabel text="Page to watch">
+        <StudioInput
           type="url"
           name="url"
           required
@@ -346,15 +346,15 @@ export function NewWatchForm(): ReactNode {
           onChange={setUrl}
           testId="watch-url"
         />
-      </BureauLabel>
-      <BureauHelpText>
+      </StudioLabel>
+      <StudioHelpText>
         Any public URL. Must be reachable from the open internet (no
         localhost, no private IPs). Auth-walled pages work when you pick
         Playwright as the fetcher.
-      </BureauHelpText>
+      </StudioHelpText>
 
-      <BureauLabel text="What to watch for">
-        <BureauTextarea
+      <StudioLabel text="What to watch for">
+        <StudioTextarea
           name="intent"
           required
           rows={4}
@@ -363,14 +363,14 @@ export function NewWatchForm(): ReactNode {
           onChange={setIntent}
           testId="watch-intent"
         />
-      </BureauLabel>
-      <BureauHelpText>
+      </StudioLabel>
+      <StudioHelpText>
         Describe it the way you&apos;d describe it to a colleague. The
         agent reads this every run alongside the page. 20-2000 characters.
-      </BureauHelpText>
+      </StudioHelpText>
 
-      <BureauLabel text="Cadence (cron)">
-        <BureauInput
+      <StudioLabel text="Cadence (cron)">
+        <StudioInput
           type="text"
           name="cron"
           required
@@ -379,8 +379,8 @@ export function NewWatchForm(): ReactNode {
           onChange={setCron}
           testId="watch-cron"
         />
-      </BureauLabel>
-      <BureauHelpText>
+      </StudioLabel>
+      <StudioHelpText>
         5-field cron expression or @-macro. Quick picks:{" "}
         {CRON_PRESETS.map((p, i) => (
           <span key={p.value}>
@@ -394,7 +394,7 @@ export function NewWatchForm(): ReactNode {
                 background: "none",
                 border: "none",
                 padding: 0,
-                color: "var(--bureau-fg)",
+                color: "var(--studio-fg)",
                 cursor: "pointer",
                 textDecoration: "underline",
                 textDecorationThickness: cron === p.value ? 3 : 1,
@@ -406,9 +406,9 @@ export function NewWatchForm(): ReactNode {
             </button>
           </span>
         ))}
-      </BureauHelpText>
+      </StudioHelpText>
 
-      <BureauRadioGroup
+      <StudioRadioGroup
         name="fetcherKind"
         legend="How to fetch the page"
         options={FETCHER_OPTIONS}
@@ -417,7 +417,7 @@ export function NewWatchForm(): ReactNode {
         testId="watch-fetcher"
       />
 
-      <BureauRadioGroup
+      <StudioRadioGroup
         name="autonomyMode"
         legend="Autonomy mode"
         options={AUTONOMY_OPTIONS}
@@ -432,24 +432,24 @@ export function NewWatchForm(): ReactNode {
       >
         <legend style={{ display: "block", marginTop: 12 }}>Alert channels</legend>
 
-        <BureauCheckbox
+        <StudioCheckbox
           checked={alertChannels?.dashboard ?? true}
           onChange={(v) => setChannelFlag("dashboard", v)}
           testId="channel-dashboard"
         >
           Studio dashboard (live SSE stream)
-        </BureauCheckbox>
+        </StudioCheckbox>
 
-        <BureauCheckbox
+        <StudioCheckbox
           checked={alertChannels?.phraseId ?? true}
           onChange={(v) => setChannelFlag("phraseId", v)}
           testId="channel-phrase-id"
         >
-          Pluck phrase-ID receipt (audit-friendly, composes with Bureau)
-        </BureauCheckbox>
+          Pluck phrase-ID receipt (audit-friendly, composes with Pluck)
+        </StudioCheckbox>
 
-        <BureauLabel text="Email recipients (comma-separated, optional)">
-          <BureauInput
+        <StudioLabel text="Email recipients (comma-separated, optional)">
+          <StudioInput
             type="text"
             name="email"
             placeholder="alerts@example.com, ops@example.com"
@@ -457,10 +457,10 @@ export function NewWatchForm(): ReactNode {
             onChange={(v) => setChannelList("email", v)}
             testId="channel-email"
           />
-        </BureauLabel>
+        </StudioLabel>
 
-        <BureauLabel text="Webhook URLs (comma-separated, https://, optional)">
-          <BureauInput
+        <StudioLabel text="Webhook URLs (comma-separated, https://, optional)">
+          <StudioInput
             type="text"
             name="webhook"
             placeholder="https://hooks.example.com/watch"
@@ -468,10 +468,10 @@ export function NewWatchForm(): ReactNode {
             onChange={(v) => setChannelList("webhook", v)}
             testId="channel-webhook"
           />
-        </BureauLabel>
+        </StudioLabel>
 
-        <BureauLabel text="Slack webhook URLs (comma-separated, optional)">
-          <BureauInput
+        <StudioLabel text="Slack webhook URLs (comma-separated, optional)">
+          <StudioInput
             type="text"
             name="slack"
             placeholder="https://hooks.slack.com/services/…"
@@ -479,23 +479,23 @@ export function NewWatchForm(): ReactNode {
             onChange={(v) => setChannelList("slack", v)}
             testId="channel-slack"
           />
-        </BureauLabel>
+        </StudioLabel>
       </fieldset>
 
       <p
-        style={{ marginTop: 16, fontSize: 12, color: "var(--bureau-fg-dim)" }}
+        style={{ marginTop: 16, fontSize: 12, color: "var(--studio-fg-dim)" }}
       >
         Week-1 stub: the Worker + Playwright + observation agent ship in
         Week-2. Triggering a fresh watch runs a one-shot fetch and writes
         a mock observation so you can see the UI loop end-to-end.
       </p>
 
-      <BureauButton type="submit" disabled={!canSubmit} testId="watch-submit">
+      <StudioButton type="submit" disabled={!canSubmit} testId="watch-submit">
         {isSubmitting ? "Creating…" : "Create watch"}
-      </BureauButton>
+      </StudioButton>
 
       {needsSignIn && signInUrl ? (
-        <BureauSignInPrompt
+        <StudioSignInPrompt
           signInUrl={signInUrl}
           action="create a watch"
           testId="sign-in-prompt"
@@ -503,7 +503,7 @@ export function NewWatchForm(): ReactNode {
       ) : null}
 
       {errorToShow ? (
-        <BureauError message={errorToShow} testId="watch-error" />
+        <StudioError message={errorToShow} testId="watch-error" />
       ) : null}
 
       <span data-testid="submit-status" hidden>

@@ -130,7 +130,7 @@ export const bountyRunReceiptModule = createModule("bounty-run-receipt", {
         return null;
       }
       // Re-uses the FINGERPRINT timeline route per landing convention.
-      return `/bureau/fingerprint/${facts.vendor}/${facts.model}`;
+      return `/programs/fingerprint/${facts.vendor}/${facts.model}`;
     },
   },
 });

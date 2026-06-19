@@ -28,9 +28,9 @@ const TONE_COLORS: Record<MonitorEntry["tone"], string> = {
 };
 
 const HEAD: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -40,17 +40,17 @@ const HEAD: CSSProperties = {
 const BANNER: CSSProperties = {
   marginTop: 16,
   padding: "10px 14px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   background: "rgba(167, 138, 31, 0.06)",
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 4,
 };
 
 const WRAP: CSSProperties = {
   marginTop: 24,
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 6,
   padding: 16,
   background: "rgba(255, 255, 255, 0.02)",
@@ -60,15 +60,15 @@ const TIMELINE_HEAD: CSSProperties = {
   position: "relative",
   height: 18,
   marginLeft: 220,
-  borderBottom: "1px dashed var(--bureau-fg-dim)",
+  borderBottom: "1px dashed var(--studio-fg-dim)",
 };
 
 const TICK: CSSProperties = {
   position: "absolute",
   top: 0,
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 10,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   transform: "translateX(-50%)",
 };
 
@@ -76,9 +76,9 @@ const ROW: CSSProperties = { display: "flex", alignItems: "center", marginTop: 1
 
 const ROW_LABEL: CSSProperties = {
   flex: "0 0 220px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
   paddingRight: 12,
   whiteSpace: "nowrap",
   overflow: "hidden",
@@ -94,7 +94,7 @@ const TRACK: CSSProperties = {
 };
 
 const LI: CSSProperties = {
-  borderBottom: "1px solid var(--bureau-fg-dim)",
+  borderBottom: "1px solid var(--studio-fg-dim)",
   padding: "12px 0",
 };
 
@@ -126,9 +126,9 @@ export default function MonitorsPage(): ReactNode {
 
   return (
     <>
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">NUCLEI monitors</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">NUCLEI monitors</h1>
+        <p className="studio-hero-tagline">
           Every published NUCLEI pack's upcoming fires, plotted on a 24-hour
           timeline. Paste a cron; see the future. The registry is now a TV
           guide for AI vendor probes.
@@ -220,17 +220,17 @@ export default function MonitorsPage(): ReactNode {
         >
           {MONITORS_PREVIEW.map((entry) => (
             <li key={`list-${entry.author}/${entry.packName}`} style={LI}>
-              <strong style={{ fontFamily: "var(--bureau-mono)" }}>
+              <strong style={{ fontFamily: "var(--studio-mono)" }}>
                 <code>{entry.author}</code>/<code>{entry.packName}</code>
               </strong>{" "}
-              <span style={{ color: "var(--bureau-fg-dim)", fontSize: 13 }}>
+              <span style={{ color: "var(--studio-fg-dim)", fontSize: 13 }}>
                 — interval <code>{entry.recommendedInterval}</code>
               </span>
               <p
                 style={{
-                  fontFamily: "var(--bureau-mono)",
+                  fontFamily: "var(--studio-mono)",
                   fontSize: 12,
-                  color: "var(--bureau-fg-dim)",
+                  color: "var(--studio-fg-dim)",
                   marginTop: 4,
                 }}
               >
@@ -245,8 +245,8 @@ export default function MonitorsPage(): ReactNode {
         <h2 style={HEAD}>Adjacent</h2>
         <p>
           <a href="/runs">Activations directory</a> ·{" "}
-          <a href="/bureau/nuclei">About NUCLEI</a> ·{" "}
-          <a href="/bureau/nuclei/run">Publish a pack</a>
+          <a href="/programs/nuclei">About NUCLEI</a> ·{" "}
+          <a href="/programs/nuclei/run">Publish a pack</a>
         </p>
       </section>
     </>

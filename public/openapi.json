@@ -3,7 +3,7 @@
   "info": {
     "title": "Pluck Studio — /v1/runs + /v1/watches API",
     "version": "0.1.1",
-    "summary": "Unified pipeline activation (Bureau /v1/runs) + periodic semantic monitoring (/v1/watches).",
+    "summary": "Unified pipeline activation (Pluck /v1/runs) + periodic semantic monitoring (/v1/watches).",
     "description": "Auto-generated from `src/lib/v1/run-spec.ts` and `src/lib/v1/watch-spec.ts`. Pipeline + status enums are derived from the TypeScript taxonomy (`BUREAU_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`, `AUTONOMY_MODES` / `FETCHER_KINDS` / `WATCH_STATUSES` / `OBSERVATION_KINDS` / `OBSERVATION_CLASSIFICATIONS`). Per-pipeline run payload schemas live in `docs/V1_API.md`. Re-run `pnpm openapi:build` after any spec / validator / redactor change.",
     "license": {
       "name": "Proprietary",
@@ -60,7 +60,7 @@
               },
               "examples": {
                 "dragnet": {
-                  "summary": "Bureau DRAGNET — endpoint honesty probe",
+                  "summary": "Pluck DRAGNET — endpoint honesty probe",
                   "value": {
                     "pipeline": "bureau:dragnet",
                     "payload": {
@@ -86,7 +86,7 @@
                 },
                 "example": {
                   "runId": "openai-swift-falcon-3742",
-                  "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742",
+                  "receiptUrl": "/programs/dragnet/runs/openai-swift-falcon-3742",
                   "status": "pending",
                   "reused": false
                 }
@@ -121,9 +121,9 @@
             "in": "query",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/BureauPipeline"
+              "$ref": "#/components/schemas/StudioPipeline"
             },
-            "description": "Filter to one Bureau pipeline."
+            "description": "Filter to one Pluck pipeline."
           },
           {
             "name": "since",
@@ -199,7 +199,7 @@
                       "response": null,
                       "createdAt": "2026-05-04T17:00:00.000Z",
                       "updatedAt": "2026-05-04T17:00:00.000Z",
-                      "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742"
+                      "receiptUrl": "/programs/dragnet/runs/openai-swift-falcon-3742"
                     }
                   ],
                   "nextCursor": null,
@@ -264,7 +264,7 @@
                   "response": null,
                   "createdAt": "2026-05-04T17:00:00.000Z",
                   "updatedAt": "2026-05-04T17:00:00.000Z",
-                  "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742"
+                  "receiptUrl": "/programs/dragnet/runs/openai-swift-falcon-3742"
                 }
               }
             }
@@ -333,7 +333,7 @@
                   "response": null,
                   "createdAt": "2026-05-04T17:00:00.000Z",
                   "updatedAt": "2026-05-04T17:00:00.000Z",
-                  "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742",
+                  "receiptUrl": "/programs/dragnet/runs/openai-swift-falcon-3742",
                   "alreadyCancelled": false
                 }
               }
@@ -412,7 +412,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "example": "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"bureau:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/bureau/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n"
+                "example": "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"bureau:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/programs/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n"
               }
             }
           },
@@ -964,7 +964,7 @@
   },
   "components": {
     "schemas": {
-      "BureauPipeline": {
+      "StudioPipeline": {
         "type": "string",
         "enum": [
           "bureau:dragnet",
@@ -979,7 +979,7 @@
           "bureau:nuclei",
           "bureau:mole"
         ],
-        "description": "One of the 11 Bureau program slugs. Each maps 1:1 to the legacy `/api/bureau/<slug>/run` route."
+        "description": "One of the 11 program slugs. Each maps 1:1 to the legacy `/api/programs/<slug>/run` route."
       },
       "RunSpecPipeline": {
         "type": "string",
@@ -1000,7 +1000,7 @@
           "act",
           "fleet"
         ],
-        "description": "All known pipelines — 11 Bureau slugs (shipped) + 4 future surface slugs (extract/sense/act/fleet, return 400 today)."
+        "description": "All known pipelines — 11 Pluck slugs (shipped) + 4 future surface slugs (extract/sense/act/fleet, return 400 today)."
       },
       "RunStatus": {
         "type": "string",
@@ -1107,7 +1107,7 @@
           },
           "receiptUrl": {
             "type": "string",
-            "description": "Path to receipt page, e.g. `/bureau/dragnet/runs/<runId>`."
+            "description": "Path to receipt page, e.g. `/programs/dragnet/runs/<runId>`."
           }
         }
       },
@@ -1850,7 +1850,7 @@
             },
             "example": {
               "error": "authentication required",
-              "signInUrl": "/sign-in?redirect=/bureau/dragnet/run"
+              "signInUrl": "/sign-in?redirect=/programs/dragnet/run"
             }
           }
         }

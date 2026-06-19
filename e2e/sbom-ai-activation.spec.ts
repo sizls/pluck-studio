@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("SBOM-AI activation flow", () => {
   test("submit blocked until URL + ack present", async ({ page }) => {
-    await page.goto("/bureau/sbom-ai/run");
+    await page.goto("/programs/sbom-ai/run");
     await expect(page.getByTestId("run-submit")).toBeDisabled();
     await page.getByTestId("artifact-url").fill("https://example.com/pack.json");
     await expect(page.getByTestId("run-submit")).toBeDisabled();
@@ -14,13 +14,13 @@ test.describe("SBOM-AI activation flow", () => {
     await context.addCookies([
       { name: "sb-test-auth-token", value: "x", domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" },
     ]);
-    await page.goto("/bureau/sbom-ai/run");
+    await page.goto("/programs/sbom-ai/run");
     await page.getByTestId("artifact-url").fill("https://example.com/pack.json");
     await page.getByTestId("kind-mcp-server").check();
     await page.getByTestId("auth-ack").check();
     await page.getByTestId("run-submit").click();
 
-    await page.waitForURL(/\/bureau\/sbom-ai\/runs\/[a-z]+-[a-z]+-[a-z]+-\d{4}$/);
+    await page.waitForURL(/\/programs\/sbom-ai\/runs\/[a-z]+-[a-z]+-[a-z]+-\d{4}$/);
     await expect(page.getByTestId("run-status")).toContainText(/pending/);
   });
 
@@ -28,7 +28,7 @@ test.describe("SBOM-AI activation flow", () => {
     await context.addCookies([
       { name: "sb-test-auth-token", value: "x", domain: "localhost", path: "/", sameSite: "Lax" },
     ]);
-    await page.goto("/bureau/sbom-ai/run");
+    await page.goto("/programs/sbom-ai/run");
     await page.getByTestId("artifact-url").fill("https://example.com/pack.json");
     await page.getByTestId("auth-ack").check();
     // With auth-ack + URL + no hash → enabled.
@@ -44,9 +44,9 @@ test.describe("SBOM-AI activation flow", () => {
   });
 
   test("SBOM-AI landing exposes the Publish CTA", async ({ page }) => {
-    await page.goto("/bureau/sbom-ai");
+    await page.goto("/programs/sbom-ai");
     await expect(page.getByTestId("run-cta")).toBeVisible();
     await page.getByTestId("run-cta").click();
-    await page.waitForURL(/\/bureau\/sbom-ai\/run$/);
+    await page.waitForURL(/\/programs\/sbom-ai\/run$/);
   });
 });

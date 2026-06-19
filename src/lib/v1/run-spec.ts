@@ -3,9 +3,9 @@
 // ---------------------------------------------------------------------------
 //
 // The /v1/runs API is the canonical surface for kicking off ANY pipeline
-// run inside Pluck Studio. Today it consolidates the 11 per-program Bureau
-// activation stubs at /api/bureau/<slug>/run; tomorrow it unifies the
-// non-Bureau shelves (extract, sense, act, fleet) under the same shape.
+// run inside Pluck Studio. Today it consolidates the 11 per-program Pluck
+// activation stubs at /api/programs/<slug>/run; tomorrow it unifies the
+// non-Pluck shelves (extract, sense, act, fleet) under the same shape.
 //
 // Why one endpoint instead of N:
 //   - One auth, rate-limit, idempotency story.
@@ -15,7 +15,7 @@
 //   - One RunSpec contract that an AI agent (Priya's archetype) writes
 //     against, regardless of which shelf it's hitting.
 //
-// The 11 bureau slugs map 1:1 to the legacy `/api/bureau/<slug>/run`
+// The 11 bureau slugs map 1:1 to the legacy `/api/programs/<slug>/run`
 // routes. Their `payload` shape is the existing per-program request body
 // — see `docs/V1_API.md` for the per-pipeline payload reference.
 //
@@ -45,14 +45,14 @@ export const ALL_PIPELINES = [
   ...FUTURE_PIPELINES,
 ] as const;
 
-export type BureauPipeline = (typeof BUREAU_PIPELINES)[number];
+export type StudioPipeline = (typeof BUREAU_PIPELINES)[number];
 export type FuturePipeline = (typeof FUTURE_PIPELINES)[number];
-export type RunSpecPipeline = BureauPipeline | FuturePipeline;
+export type RunSpecPipeline = StudioPipeline | FuturePipeline;
 
 const BUREAU_SET: ReadonlySet<string> = new Set(BUREAU_PIPELINES);
 const FUTURE_SET: ReadonlySet<string> = new Set(FUTURE_PIPELINES);
 
-export function isBureauPipeline(s: string): s is BureauPipeline {
+export function isProgramPipeline(s: string): s is StudioPipeline {
   return BUREAU_SET.has(s);
 }
 
@@ -65,7 +65,7 @@ export function isKnownPipeline(s: string): s is RunSpecPipeline {
 }
 
 /** Strip the `bureau:` prefix from a bureau pipeline (`bureau:dragnet` → `dragnet`). */
-export function bureauSlugOf(p: BureauPipeline): string {
+export function bureauSlugOf(p: StudioPipeline): string {
   return p.slice("bureau:".length);
 }
 
@@ -115,7 +115,7 @@ export interface RunRecord {
   response: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
-  /** Path to the receipt page, e.g. `/bureau/dragnet/runs/<runId>`. */
+  /** Path to the receipt page, e.g. `/programs/dragnet/runs/<runId>`. */
   receiptUrl: string;
 }
 

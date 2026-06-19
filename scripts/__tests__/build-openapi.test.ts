@@ -132,7 +132,7 @@ describe("OpenAPI document — schemas + components", () => {
   it("declares the canonical schema keys", () => {
     const keys = Object.keys(doc().components.schemas);
     for (const k of [
-      "BureauPipeline",
+      "StudioPipeline",
       "RunSpecPipeline",
       "RunStatus",
       "VerdictColor",
@@ -171,8 +171,8 @@ describe("OpenAPI document — schemas + components", () => {
 });
 
 describe("OpenAPI document — drift invariants (taxonomy ↔ enum)", () => {
-  it("BureauPipeline enum matches BUREAU_PIPELINES exactly", () => {
-    expect(doc().components.schemas.BureauPipeline?.enum).toEqual([...BUREAU_PIPELINES]);
+  it("StudioPipeline enum matches BUREAU_PIPELINES exactly", () => {
+    expect(doc().components.schemas.StudioPipeline?.enum).toEqual([...BUREAU_PIPELINES]);
   });
   it("RunSpecPipeline enum = BUREAU_PIPELINES + FUTURE_PIPELINES", () => {
     expect(doc().components.schemas.RunSpecPipeline?.enum).toEqual([
@@ -228,8 +228,8 @@ describe("OpenAPI document — drift invariants (taxonomy ↔ enum)", () => {
 describe("public/openapi.json — committed file is up to date", () => {
   it("matches generator output (run `pnpm openapi:build` if this fails)", () => {
     const committed = JSON.parse(readFileSync(join(ROOT, "public", "openapi.json"), "utf8")) as OpenApiDoc;
-    expect(committed.components.schemas.BureauPipeline?.enum).toEqual(
-      doc().components.schemas.BureauPipeline?.enum,
+    expect(committed.components.schemas.StudioPipeline?.enum).toEqual(
+      doc().components.schemas.StudioPipeline?.enum,
     );
   });
 });

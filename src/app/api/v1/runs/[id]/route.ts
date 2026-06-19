@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // Returns the full RunRecord shape for a given runId (a phrase ID, e.g.
-// `openai-swift-falcon-3742`). The receipt page on each Bureau program
+// `openai-swift-falcon-3742`). The receipt page on each program
 // reads from this endpoint when migrated; the page falls back to its
 // pre-/v1 stub when the runId isn't in the store (lets old phrase IDs
 // keep rendering during the migration runway).
@@ -131,7 +131,7 @@ export async function GET(
 // known stub-era authorization gap — MUST be fixed before public alpha.
 //
 // This mirrors the NUCLEI author-handle stub gap (see
-// `src/app/api/bureau/nuclei/run/route.ts` SECURITY block, AE R1
+// `src/app/api/programs/nuclei/run/route.ts` SECURITY block, AE R1
 // finding S1): operator-asserted identity is not yet bound to the
 // authenticated user. Both close at the same pluck-api inflection.
 // =============================================================================

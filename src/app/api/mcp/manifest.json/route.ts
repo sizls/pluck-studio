@@ -27,7 +27,7 @@
 // Studio sits behind a proxy that rewrites the visible host).
 //
 // The manifest is built by `buildManifest` (pure function over the
-// program registry) — adding a Bureau program auto-extends the
+// program registry) — adding a program auto-extends the
 // resources + tools enum. Snapshot-tested in `lib/mcp/__tests__/`.
 // ---------------------------------------------------------------------------
 

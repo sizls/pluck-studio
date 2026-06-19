@@ -128,7 +128,7 @@ function feedUrl(slug: string): string {
 }
 
 function receiptUrl(programSlug: VendorProgramSlug, phraseId: string): string {
-  return `${BASE_URL}/bureau/${programSlug}/runs/${phraseId}`;
+  return `${BASE_URL}/programs/${programSlug}/runs/${phraseId}`;
 }
 
 // ---------------------------------------------------------------------------

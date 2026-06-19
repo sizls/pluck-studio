@@ -15,9 +15,9 @@ export const metadata = {
 };
 
 const SectionHeadingStyle = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -26,9 +26,9 @@ const SectionHeadingStyle = {
 export default function NewWatchPage(): ReactNode {
   return (
     <>
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Create a watch</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">Create a watch</h1>
+        <p className="studio-hero-tagline">
           Tell the agent what to look for and where. Describe it the way
           you&apos;d describe it to a colleague — no selectors, no XPath,
           no regex.
