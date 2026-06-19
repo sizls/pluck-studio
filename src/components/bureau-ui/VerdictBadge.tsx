@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – VerdictBadge
+// Pluck UI – VerdictBadge
 // ---------------------------------------------------------------------------
 //
 // Shared visual primitive for trust-tier distinctions. R1 surfaced the

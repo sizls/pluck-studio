@@ -698,7 +698,7 @@ URL self-discloses the scanned vendor. The vendor must be in the
 hosted-mode allowlist (see `src/lib/fingerprint/run-form-module.ts` for
 the canonical list); unsupported vendors are rejected with a 400 +
 `supportedVendors` array so the client can surface alternatives. Run
-the OSS `pluck bureau fingerprint scan --responder` CLI for vendors
+the OSS `pluck fingerprint scan --responder` CLI for vendors
 outside the allowlist.
 
 Idempotency key shape used by the RunForm + legacy alias:

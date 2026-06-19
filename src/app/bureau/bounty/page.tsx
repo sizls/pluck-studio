@@ -9,7 +9,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "BOUNTY — Pluck Bureau",
+  title: "BOUNTY — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -83,11 +83,11 @@ export default function BountyIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>CLI</h2>
         <pre>
           <code>
-            pluck bureau bounty file &lt;rekor-uuid&gt; --target hackerone
+            pluck bounty file &lt;rekor-uuid&gt; --target hackerone
             --program openai --auth-env H1_TOKEN --subpoena &lt;uuid&gt;
             --vendor openai --model gpt-4o --accept-public{"\n"}
-            pluck bureau bounty track &lt;submission-id&gt;{"\n"}
-            pluck bureau bounty claim &lt;bounty-id&gt;
+            pluck bounty track &lt;submission-id&gt;{"\n"}
+            pluck bounty claim &lt;bounty-id&gt;
           </code>
         </pre>
       </section>

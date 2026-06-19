@@ -240,7 +240,7 @@ export function CustodyRunForm(): ReactNode {
       <BureauHelpText>
         HTTPS-only public URL of the CustodyBundle JSON. Studio fetches
         ≤ 256 KiB, 10s timeout, no redirects per the CUSTODY wire spec
-        — same constraints as <code>pluck bureau custody verify</code>.
+        — same constraints as <code>pluck custody verify</code>.
       </BureauHelpText>
 
       <BureauLabel text="Expected vendor (optional)">

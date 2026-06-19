@@ -184,7 +184,7 @@ export default function McpPage(): ReactNode {
           tool URIs; the external <code>{BRIDGE_PACKAGE}</code> server
           consumes that document and exposes the live MCP JSON-RPC
           runtime so any compatible client (Claude Desktop, Cursor,
-          custom hosts) can list, fetch, and execute Pluck Bureau
+          custom hosts) can list, fetch, and execute Pluck
           programs natively.
         </p>
         <div style={CalloutStyle}>
@@ -241,7 +241,7 @@ export default function McpPage(): ReactNode {
           Drop this into{" "}
           <code>~/.config/claude-desktop/mcp.config.json</code> (or
           your client's equivalent). Restart the client; the
-          Pluck Bureau programs surface as discoverable tools and
+          Pluck programs surface as discoverable tools and
           resources.
         </p>
         <pre style={PreStyle}>

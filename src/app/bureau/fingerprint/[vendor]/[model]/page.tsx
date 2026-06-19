@@ -25,7 +25,7 @@ const SectionHeadingStyle = {
 export async function generateMetadata({ params }: PageProps) {
   const { vendor, model } = await params;
   return {
-    title: `${vendor}/${model} — FINGERPRINT — Pluck Bureau`,
+    title: `${vendor}/${model} — FINGERPRINT — Pluck`,
   };
 }
 
@@ -54,7 +54,7 @@ export default async function FingerprintTargetPage({
         <h2 style={SectionHeadingStyle}>Scan</h2>
         <pre>
           <code>
-            pluck bureau fingerprint scan --vendor {safeVendor} --model{" "}
+            pluck fingerprint scan --vendor {safeVendor} --model{" "}
             {safeModel} \{"\n"}{" "}
             --keys ./keys --responder ./responder.js --out ./.fp
           </code>
@@ -65,7 +65,7 @@ export default async function FingerprintTargetPage({
         <h2 style={SectionHeadingStyle}>Pin a baseline</h2>
         <pre>
           <code>
-            pluck bureau fingerprint baseline {safeVendor}-{safeModel}
+            pluck fingerprint baseline {safeVendor}-{safeModel}
             -2026-04 \{"\n"} --rekor-uuid &lt;64-hex&gt;
           </code>
         </pre>

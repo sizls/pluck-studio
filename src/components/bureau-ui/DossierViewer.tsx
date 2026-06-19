@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – DossierViewer
+// Pluck UI – DossierViewer
 // ---------------------------------------------------------------------------
 //
 // Renders a (program, vendor, model) dossier as a horizontal timeline

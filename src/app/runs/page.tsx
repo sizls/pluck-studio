@@ -211,7 +211,7 @@ export default function RunsPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Search by phrase ID</h2>
         <p style={{ marginTop: 8 }} data-testid="search-cross-link">
           Paste any phrase ID at <a href="/search">/search</a> and see
-          every related receipt across all 11 programs — same vendor,
+          every related receipt across all 51 programs — same vendor,
           same partner, same platform. The keystone search experience.
         </p>
         <p
@@ -279,7 +279,7 @@ export default function RunsPage(): ReactNode {
         <p style={{ marginTop: 8 }} data-testid="vendor-index-cross-link">
           Every receipt that names a vendor enriches that vendor's
           permanent URL. <a href="/vendor">/vendor</a> renders the
-          honesty index across all 11 programs — bookmark a vendor, cite
+          honesty index across all 51 programs — bookmark a vendor, cite
           a vendor, watch a vendor.
         </p>
       </section>

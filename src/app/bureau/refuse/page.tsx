@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "REFUSE — Pluck Bureau",
+  title: "REFUSE — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -65,7 +65,7 @@ export default function RefuseIndexPage(): ReactNode {
         </p>
         <pre>
           <code>
-            pluck bureau refuse declare ./bundle --name &quot;Jane Doe&quot; \{"\n"}
+            pluck refuse declare ./bundle --name &quot;Jane Doe&quot; \{"\n"}
             {"  "}--keys ./keys --scope-vendors &quot;openai,anthropic&quot;{"\n"}
             {"  "}--scope-jurisdictions &quot;US,EU&quot;
           </code>
@@ -112,14 +112,14 @@ export default function RefuseIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>CLI</h2>
         <pre>
           <code>
-            pluck bureau refuse declare &lt;out-dir&gt; --name &quot;...&quot; --keys &lt;dir&gt; \{"\n"}
+            pluck refuse declare &lt;out-dir&gt; --name &quot;...&quot; --keys &lt;dir&gt; \{"\n"}
             {"  "}--scope-vendors &quot;...&quot; --scope-jurisdictions &quot;...&quot;{"\n"}
-            pluck bureau refuse attest &lt;canary.json&gt; --keys &lt;dir&gt; \{"\n"}
+            pluck refuse attest &lt;canary.json&gt; --keys &lt;dir&gt; \{"\n"}
             {"  "}--bind-oath &lt;oath-rekor-uuid&gt; --oath &lt;oath.json&gt; --out &lt;dir&gt;{"\n"}
-            pluck bureau refuse probe &lt;canary.json&gt; --target &lt;vendor&gt;/&lt;model&gt; \{"\n"}
+            pluck refuse probe &lt;canary.json&gt; --target &lt;vendor&gt;/&lt;model&gt; \{"\n"}
             {"  "}--keys &lt;dir&gt; --canary-rekor-uuid &lt;uuid&gt; --out &lt;pack.json&gt;{"\n"}
-            pluck bureau refuse status &lt;attestation-rekor-uuid&gt;{"\n"}
-            pluck bureau refuse withdraw &lt;attestation.json&gt; --keys &lt;dir&gt; \{"\n"}
+            pluck refuse status &lt;attestation-rekor-uuid&gt;{"\n"}
+            pluck refuse withdraw &lt;attestation.json&gt; --keys &lt;dir&gt; \{"\n"}
             {"  "}--attestation-rekor-uuid &lt;uuid&gt; --reason &quot;...&quot;
           </code>
         </pre>

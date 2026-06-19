@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "OATH — Manage — Pluck Bureau",
+  title: "OATH — Manage — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -39,7 +39,7 @@ export default function OathManagePage(): ReactNode {
         <p>Use the CLI:</p>
         <pre>
           <code>
-            pluck bureau oath publish ./oath.json --keys ./keys --out
+            pluck oath publish ./oath.json --keys ./keys --out
             ./.oath{"\n"}
             # Then host ./.oath/&lt;hash&gt;.intoto.jsonl at{"\n"}
             # https://&lt;vendor&gt;/.well-known/pluck-oath.json

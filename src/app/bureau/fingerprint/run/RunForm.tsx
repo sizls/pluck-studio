@@ -222,7 +222,7 @@ export function FingerprintRunForm(): ReactNode {
             {i < SUPPORTED_VENDORS.length - 1 ? ", " : ""}
           </span>
         ))}
-        . For other vendors, run <code>pluck bureau fingerprint scan --responder</code>{" "}
+        . For other vendors, run <code>pluck fingerprint scan --responder</code>{" "}
         in the CLI.
       </BureauHelpText>
 

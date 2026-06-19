@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { RotateRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Rotate a key — ROTATE — Pluck Bureau",
+  title: "Rotate a key — ROTATE — Pluck",
 };
 
 const SectionHeadingStyle = {

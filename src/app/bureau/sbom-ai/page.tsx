@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "SBOM-AI — Pluck Bureau",
+  title: "SBOM-AI — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -104,13 +104,13 @@ export default function SbomAiIndexPage(): ReactNode {
         <pre>
           <code>
             {`# publish
-pluck bureau sbom-ai publish probe-pack ./pack.json --keys ./keys --accept-public
+pluck sbom-ai publish probe-pack ./pack.json --keys ./keys --accept-public
 
 # verify
-pluck bureau sbom-ai verify <rekor-uuid>
+pluck sbom-ai verify <rekor-uuid>
 
 # lookup (Phase 1.5 — Phase 2+ wires Kite)
-pluck bureau sbom-ai lookup <sha256> --seed <uuid>`}
+pluck sbom-ai lookup <sha256> --seed <uuid>`}
           </code>
         </pre>
       </section>

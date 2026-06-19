@@ -13,7 +13,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "TRIPWIRE / me — Pluck Bureau",
+  title: "TRIPWIRE / me — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -32,7 +32,7 @@ export default function TripwireMePage(): ReactNode {
         <h1 className="bureau-hero-title">TRIPWIRE / me</h1>
         <p className="bureau-hero-tagline">
           Per-machine outbound LLM timeline. The dossier lives on YOUR
-          machine — Pluck Bureau never sees the bodies. This page is a
+          machine — Pluck never sees the bodies. This page is a
           placeholder that explains how to read your local dossier;
           Phase 2.5 wires the Kite Event Log so opted-in operators can
           publish their dossier hash here.
@@ -46,7 +46,7 @@ export default function TripwireMePage(): ReactNode {
         </pre>
         <p>
           Replace the path with whatever you passed to{" "}
-          <code>pluck bureau tripwire install --out</code>. The
+          <code>pluck tripwire install --out</code>. The
           dossier is a JSON file with a list of <code>TimelineDot</code>{" "}
           entries — each one a single intercepted (request, response)
           pair, classified against your policy.

@@ -1,12 +1,14 @@
 # Pluck Studio — Architecture
 
-Pluck Studio is the operator-facing web surface for the Pluck Bureau —
-the family of AI-vendor-honesty programs that publish Sigstore-anchored
-receipts. The Studio's job is to take 11 distinct programs (DRAGNET,
+Pluck Studio is the operator-facing web surface for Pluck — the family
+of programs that publish Sigstore-anchored receipts. The Studio's job
+is to take the eleven programs the Studio currently surfaces (DRAGNET,
 OATH, FINGERPRINT, CUSTODY, WHISTLE, BOUNTY, SBOM-AI, ROTATE, TRIPWIRE,
 NUCLEI, MOLE) and make them activate-runnable from a browser, via a
 single unified contract, with one set of privacy invariants, one
-authentication posture, and one receipt-URL primitive.
+authentication posture, and one receipt-URL primitive. The remaining
+40 programs in the Pluck monorepo ship as CLI-first and surface here
+incrementally as their Studio pages land.
 
 This document is the higher-level "how the system is built" companion to
 `docs/V1_API.md` (which specifies the wire contract). Read this when
@@ -19,7 +21,7 @@ test cases across 26 spec files, all green.
 
 ## 1. Mental model
 
-Studio is the operator-facing surface for the Pluck Bureau. It hosts a
+Studio is the operator-facing surface for Pluck. It hosts a
 landing page per program, an activation form per program, an API per
 program, and a receipt page per program — but every one of those routes
 funnels through one shared persistence-and-redaction surface
@@ -170,7 +172,7 @@ field schemas, validators, and redactors.
 | Receipt module | `src/lib/dragnet/run-receipt-module.ts` |
 | OG image | `src/app/bureau/dragnet/runs/[id]/opengraph-image.tsx` |
 
-**The 11 programs**
+**The 51 programs**
 
 Sourced from `ACTIVE_PROGRAMS` and `PHRASE_ID_PREFIX_CONVENTIONS` in
 `src/lib/programs/registry.ts`. Order is registry order (matches the
@@ -878,7 +880,7 @@ both produce the same `phraseId` — the test asserts this directly.
 
 From project memory:
 
-> Every new Pluck Bureau program MUST use `@directive-run/core`
+> Every new Pluck program MUST use `@directive-run/core`
 > (facts/constraints/resolvers/derivations/effects/plugins) +
 > `@directive-run/ai` for agent loops + `@directive-run/query` for
 > Studio data + `@directive-run/react` for reactive UI.

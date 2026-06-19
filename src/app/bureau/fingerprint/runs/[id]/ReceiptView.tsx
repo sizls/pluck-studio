@@ -435,13 +435,13 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
               Re-run the delta locally to audit drift:
               <br />
               <code>
-                pluck bureau fingerprint scan --vendor {vendor ?? "&lt;vendor&gt;"}{" "}
+                pluck fingerprint scan --vendor {vendor ?? "&lt;vendor&gt;"}{" "}
                 --model {model ?? "&lt;model&gt;"} --responder ./responder.js
                 --out ./.fp
               </code>
               <br />
               <code>
-                pluck bureau fingerprint delta {priorFingerprintHash
+                pluck fingerprint delta {priorFingerprintHash
                   ? formatCassetteHash(priorFingerprintHash)
                   : "&lt;prior&gt;"}{" "}
                 {fingerprintHash

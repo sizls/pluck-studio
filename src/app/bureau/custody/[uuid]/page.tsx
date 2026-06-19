@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 
 export const metadata = {
-  title: "CUSTODY bundle — Pluck Bureau",
+  title: "CUSTODY bundle — Pluck",
 };
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
@@ -77,7 +77,7 @@ export default async function CustodyBundleViewerPage({
         <h2 style={SectionHeadingStyle}>Verify locally</h2>
         <pre>
           <code>
-            pluck bureau custody verify &lt;bundle.json&gt; --json
+            pluck custody verify &lt;bundle.json&gt; --json
           </code>
         </pre>
         <p>

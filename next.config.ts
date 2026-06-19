@@ -117,7 +117,7 @@ const nextConfig: NextConfig = {
 
   // Vanity rewrites – `studio.pluck.run/dragnet/...` resolves to the
   // canonical `/bureau/dragnet/...` route. Every shared link is a
-  // Pluck Bureau ad.
+  // Pluck ad.
   async rewrites() {
     const programs = [
       "dragnet",

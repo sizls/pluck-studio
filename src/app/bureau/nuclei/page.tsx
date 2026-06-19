@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "NUCLEI — Pluck Bureau",
+  title: "NUCLEI — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -109,20 +109,20 @@ export default function NucleiIndexPage(): ReactNode {
         <pre>
           <code>
             {`# scaffold a pack stub
-pluck bureau nuclei init ./packs/honesty \\
+pluck nuclei init ./packs/honesty \\
   --name canon-honesty-v0.1 \\
   --vendor-scope "openai/gpt-4o,anthropic/claude-3-5-sonnet" \\
   --license MIT
 
 # attest to SBOM-AI first, capture the rekor uuid, THEN publish to NUCLEI
-pluck bureau sbom-ai publish probe-pack ./packs/honesty/pack.json \\
+pluck sbom-ai publish probe-pack ./packs/honesty/pack.json \\
   --keys ./keys --accept-public
 
-pluck bureau nuclei publish ./packs/honesty/pack.json \\
+pluck nuclei publish ./packs/honesty/pack.json \\
   --keys ./keys --sbom-rekor-uuid <uuid> --accept-public
 
 # operators subscribe + thread output into a DRAGNET runner
-pluck bureau nuclei subscribe --tag training-data --vendor openai --seed <uuid>`}
+pluck nuclei subscribe --tag training-data --vendor openai --seed <uuid>`}
           </code>
         </pre>
       </section>

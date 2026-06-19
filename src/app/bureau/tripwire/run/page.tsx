@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { TripwireRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Configure a tripwire — TRIPWIRE — Pluck Bureau",
+  title: "Configure a tripwire — TRIPWIRE — Pluck",
 };
 
 const SectionHeadingStyle = {

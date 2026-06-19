@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { NucleiRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Publish to NUCLEI registry — Pluck Bureau",
+  title: "Publish to NUCLEI registry — Pluck",
 };
 
 const SectionHeadingStyle = {

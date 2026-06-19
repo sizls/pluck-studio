@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "RAVEN — Pluck Bureau",
+  title: "RAVEN — Pluck",
 };
 
 const DOWNSTREAM: ReadonlyArray<{ name: string; lane: string; tagline: string }> = [
@@ -70,7 +70,7 @@ export default function RavenIndexPage(): ReactNode {
             USRP) into a <code>cu8</code> or <code>cf32</code> file.
           </li>
           <li>
-            <code>pluck bureau raven sweep</code> runs a deterministic
+            <code>pluck raven sweep</code> runs a deterministic
             32-bin Welch PSD over the IQ buffer per (geohash × time × band)
             tile, signs each tile with the receiver's Ed25519 key, and
             commits the tile-set as a Merkle forest.
@@ -88,7 +88,7 @@ export default function RavenIndexPage(): ReactNode {
             namespace.
           </li>
           <li>
-            <code>pluck bureau raven anomaly</code> diffs a current sweep
+            <code>pluck raven anomaly</code> diffs a current sweep
             against a baseline; tiles whose Welch-distance crosses
             threshold land as signed{" "}
             <code>https://pluck.run/Raven.Anomaly/v1</code> markers.

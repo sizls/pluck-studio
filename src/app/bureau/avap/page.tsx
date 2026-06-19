@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "AVAP — Pluck Bureau",
+  title: "AVAP — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -177,7 +177,7 @@ export default function AvapIndexPage(): ReactNode {
         <pre>
           <code>
             {`# 1. open
-pluck bureau avap open \\
+pluck avap open \\
   --target openai/gpt-4o \\
   --nuclei-pack <rekor-uuid> --fingerprint <rekor-uuid> --mole <rekor-uuid> \\
   --parties parties.json \\
@@ -187,20 +187,20 @@ pluck bureau avap open \\
   --keys ./keys --accept-public
 
 # 2. bid
-pluck bureau avap bid <auction-id> \\
+pluck avap bid <auction-id> \\
   --direction delay --amount 50000 --currency USD \\
   --keys ./keys --accept-public
 
 # 3. status
-pluck bureau avap status <auction-rekor-uuid> --auction auction.json --bids bids.json
+pluck avap status <auction-rekor-uuid> --auction auction.json --bids bids.json
 
 # 4. unseal (after closesAt)
-pluck bureau avap unseal <auction-id> --shares shares.json \\
+pluck avap unseal <auction-id> --shares shares.json \\
   --outcome fix-shipped --threshold 2-of-3 \\
   --keys ./keys --accept-public
 
 # 5. distribute
-pluck bureau avap distribute <auction-id> \\
+pluck avap distribute <auction-id> \\
   --escrow escrow.json --recipients recipients.json \\
   --keys ./keys --accept-public`}
           </code>

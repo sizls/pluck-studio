@@ -25,7 +25,7 @@ const SectionHeadingStyle = {
 export async function generateMetadata({ params }: PageProps) {
   const { vendor } = await params;
   return {
-    title: `${vendor} — OATH — Pluck Bureau`,
+    title: `${vendor} — OATH — Pluck`,
   };
 }
 
@@ -55,8 +55,8 @@ export default async function OathVendorPage({
         </p>
         <pre>
           <code>
-            pluck bureau oath fetch {safeVendor} --out ./.oath{"\n"}
-            pluck bureau oath verify ./.oath/&lt;hash&gt;.intoto.jsonl
+            pluck oath fetch {safeVendor} --out ./.oath{"\n"}
+            pluck oath verify ./.oath/&lt;hash&gt;.intoto.jsonl
             --expected-origin https://{safeVendor}
           </code>
         </pre>
@@ -70,7 +70,7 @@ export default async function OathVendorPage({
         </p>
         <pre>
           <code>
-            pluck bureau oath badge {safeVendor} --state green --format
+            pluck oath badge {safeVendor} --state green --format
             html
           </code>
         </pre>

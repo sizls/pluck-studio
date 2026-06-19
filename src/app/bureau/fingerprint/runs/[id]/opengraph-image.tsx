@@ -49,7 +49,7 @@ function renderPlaceholder(): Response {
           letterSpacing: "0.08em",
         }}
       >
-        Pluck Bureau · FINGERPRINT
+        Pluck · FINGERPRINT
       </div>
     ),
     { ...size },
@@ -111,7 +111,7 @@ export default async function Image({ params }: OgProps): Promise<Response> {
           }}
         >
           <span style={{ color: ACCENT }}>●</span>
-          <span style={{ marginLeft: 16 }}>Pluck Bureau · FINGERPRINT</span>
+          <span style={{ marginLeft: 16 }}>Pluck · FINGERPRINT</span>
         </div>
 
         <div

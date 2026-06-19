@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "NUCLEI Pack — Pluck Bureau",
+  title: "NUCLEI Pack — Pluck",
 };
 
 interface Params {
@@ -49,7 +49,7 @@ export default async function NucleiPackPage({ params }: PageProps): Promise<Rea
         <p>
           Phase 3 alpha — registry hydration lands once Kite Event Log
           wires. Ingest a NUCLEI Rekor uuid via{" "}
-          <code>pluck bureau nuclei lookup &lt;author&gt;/{pack} --seed &lt;uuid&gt;</code>{" "}
+          <code>pluck nuclei lookup &lt;author&gt;/{pack} --seed &lt;uuid&gt;</code>{" "}
           to inspect locally.
         </p>
         <ul style={{ lineHeight: 1.7 }}>
@@ -76,7 +76,7 @@ export default async function NucleiPackPage({ params }: PageProps): Promise<Rea
         <h2 style={SectionHeadingStyle}>Subscribe</h2>
         <pre>
           <code>
-            {`pluck bureau nuclei subscribe \\
+            {`pluck nuclei subscribe \\
   --author ${author} \\
   --tag <tag> \\
   --vendor <vendor> \\
@@ -87,7 +87,7 @@ export default async function NucleiPackPage({ params }: PageProps): Promise<Rea
         <p>
           The runner emits one DragnetTarget tuple per scoped (vendor,
           model) — thread the JSON into a long-running{" "}
-          <code>pluck bureau dragnet run</code> daemon.
+          <code>pluck dragnet run</code> daemon.
         </p>
       </section>
     </>

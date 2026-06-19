@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { BountyRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "File a bounty — BOUNTY — Pluck Bureau",
+  title: "File a bounty — BOUNTY — Pluck",
 };
 
 const SectionHeadingStyle = {

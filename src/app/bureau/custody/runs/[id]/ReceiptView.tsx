@@ -415,7 +415,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             </p>
             <p>
               Verify the bundle offline:{" "}
-              <code>pluck bureau custody verify {bundleUrl}</code>
+              <code>pluck custody verify {bundleUrl}</code>
             </p>
           </>
         ) : (
@@ -423,7 +423,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             <li>
               <strong>CustodyBundle envelope</strong> — verify offline
               with{" "}
-              <code>pluck bureau custody verify ./bundle.intoto.jsonl</code>
+              <code>pluck custody verify ./bundle.intoto.jsonl</code>
               .
             </li>
             <li>

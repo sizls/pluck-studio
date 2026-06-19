@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "DRAGNET — Pluck Bureau",
+  title: "DRAGNET — Pluck",
 };
 
 const MONITORED: ReadonlyArray<{ vendor: string; model: string }> = [
@@ -70,11 +70,11 @@ export default function DragnetIndexPage(): ReactNode {
             the vendor on every cycle.
           </li>
           <li>
-            <code>pluck bureau dragnet pack-sign</code> signs it with your
+            <code>pluck dragnet pack-sign</code> signs it with your
             Ed25519 operator key.
           </li>
           <li>
-            <code>pluck bureau dragnet run</code> hunts the target.
+            <code>pluck dragnet run</code> hunts the target.
             Every probe → cassette → in-toto attestation → Rekor entry.
           </li>
           <li>
@@ -110,7 +110,7 @@ export default function DragnetIndexPage(): ReactNode {
         </p>
         <pre>
           <code>
-            pluck bureau dragnet pack-init ./packs/canon --name canon-honesty-v0.1
+            pluck dragnet pack-init ./packs/canon --name canon-honesty-v0.1
           </code>
         </pre>
         <p>

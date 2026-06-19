@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – EmbedBadge
+// Pluck UI – EmbedBadge
 // ---------------------------------------------------------------------------
 //
 // Vendors with a clean DRAGNET timeline can embed a green badge. The
@@ -53,7 +53,7 @@ export function EmbedBadge({
       aria-label={label}
       title={lastChecked ? `${label} • last checked ${lastChecked}` : label}
     >
-      <span className="bureau-embed-badge-prefix">Pluck Bureau</span>
+      <span className="bureau-embed-badge-prefix">Pluck</span>
       <span className="bureau-embed-badge-divider">|</span>
       <span className="bureau-embed-badge-target">
         {vendor}/{model}

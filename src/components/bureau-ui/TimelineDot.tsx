@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – TimelineDotMark
+// Pluck UI – TimelineDotMark
 // ---------------------------------------------------------------------------
 //
 // Renders a single timeline dot (`TimelineDot` data type from core)

@@ -358,11 +358,11 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             ) : null}
             <p>
               Verify the seal:{" "}
-              <code>pluck bureau mole verify {rekorUuid}</code>
+              <code>pluck mole verify {rekorUuid}</code>
             </p>
             <p>
               Run probes against this canary (separate CLI step):{" "}
-              <code>pluck bureau mole run ./mole-pack.json --target openai/gpt-4o</code>
+              <code>pluck mole run ./mole-pack.json --target openai/gpt-4o</code>
             </p>
           </>
         ) : null}

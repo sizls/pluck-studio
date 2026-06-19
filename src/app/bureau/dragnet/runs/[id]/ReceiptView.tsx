@@ -338,7 +338,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             </li>
             <li>
               <strong>Frame-by-frame trace</strong> — every probe → cassette
-              event, scrubbable via the Pluck Bureau timeline.
+              event, scrubbable via the Pluck timeline.
             </li>
             <li>
               <strong>Share URL</strong> — public scrubber view for any

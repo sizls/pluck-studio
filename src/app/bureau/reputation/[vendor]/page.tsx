@@ -32,7 +32,7 @@ const SectionHeadingStyle = {
 export async function generateMetadata({ params }: PageProps) {
   const { vendor } = await params;
 
-  return { title: `${sanitiseVendor(vendor)} — Reputation — Pluck Bureau` };
+  return { title: `${sanitiseVendor(vendor)} — Reputation — Pluck` };
 }
 
 export default async function ReputationVendorPage({
@@ -52,7 +52,7 @@ export default async function ReputationVendorPage({
         <p className="bureau-hero-tagline">
           Auto-decaying public trust score — pure projection over the
           public Rekor log. Anyone can re-derive the number using{" "}
-          <code>pluck bureau reputation {safeVendor}</code>.
+          <code>pluck reputation {safeVendor}</code>.
         </p>
       </section>
 
@@ -154,7 +154,7 @@ export default async function ReputationVendorPage({
         <h2 style={SectionHeadingStyle}>CLI re-derive</h2>
         <pre>
           <code>
-            pluck bureau reputation {safeVendor} --reference-time {reputation.computedAt}{" "}
+            pluck reputation {safeVendor} --reference-time {reputation.computedAt}{" "}
             --decay-window {reputation.decayWindowDays}
           </code>
         </pre>

@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "OATH — Pluck Bureau",
+  title: "OATH — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -80,7 +80,7 @@ export default function OathIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Vendor flow</h2>
         <pre>
           <code>
-            pluck bureau oath publish ./oath.json --keys ./keys --out ./.oath
+            pluck oath publish ./oath.json --keys ./keys --out ./.oath
           </code>
         </pre>
         <p>
@@ -96,9 +96,9 @@ export default function OathIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Operator flow</h2>
         <pre>
           <code>
-            pluck bureau oath fetch openai.com --out ./.oath
+            pluck oath fetch openai.com --out ./.oath
             {"\n"}
-            pluck bureau oath verify ./.oath/&lt;hash&gt;.intoto.jsonl
+            pluck oath verify ./.oath/&lt;hash&gt;.intoto.jsonl
             --expected-origin https://openai.com
           </code>
         </pre>

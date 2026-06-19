@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // Phase 6 alpha. Drag a CustodyBundle JSON file onto the drop zone;
-// the page runs `verifyCustodyBundle` from @sizls/pluck-bureau-custody
+// the page runs `verifyCustodyBundle` from @sizls/pluck-custody
 // in-browser (no network round-trip) and renders the
 // FRE902VerifyResult inline.
 //
@@ -25,7 +25,7 @@ import { useState, type ReactNode } from "react";
 import type {
   CustodyBundle,
   FRE902VerifyResult,
-} from "@sizls/pluck-bureau-custody";
+} from "@sizls/pluck-custody";
 
 const SectionHeadingStyle = {
   fontFamily: "var(--bureau-mono)",
@@ -66,7 +66,7 @@ export default function CustodyVerifyPage(): ReactNode {
       try {
         const bundle = JSON.parse(String(reader.result)) as CustodyBundle;
         const { verifyCustodyBundle } = await import(
-          "@sizls/pluck-bureau-custody"
+          "@sizls/pluck-custody"
         );
         setResult(verifyCustodyBundle(bundle));
       } catch (err) {

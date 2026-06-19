@@ -1,7 +1,7 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – RekorSearch
+// Pluck UI – RekorSearch
 // ---------------------------------------------------------------------------
 //
 // Self-contained search box that takes a Rekor uuid OR a logIndex and

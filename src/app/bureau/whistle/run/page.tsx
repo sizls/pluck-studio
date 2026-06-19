@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { WhistleRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Submit a tip — WHISTLE — Pluck Bureau",
+  title: "Submit a tip — WHISTLE — Pluck",
 };
 
 const SectionHeadingStyle = {

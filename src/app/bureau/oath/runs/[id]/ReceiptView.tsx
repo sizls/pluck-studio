@@ -368,7 +368,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             <p>
               Verify the oath envelope offline:{" "}
               <code>
-                pluck bureau oath verify {oathEnvelopeUrl}{" "}
+                pluck oath verify {oathEnvelopeUrl}{" "}
                 --expected-origin {hostingOrigin}
               </code>
             </p>
@@ -387,7 +387,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             <li>
               <strong>DSSE envelope</strong> — verify offline with{" "}
               <code>
-                pluck bureau oath verify ./.oath/&lt;hash&gt;.intoto.jsonl
+                pluck oath verify ./.oath/&lt;hash&gt;.intoto.jsonl
               </code>{" "}
               (operator-side artifact path).
             </li>

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { SbomAiRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Publish provenance — SBOM-AI — Pluck Bureau",
+  title: "Publish provenance — SBOM-AI — Pluck",
 };
 
 const SectionHeadingStyle = {

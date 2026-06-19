@@ -98,7 +98,7 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
 ### Top 5 Ranked
 
 1. **Vendor Honesty Index** — `studio.pluck.run/vendor/openai`
-   - Why: every vendor gets a permanent live URL aggregating ALL 11 programs' receipts (DRAGNET reds, FINGERPRINT swaps, OATH expirations, MOLE verdicts, ROTATE notices) into one scrolling timeline.
+   - Why: every vendor gets a permanent live URL aggregating ALL 51 programs' receipts (DRAGNET reds, FINGERPRINT swaps, OATH expirations, MOLE verdicts, ROTATE notices) into one scrolling timeline.
    - Tweet: *"openai's pluck profile right now: 12 contradictions this week, 1 silent model swap, oath expired 3 days ago. Permanent URL. Updates live."*
    - Compound: massive — every future receipt across every program auto-enriches every vendor page. Permanent SEO + share surface per vendor. Karpathy bookmarks `/vendor/openai`.
    - Buildable in: 2 days. Server-side groupBy on phrase-ID prefix is the entire query (prefixes already vendor-scoped: `openai-...`, `nyt20240115-...`, etc.).
@@ -106,7 +106,7 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
    - Status: **FUCK YES tier — top priority for next build phase.**
 
 2. **Phrase-ID Auto-Stitch Search** — paste any phrase ID, see the receipt graph **(SHIPPED v3-R1 Backlog #2)**
-   - Why: single search bar; paste `openai-swift-falcon-3742`; get every related receipt across all 11 programs (same vendor, same operator, BOUNTY/DRAGNET parent-child links).
+   - Why: single search bar; paste `openai-swift-falcon-3742`; get every related receipt across all 51 programs (same vendor, same operator, BOUNTY/DRAGNET parent-child links).
    - Compound: high — every new program inherits search for free. Becomes the default landing page when someone receives a phrase ID cold.
    - Buildable in: 1 day. Index implicit in prefix scheme; `/search?q=swift-falcon-3742` does prefix decomposition + fan-out.
    - Status: **SHIPPED — `/search` page renders form + decomposition + direct match + related-by-scope grid; runs against vendor-preview today, swaps to `pluck-api /v1/runs?phraseIdPrefix=` when live data lands. Pure aggregator at `src/lib/search/phrase-stitch.ts`; parser at `src/lib/phrase-id.ts` exports `parsePhraseId`.**
@@ -118,11 +118,11 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
    - Status: **SHIPPED — `NucleiPublishCta` on SBOM-AI receipt (gated to `artifactKind === "probe-pack"`, greyed-out while pending), `?sbomRekorUuid=&packName=` query-param prefill on NUCLEI RunForm with banner, "Source artifact" section on NUCLEI receipt with rekor UUID + cosign verify-blob command. `/runs` callout. E2E in `e2e/nuclei-sbom-ai-loop.spec.ts`. See `docs/ARCHITECTURE.md` → "Cross-program flows" and `docs/V1_API.md` → "Cross-publish to NUCLEI" / "Pre-fill via query params".**
 
 4. **Daily Roll-Up OG Card** — `/today/opengraph-image` shows one tile per program color-coded by today's verdict density **(SHIPPED v3-R1 Backlog #3)**
-   - Why: the daily-tweet asset; one shareable image summarizes Pluck's last 24h across all 11 programs.
+   - Why: the daily-tweet asset; one shareable image summarizes Pluck's last 24h across all 51 programs.
    - Compound: medium-high — pairs with #1 + #2 as the daily distribution arm.
    - Buildable in: 1 day. Reuses existing OG infrastructure.
    - Risk: empty days look sad — pre-seed with stub-status colors.
-   - Status: SHIPPED — `/today` page + `/today/opengraph-image` 1200×630 PNG. Aggregation helper at `src/lib/programs/today-rollup.ts` covers all 11 programs (vendor-bearing programs fold from vendor-preview, non-vendor-bearing programs use a deterministic stub). Watermark "DEMO DATA — PREVIEW" carried on the OG card per VHI pattern. Public `getDailyRollup(now?)` API stays stable — the swap to pluck-api `/v1/runs?since=24h` is one private function.
+   - Status: SHIPPED — `/today` page + `/today/opengraph-image` 1200×630 PNG. Aggregation helper at `src/lib/programs/today-rollup.ts` covers all 51 programs (vendor-bearing programs fold from vendor-preview, non-vendor-bearing programs use a deterministic stub). Watermark "DEMO DATA — PREVIEW" carried on the OG card per VHI pattern. Public `getDailyRollup(now?)` API stays stable — the swap to pluck-api `/v1/runs?since=24h` is one private function.
 
 5. **Receipt Subscription Feed** — RSS/Atom per vendor (`/vendor/openai/feed.xml`) **(SHIPPED v3-R1 Backlog #4)**
    - Why: free passive distribution. Journalists subscribe; every new red dot lands in their RSS reader.

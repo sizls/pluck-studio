@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // Locks the page render contract without spinning up Playwright:
-//   - All 11 programs rendered with a tile testid
+//   - All 51 programs rendered with a tile testid
 //   - Preview banner present
 //   - OG image preview img tag points at /today/opengraph-image
 //   - Share link present

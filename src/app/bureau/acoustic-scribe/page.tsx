@@ -12,7 +12,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "ACOUSTIC-SCRIBE — Pluck Bureau",
+  title: "ACOUSTIC-SCRIBE — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -63,7 +63,7 @@ export default function AcousticScribeIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Characterize a recording device</h2>
         <pre>
           <code>
-            pluck bureau acoustic-scribe fingerprint-device
+            pluck acoustic-scribe fingerprint-device
             ./calibration.wav \{"\n"}{" "}
             --keys ./keys --out ./device.fp.json
           </code>
@@ -79,7 +79,7 @@ export default function AcousticScribeIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Capture + sign</h2>
         <pre>
           <code>
-            pluck bureau acoustic-scribe capture ./session.wav \{"\n"}{" "}
+            pluck acoustic-scribe capture ./session.wav \{"\n"}{" "}
             --keys ./keys --device-fingerprint ./device.fp.json \{"\n"}{" "}
             --location 40.7128,-74.0060 --device-name lab-mic-1 \{"\n"}{" "}
             --out ./bundles
@@ -96,7 +96,7 @@ export default function AcousticScribeIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Recover keystroke cadence</h2>
         <pre>
           <code>
-            pluck bureau acoustic-scribe keystroke-scan
+            pluck acoustic-scribe keystroke-scan
             ./bundles/abc.bundle.json \{"\n"}{" "}
             --wav ./session.wav --keys ./keys --out ./bundles
           </code>
@@ -113,7 +113,7 @@ export default function AcousticScribeIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Classify coil-whine workload</h2>
         <pre>
           <code>
-            pluck bureau acoustic-scribe workload-scan
+            pluck acoustic-scribe workload-scan
             ./bundles/abc.bundle.json \{"\n"}{" "}
             --wav ./session.wav --keys ./keys \{"\n"}{" "}
             --baseline ./bundles/idle.bundle.json --baseline-wav

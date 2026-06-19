@@ -321,7 +321,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             <p data-testid="rekor-uuid">Rekor UUID: <code>{rekorUuid}</code></p>
             <p>
               Verify the rotation:{" "}
-              <code>pluck bureau rotate verify-rotation {rekorUuid}</code>
+              <code>pluck trust rotate verify-rotation {rekorUuid}</code>
             </p>
             {revocationUrl ? (
               <p data-testid="revocation-url">

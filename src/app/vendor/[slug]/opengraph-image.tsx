@@ -101,7 +101,7 @@ function renderPlaceholder(): Response {
         }}
       >
         <WatermarkChip />
-        <span>Pluck Bureau · Vendor Honesty Index</span>
+        <span>Pluck · Vendor Honesty Index</span>
       </div>
     ),
     { ...size },
@@ -165,7 +165,7 @@ export default async function Image({ params }: OgProps): Promise<Response> {
           <div style={{ display: "flex", alignItems: "center" }}>
             <span style={{ color: ACCENT }}>●</span>
             <span style={{ marginLeft: 16 }}>
-              Pluck Bureau · Vendor Honesty Index
+              Pluck · Vendor Honesty Index
             </span>
           </div>
           <WatermarkChip />

@@ -5,7 +5,7 @@ import { RekorSearch } from "@/components/bureau-ui";
 import { PROGRAM_TILES, type ProgramTile } from "./_data/programs.js";
 
 export const metadata = {
-  title: "Pluck Bureau — Sigstore for AI lies",
+  title: "Pluck — Sigstore for AI lies",
 };
 
 export default function BureauIndexPage(): ReactNode {
@@ -14,8 +14,8 @@ export default function BureauIndexPage(): ReactNode {
       <section className="bureau-hero">
         <h1 className="bureau-hero-title">Sigstore for AI lies.</h1>
         <p className="bureau-hero-tagline">
-          Every AI vendor lies. The Pluck Bureau is the public ledger that
-          catches them — and the offensive toolkit that proves it. Eleven
+          Every AI vendor lies. Pluck is the public ledger that catches
+          them — and the offensive toolkit that proves it. Fifty-one
           programs, every observation Ed25519-signed, anchored to Sigstore
           Rekor, and verifiable with{" "}
           <code>cosign verify-attestation</code>.

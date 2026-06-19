@@ -59,7 +59,7 @@ function renderPlaceholder(): Response {
           letterSpacing: "0.08em",
         }}
       >
-        Pluck Bureau · DRAGNET
+        Pluck · DRAGNET
       </div>
     ),
     { ...size },
@@ -131,7 +131,7 @@ export default async function Image({ params }: OgProps): Promise<Response> {
           }}
         >
           <span style={{ color: ACCENT }}>●</span>
-          <span style={{ marginLeft: 16 }}>Pluck Bureau · DRAGNET</span>
+          <span style={{ marginLeft: 16 }}>Pluck · DRAGNET</span>
         </div>
 
         <div

@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 
 export const metadata = {
-  title: "SBOM-AI artifact — Pluck Bureau",
+  title: "SBOM-AI artifact — Pluck",
 };
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
@@ -66,7 +66,7 @@ export default async function SbomAiArtifactPage({
         <h2 style={SectionHeadingStyle}>Verify locally</h2>
         <pre>
           <code>
-            pluck bureau sbom-ai verify &lt;rekor-uuid&gt;
+            pluck sbom-ai verify &lt;rekor-uuid&gt;
           </code>
         </pre>
         <p>

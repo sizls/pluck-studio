@@ -20,7 +20,7 @@ import { Suspense, type ReactNode } from "react";
 import { DragnetRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Run a DRAGNET probe — Pluck Bureau",
+  title: "Run a DRAGNET probe — Pluck",
 };
 
 const SectionHeadingStyle = {

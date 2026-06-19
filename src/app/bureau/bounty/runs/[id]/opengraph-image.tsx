@@ -39,7 +39,7 @@ function renderPlaceholder(): Response {
           letterSpacing: "0.08em",
         }}
       >
-        Pluck Bureau · BOUNTY
+        Pluck · BOUNTY
       </div>
     ),
     { ...size },
@@ -80,7 +80,7 @@ export default async function Image({ params }: OgProps): Promise<Response> {
       >
         <div style={{ display: "flex", alignItems: "center", color: FG_DIM, fontSize: 24, letterSpacing: "0.12em", textTransform: "uppercase" }}>
           <span style={{ color: ACCENT }}>●</span>
-          <span style={{ marginLeft: 16 }}>Pluck Bureau · BOUNTY</span>
+          <span style={{ marginLeft: 16 }}>Pluck · BOUNTY</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: 1 }}>
           {target !== null ? (

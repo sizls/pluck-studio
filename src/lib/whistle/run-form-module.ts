@@ -13,7 +13,7 @@
 //   - URL-fetched bundle only; pasted JSON = follow-on
 //   - Single optional manual-redact phrase
 //
-// The CLI's full surface (`pluck bureau whistle submit ./bundle.json
+// The CLI's full surface (`pluck whistle submit ./bundle.json
 // --routing "propublica,bellingcat" --manual-redact "phrase"`) shrinks
 // to a one-target activation here. Operators with multi-target needs
 // run the CLI; Studio's job is the 60-second hosted submit.

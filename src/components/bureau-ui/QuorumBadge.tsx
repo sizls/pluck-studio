@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – QuorumBadge
+// Pluck UI – QuorumBadge
 // ---------------------------------------------------------------------------
 
 import type { QuorumVote } from "@sizls/pluck-bureau-core";

@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "MOLE — Pluck Bureau",
+  title: "MOLE — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -83,10 +83,10 @@ export default function MoleIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>CLI</h2>
         <pre>
           <code>
-            pluck bureau mole init ./bundle --canary ./article.txt
+            pluck mole init ./bundle --canary ./article.txt
             --canary-id nyt-2024-01-15 --keys ./keys{"\n"}
-            pluck bureau mole run ./mole-pack.json --target openai/gpt-4o{"\n"}
-            pluck bureau mole cite &lt;rekor-uuid&gt; --canary ./canary.json
+            pluck mole run ./mole-pack.json --target openai/gpt-4o{"\n"}
+            pluck mole cite &lt;rekor-uuid&gt; --canary ./canary.json
             --verdict ./verdict.json --prompt "Continue: ..."
           </code>
         </pre>

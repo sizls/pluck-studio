@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "TRIPWIRE — Pluck Bureau",
+  title: "TRIPWIRE — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -86,7 +86,7 @@ export default function TripwireIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Install</h2>
         <pre>
           <code>
-            pluck bureau tripwire install --keys ./keys --out ./.tripwire
+            pluck tripwire install --keys ./keys --out ./.tripwire
           </code>
         </pre>
         <p>

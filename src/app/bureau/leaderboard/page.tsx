@@ -3,7 +3,7 @@ import type { LeaderboardEntry } from "@/components/bureau-ui";
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "Vendor Leaderboard — Pluck Bureau",
+  title: "Vendor Leaderboard — Pluck",
 };
 
 // Phase 0 placeholder – Phase 7+ Kite Event Log replaces this with
@@ -18,11 +18,11 @@ export default function LeaderboardPage(): ReactNode {
       <section className="bureau-hero">
         <h1 className="bureau-hero-title">Vendor Leaderboard</h1>
         <p className="bureau-hero-tagline">
-          Public ranking by Pluck Bureau reputation — auto-decaying
+          Public ranking by Pluck reputation — auto-decaying
           trust score derived from green / red / black dots, OATH
           honored / broken windows, and key compromise events. Anyone
           can re-derive the number with{" "}
-          <code>pluck bureau reputation &lt;vendor&gt;</code>. Updated
+          <code>pluck reputation &lt;vendor&gt;</code>. Updated
           hourly once the Kite Event Log goes live.
         </p>
       </section>

@@ -14,7 +14,7 @@ import type { ReactNode } from "react";
 import { CustodyRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Verify a bundle — CUSTODY — Pluck Bureau",
+  title: "Verify a bundle — CUSTODY — Pluck",
 };
 
 const SectionHeadingStyle = {

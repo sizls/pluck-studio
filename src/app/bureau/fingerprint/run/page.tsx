@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { FingerprintRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Scan a target — FINGERPRINT — Pluck Bureau",
+  title: "Scan a target — FINGERPRINT — Pluck",
 };
 
 const SectionHeadingStyle = {

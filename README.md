@@ -1,6 +1,6 @@
 # Pluck Studio
 
-Operator UI for [Pluck Bureau](https://github.com/sizls/pluck) — the public web surface at `studio.pluck.run` hosting the hacking & security programs (DRAGNET, NUCLEI, CUSTODY, etc.).
+Operator UI for [Pluck](https://github.com/sizls/pluck) — the public web surface at `studio.pluck.run` hosting the hacking & security programs (DRAGNET, NUCLEI, CUSTODY, etc.).
 
 ## Tech
 

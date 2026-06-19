@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 import { OathRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Run an OATH verification — Pluck Bureau",
+  title: "Run an OATH verification — Pluck",
 };
 
 const SectionHeadingStyle = {

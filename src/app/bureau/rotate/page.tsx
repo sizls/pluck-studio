@@ -11,7 +11,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "ROTATE — Pluck Bureau",
+  title: "ROTATE — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -95,7 +95,7 @@ export default function RotateIndexPage(): ReactNode {
         </p>
         <pre>
           <code>
-            pluck bureau rotate verify-rotation &lt;rekor-uuid&gt;
+            pluck trust rotate verify-rotation &lt;rekor-uuid&gt;
           </code>
         </pre>
       </section>

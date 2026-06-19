@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { MoleRunForm } from "./RunForm";
 
 export const metadata = {
-  title: "Seal a canary — MOLE — Pluck Bureau",
+  title: "Seal a canary — MOLE — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -55,7 +55,7 @@ export default function MoleRunPage(): ReactNode {
           <li>
             On <code>sealed</code>: green dot + sha256 + fingerprint
             list + Rekor entry. The probe-run step is a separate CLI
-            invocation (<code>pluck bureau mole run</code>) and lands
+            invocation (<code>pluck mole run</code>) and lands
             in the per-target dossier.
           </li>
         </ol>

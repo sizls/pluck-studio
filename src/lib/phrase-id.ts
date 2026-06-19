@@ -350,7 +350,7 @@ export const PHRASE_ID_VOCAB_SIZE = ADJECTIVES.length * ANIMALS.length * 10_000;
 // ---------------------------------------------------------------------------
 //
 // Used by /search to fan out from one phrase ID to every related receipt
-// across all 11 programs. The 4-part scoped form
+// across all 51 programs. The 4-part scoped form
 // (`<scope>-<adj>-<noun>-<NNNN>`) is the canonical decomposable shape.
 // The 3-part bare form (`<adj>-<noun>-<NNNN>`) is grandfathered: still
 // parseable but yields an empty scope (search treats those as

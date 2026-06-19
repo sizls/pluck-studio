@@ -303,7 +303,7 @@ export function MoleRunForm(): ReactNode {
         Seal manifests are signed by the Pluck-fleet hosted key
         (<a href="/.well-known/pluck-keys.json"><code>/.well-known/pluck-keys.json</code></a>).
         Probe-runs against the canary are a separate program (CLI{" "}
-        <code>pluck bureau mole run</code>) — Studio surfaces only the
+        <code>pluck mole run</code>) — Studio surfaces only the
         seal step today.
       </p>
 

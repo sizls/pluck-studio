@@ -18,7 +18,7 @@ const MAX_ID_LENGTH = 64;
 
 function renderPlaceholder(): Response {
   return new ImageResponse(
-    (<div style={{ width: "100%", height: "100%", background: BG, color: FG_DIM, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "ui-monospace, monospace", fontSize: 36, letterSpacing: "0.08em" }}>Pluck Bureau · ROTATE</div>),
+    (<div style={{ width: "100%", height: "100%", background: BG, color: FG_DIM, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "ui-monospace, monospace", fontSize: 36, letterSpacing: "0.08em" }}>Pluck · ROTATE</div>),
     { ...size },
   );
 }
@@ -46,7 +46,7 @@ export default async function Image({ params }: OgProps): Promise<Response> {
       <div style={{ width: "100%", height: "100%", background: BG, color: FG, display: "flex", flexDirection: "column", padding: "60px 80px", fontFamily: "ui-monospace, monospace" }}>
         <div style={{ display: "flex", alignItems: "center", color: FG_DIM, fontSize: 24, letterSpacing: "0.12em", textTransform: "uppercase" }}>
           <span style={{ color: ACCENT }}>●</span>
-          <span style={{ marginLeft: 16 }}>Pluck Bureau · ROTATE</span>
+          <span style={{ marginLeft: 16 }}>Pluck · ROTATE</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: 1 }}>
           {reason !== null ? (

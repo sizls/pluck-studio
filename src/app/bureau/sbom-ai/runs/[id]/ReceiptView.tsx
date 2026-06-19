@@ -319,7 +319,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             <p data-testid="rekor-uuid">Rekor UUID: <code>{rekorUuid}</code></p>
             <p>
               Verify offline:{" "}
-              <code>pluck bureau sbom-ai verify {rekorUuid}</code>
+              <code>pluck sbom-ai verify {rekorUuid}</code>
             </p>
             <p data-testid="attestation-url">
               Attestation: <a href={attestationUrl}><code>{attestationUrl}</code></a>

@@ -17,7 +17,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "RAVEN sweep — Pluck Bureau",
+  title: "RAVEN sweep — Pluck",
 };
 
 interface PageProps {
@@ -48,7 +48,7 @@ export default async function RavenSweepPage({ params }: PageProps): Promise<Rea
         </p>
         <pre>
           <code>
-            pluck bureau raven verify ./.raven/{sweepId}.sweep.json
+            pluck raven verify ./.raven/{sweepId}.sweep.json
           </code>
         </pre>
       </section>

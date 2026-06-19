@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "NUCLEI Leaderboard — Pluck Bureau",
+  title: "NUCLEI Leaderboard — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -74,7 +74,7 @@ export default function NucleiLeaderboardPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Hydration</h2>
         <p>
           Phase 3 alpha — pull a snapshot from the bureau{" "}
-          <code>pluck bureau nuclei leaderboard --input counts.json</code>.
+          <code>pluck nuclei leaderboard --input counts.json</code>.
           Phase 3+ wires Kite Event Log so this page hydrates from the
           public ledger.
         </p>

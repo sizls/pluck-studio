@@ -293,7 +293,7 @@ export function WhistleRunForm(): ReactNode {
       <BureauHelpText>
         V2-A scope: one routing partner per submission. Multi-target
         routing requires the CLI ({" "}
-        <code>pluck bureau whistle submit --routing "a,b"</code>) until
+        <code>pluck whistle submit --routing "a,b"</code>) until
         the multi-select form lands.
       </BureauHelpText>
 

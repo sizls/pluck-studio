@@ -10,11 +10,11 @@
 import {
   DEFAULT_BOUNTY_DIRECTORY,
   type BountyProgramDirectoryEntry,
-} from "@sizls/pluck-bureau-bounty";
+} from "@sizls/pluck-bounty";
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "Inbox — BOUNTY — Pluck Bureau",
+  title: "Inbox — BOUNTY — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -66,10 +66,10 @@ export default function BountyInboxPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>CLI</h2>
         <pre>
           <code>
-            pluck bureau bounty inbox ./.tripwire{"\n"}
-            pluck bureau bounty inbox ./.tripwire --since 7{"\n"}
-            pluck bureau bounty inbox ./.tripwire --directory ./programs.json{"\n"}
-            pluck bureau bounty inbox ./.tripwire --json
+            pluck bounty inbox ./.tripwire{"\n"}
+            pluck bounty inbox ./.tripwire --since 7{"\n"}
+            pluck bounty inbox ./.tripwire --directory ./programs.json{"\n"}
+            pluck bounty inbox ./.tripwire --json
           </code>
         </pre>
         <p>
@@ -123,11 +123,11 @@ export default function BountyInboxPage(): ReactNode {
             tagged <code>red</code>.
           </li>
           <li>
-            <code>pluck bureau bounty inbox</code> walks the dossier and
+            <code>pluck bounty inbox</code> walks the dossier and
             keeps every red dot whose vendor is on the directory.
           </li>
           <li>
-            <code>pluck bureau bounty file &lt;rekor-uuid&gt;</code> wraps
+            <code>pluck bounty file &lt;rekor-uuid&gt;</code> wraps
             the dot into an EvidencePacket and dispatches via the
             existing H1 / Bugcrowd adapter.
           </li>

@@ -13,7 +13,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "CUSTODY — Pluck Bureau",
+  title: "CUSTODY — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -148,12 +148,12 @@ export default function CustodyIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>CLI</h2>
         <pre>
           <code>
-            pluck bureau custody capture &lt;bundle.json&gt;{"\n"}
-            pluck bureau custody build &lt;captures-dir&gt; --out
+            pluck custody capture &lt;bundle.json&gt;{"\n"}
+            pluck custody build &lt;captures-dir&gt; --out
             &lt;bundle.json&gt;{"\n"}
-            pluck bureau custody verify &lt;bundle.json&gt; --json
+            pluck custody verify &lt;bundle.json&gt; --json
             {"\n"}
-            pluck bureau custody export &lt;bundle.json&gt; --subpoena
+            pluck custody export &lt;bundle.json&gt; --subpoena
             &lt;uuid&gt; --vendor openai --model gpt-4o
           </code>
         </pre>

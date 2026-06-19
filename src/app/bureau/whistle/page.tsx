@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "WHISTLE — Pluck Bureau",
+  title: "WHISTLE — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -100,10 +100,10 @@ export default function WhistleIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>CLI</h2>
         <pre>
           <code>
-            pluck bureau whistle submit ./bundle.json --category training-data
+            pluck whistle submit ./bundle.json --category training-data
             --routing "propublica,bellingcat" --manual-redact "phrase to remove"{"\n"}
-            pluck bureau whistle verify &lt;rekor-uuid&gt;{"\n"}
-            pluck bureau whistle route &lt;submission-uuid&gt; --add-target
+            pluck whistle verify &lt;rekor-uuid&gt;{"\n"}
+            pluck whistle route &lt;submission-uuid&gt; --add-target
             "https://desk.example/api/whistle" --add-id desk-example
           </code>
         </pre>

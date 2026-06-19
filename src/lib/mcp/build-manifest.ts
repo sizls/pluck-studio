@@ -2,7 +2,7 @@
 // Studio MCP discovery document — pure function over the program registry
 // ---------------------------------------------------------------------------
 //
-// Studio is the operator-facing surface for the Pluck Bureau. AI agents
+// Studio is the operator-facing surface for Pluck. AI agents
 // (Claude Desktop, Cursor, custom MCP clients) discover Studio through
 // this discovery document — a JSON file describing the resources,
 // tools, and prompts the external `@sizls/pluck-mcp` server exposes
@@ -181,7 +181,7 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
     {
       name: "pluck.search",
       description:
-        "Search by phrase ID — decompose the slug into vendor + adjective + noun + serial, fan out across all 11 programs and return every receipt that shares any component.",
+        "Search by phrase ID — decompose the slug into vendor + adjective + noun + serial, fan out across all 51 programs and return every receipt that shares any component.",
       inputSchema: {
         type: "object",
         additionalProperties: false,

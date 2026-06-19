@@ -15,7 +15,7 @@ import {
 } from "../../lib/programs/monitors-preview";
 
 export const metadata = {
-  title: "Monitors — Pluck Bureau",
+  title: "Monitors — Pluck",
   description: "Aggregate 24h timeline of every published NUCLEI pack's fires.",
 };
 

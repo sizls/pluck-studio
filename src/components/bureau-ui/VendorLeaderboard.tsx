@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – VendorLeaderboard
+// Pluck UI – VendorLeaderboard
 // ---------------------------------------------------------------------------
 //
 // Public-good ranking of vendors by their bureau honesty score.
-// Distribution mechanic: every share-link is a Pluck Bureau ad, every
+// Distribution mechanic: every share-link is a Pluck ad, every
 // red entry pressures the vendor publicly.
 // ---------------------------------------------------------------------------
 

@@ -12,7 +12,7 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "FINGERPRINT — Pluck Bureau",
+  title: "FINGERPRINT — Pluck",
 };
 
 const SectionHeadingStyle = {
@@ -81,7 +81,7 @@ export default function FingerprintIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Scan a target</h2>
         <pre>
           <code>
-            pluck bureau fingerprint scan --vendor openai --model
+            pluck fingerprint scan --vendor openai --model
             gpt-4o \{"\n"}{" "}
             --keys ./keys --responder ./responder.js{"\n"}{" "}
             --notarize --accept-public --out ./.fp
@@ -100,7 +100,7 @@ export default function FingerprintIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>Compare two scans</h2>
         <pre>
           <code>
-            pluck bureau fingerprint delta ./from.json ./to.json --keys
+            pluck fingerprint delta ./from.json ./to.json --keys
             ./keys
           </code>
         </pre>
@@ -116,7 +116,7 @@ export default function FingerprintIndexPage(): ReactNode {
         <h2 style={SectionHeadingStyle}>MCP tool-surface</h2>
         <pre>
           <code>
-            pluck bureau fingerprint mcp-enum
+            pluck fingerprint mcp-enum
             http://localhost:8080/rpc
           </code>
         </pre>

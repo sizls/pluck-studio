@@ -241,7 +241,7 @@ export default function TodayPage(): ReactNode {
 
       <section>
         <h2 style={SectionHeadingStyle}>
-          All 11 programs ({rollup.programs.length})
+          All 51 programs ({rollup.programs.length})
         </h2>
         <div style={GridStyle}>
           {rollup.programs.map((program) => (
@@ -288,7 +288,7 @@ export default function TodayPage(): ReactNode {
           </li>
           <li>
             <a href="/vendor">/vendor</a> — the Vendor Honesty Index.
-            Per-vendor profiles across all 11 programs.
+            Per-vendor profiles across all 51 programs.
           </li>
           <li>
             <a href="/monitors">/monitors</a> — the next 24h timeline of

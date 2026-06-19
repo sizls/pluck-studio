@@ -456,7 +456,7 @@ export default async function SearchPage({
           </li>
           <li>
             Auto-stitch fans out from the scope: every receipt that
-            shares it across the 11 programs surfaces in one view.
+            shares it across the 51 programs surfaces in one view.
           </li>
           <li>
             Today the index runs on stub-era preview activity. When{" "}

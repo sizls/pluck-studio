@@ -31,7 +31,7 @@
 //     scan, with probe responses + hash). Emitted on every scan.
 //   - `https://pluck.run/FingerprintDelta/v1` — delta envelope (two
 //     scans, with per-probe diff + classification). Emitted by
-//     `pluck bureau fingerprint delta from.json to.json`.
+//     `pluck fingerprint delta from.json to.json`.
 //
 // A receipt with `classification` set is a delta receipt — surfaces
 // both URIs; a receipt without `priorFingerprintHash` is the first

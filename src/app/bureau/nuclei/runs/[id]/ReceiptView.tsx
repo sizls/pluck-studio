@@ -380,7 +380,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             ) : null}
             <p>
               Verify offline:{" "}
-              <code>pluck bureau nuclei verify {rekorUuid}</code>
+              <code>pluck nuclei verify {rekorUuid}</code>
             </p>
           </>
         ) : null}

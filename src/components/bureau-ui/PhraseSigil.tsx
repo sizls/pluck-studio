@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI — PhraseSigil
+// Pluck UI — PhraseSigil
 // ---------------------------------------------------------------------------
 //
 // Renders the procedural sigil for a phrase ID. Server component — emits

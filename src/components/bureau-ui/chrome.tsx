@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – Studio chrome (header / nav / footer)
+// Pluck UI – Studio chrome (header / nav / footer)
 // ---------------------------------------------------------------------------
 //
 // Shared frame around every public Studio surface (Bureau program pages
@@ -198,7 +198,7 @@ export function BureauChrome({
           </div>
         </div>
         <p className="bureau-footer-attribution">
-          Pluck Bureau anchors every observation to{" "}
+          Pluck anchors every observation to{" "}
           <a href="https://rekor.sigstore.dev" rel="noopener noreferrer">
             Sigstore Rekor
           </a>

@@ -1,11 +1,11 @@
 // ---------------------------------------------------------------------------
-// Pluck Bureau UI – ReputationBadge
+// Pluck UI – ReputationBadge
 // ---------------------------------------------------------------------------
 //
 // Innovation game-changer #2 surface – embeddable vendor reputation
 // badge. Renders a self-contained 320×40 SVG: vendor name, optional
 // model, score color-coded (green ≥ 80, yellow ≥ 60, red < 60), tiny
-// "via Pluck Bureau" footer.
+// "via Pluck" footer.
 //
 // Embed via the public Studio image URL:
 //
@@ -115,7 +115,7 @@ export function ReputationBadge({
           fontSize={12}
         >
           <text x={12} y={16}>
-            Pluck Bureau
+            Pluck
           </text>
           <text x={12} y={32} fontSize={14} fontWeight="bold">
             {target}
@@ -165,7 +165,7 @@ export function renderReputationBadgeSvg(props: ReputationBadgeProps): string {
     `<rect width="${WIDTH}" height="${HEIGHT}" rx="4" fill="#1a1a1a"/>`,
     `<rect x="${WIDTH - 80}" width="80" height="${HEIGHT}" rx="4" fill="${fill}"/>`,
     `<g fill="#fff" font-family="DejaVu Sans, Verdana, Geneva, sans-serif" font-size="12">`,
-    `<text x="12" y="16">Pluck Bureau</text>`,
+    `<text x="12" y="16">Pluck</text>`,
     `<text x="12" y="32" font-size="14" font-weight="bold">${escText(target)}</text>`,
     `<text x="${WIDTH - 40}" y="20" font-size="16" font-weight="bold" text-anchor="middle">${value.toFixed(0)}</text>`,
     `<text x="${WIDTH - 40}" y="32" font-size="9" text-anchor="middle" opacity="0.85">/ 100</text>`,
