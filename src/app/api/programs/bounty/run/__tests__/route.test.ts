@@ -190,7 +190,7 @@ describe("POST /api/programs/bounty/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:bounty",
+        pipeline: "program:bounty",
         payload: {
           sourceRekorUuid: "a".repeat(64),
           target: "hackerone",

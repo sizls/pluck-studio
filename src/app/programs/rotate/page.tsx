@@ -39,7 +39,7 @@ export default function RotateIndexPage(): ReactNode {
         <p className="studio-hero-tagline">
           Signing-key compromise response. When an Ed25519 operator
           key is compromised, ROTATE publishes a signed
-          <code> KeyRevocation/v1</code> to Rekor; the bureau
+          <code> KeyRevocation/v1</code> to Rekor; the Pluck
           re-witnesses every prior cassette signed by that key under a
           "compromised" annotation; affected vendors get auto-broadcast
           notifications; press kits regenerate citing the compromise

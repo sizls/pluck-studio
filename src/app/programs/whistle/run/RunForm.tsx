@@ -205,7 +205,7 @@ export function WhistleRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:whistle",
+          pipeline: "program:whistle",
           payload: {
             bundleUrl: normalizedBundleUrl,
             category: normalizedCategory,

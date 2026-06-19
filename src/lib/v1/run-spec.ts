@@ -15,7 +15,7 @@
 //   - One RunSpec contract that an AI agent (Priya's archetype) writes
 //     against, regardless of which shelf it's hitting.
 //
-// The 11 bureau slugs map 1:1 to the legacy `/api/programs/<slug>/run`
+// The 11 Pluck slugs map 1:1 to the legacy `/api/programs/<slug>/run`
 // routes. Their `payload` shape is the existing per-program request body
 // — see `docs/V1_API.md` for the per-pipeline payload reference.
 //
@@ -25,17 +25,17 @@
 // ---------------------------------------------------------------------------
 
 export const BUREAU_PIPELINES = [
-  "bureau:dragnet",
-  "bureau:oath",
-  "bureau:fingerprint",
-  "bureau:custody",
-  "bureau:whistle",
-  "bureau:bounty",
-  "bureau:sbom-ai",
-  "bureau:rotate",
-  "bureau:tripwire",
-  "bureau:nuclei",
-  "bureau:mole",
+  "program:dragnet",
+  "program:oath",
+  "program:fingerprint",
+  "program:custody",
+  "program:whistle",
+  "program:bounty",
+  "program:sbom-ai",
+  "program:rotate",
+  "program:tripwire",
+  "program:nuclei",
+  "program:mole",
 ] as const;
 
 export const FUTURE_PIPELINES = ["extract", "sense", "act", "fleet"] as const;
@@ -64,15 +64,15 @@ export function isKnownPipeline(s: string): s is RunSpecPipeline {
   return BUREAU_SET.has(s) || FUTURE_SET.has(s);
 }
 
-/** Strip the `bureau:` prefix from a bureau pipeline (`bureau:dragnet` → `dragnet`). */
-export function bureauSlugOf(p: StudioPipeline): string {
-  return p.slice("bureau:".length);
+/** Strip the `program:` prefix from a Pluck pipeline (`program:dragnet` → `dragnet`). */
+export function programSlugOf(p: StudioPipeline): string {
+  return p.slice("program:".length);
 }
 
 export interface RunSpec {
   pipeline: RunSpecPipeline;
   /**
-   * Per-pipeline payload. For `bureau:<program>`, this matches the
+   * Per-pipeline payload. For `program:<program>`, this matches the
    * existing per-program request body shape.
    */
   payload: Record<string, unknown>;

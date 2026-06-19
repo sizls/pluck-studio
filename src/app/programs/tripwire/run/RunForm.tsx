@@ -156,7 +156,7 @@ export function TripwireRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:tripwire",
+          pipeline: "program:tripwire",
           payload: {
             machineId: id,
             policySource: normalizedSource,

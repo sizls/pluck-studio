@@ -76,7 +76,7 @@ export default async function ReputationVendorPage({
           math; the formula is documented in
           <code> @sizls/pluck-bureau-core/reputation.ts </code>.
         </p>
-        <table className="bureau-leaderboard">
+        <table className="studio-leaderboard">
           <thead>
             <tr>
               <th scope="col">Predicate</th>

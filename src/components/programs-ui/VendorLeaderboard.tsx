@@ -2,7 +2,7 @@
 // Pluck UI – VendorLeaderboard
 // ---------------------------------------------------------------------------
 //
-// Public-good ranking of vendors by their bureau honesty score.
+// Public-good ranking of vendors by their Pluck honesty score.
 // Distribution mechanic: every share-link is a Pluck ad, every
 // red entry pressures the vendor publicly.
 // ---------------------------------------------------------------------------
@@ -40,20 +40,20 @@ export function VendorLeaderboard({
     .sort((a, b) => b.score - a.score);
 
   return (
-    <table className="bureau-leaderboard">
+    <table className="studio-leaderboard">
       <thead>
         <tr>
           <th scope="col">#</th>
           <th scope="col">Vendor / Model</th>
           <th scope="col">Score</th>
           <th scope="col">
-            <span className="bureau-tone-green">●</span>
+            <span className="studio-tone-green">●</span>
           </th>
           <th scope="col">
-            <span className="bureau-tone-red">●</span>
+            <span className="studio-tone-red">●</span>
           </th>
           <th scope="col">
-            <span className="bureau-tone-black">◆</span>
+            <span className="studio-tone-black">◆</span>
           </th>
           <th scope="col">Last Dot</th>
         </tr>
@@ -70,7 +70,7 @@ export function VendorLeaderboard({
           return (
             <tr
               key={`${entry.vendor}/${entry.model}`}
-              className={`bureau-leaderboard-row bureau-tone-${tone}`}
+              className={`studio-leaderboard-row studio-tone-${tone}`}
             >
               <td>{idx + 1}</td>
               <td>
@@ -90,7 +90,7 @@ export function VendorLeaderboard({
         })}
         {filtered.length === 0 && (
           <tr>
-            <td colSpan={7} className="bureau-leaderboard-empty">
+            <td colSpan={7} className="studio-leaderboard-empty">
               No vendors on the leaderboard yet.
             </td>
           </tr>

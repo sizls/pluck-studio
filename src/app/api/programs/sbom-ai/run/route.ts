@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:sbom-ai", payload: { ...this body... } }. !!
+//    { pipeline: "program:sbom-ai", payload: { ...this body... } }. !!
 //
 // Wave-3 migration: this route stays alive as a deprecated alias so callers
 // that haven't migrated keep working, but it now validates via the shared
@@ -123,7 +123,7 @@ export async function POST(req: Request): Promise<Response> {
   // expectedSha256 is omitted from the payload when empty so canonicalJson
   // skips the field and legacy + /v1/runs hash identically.
   const { record } = createRun({
-    pipeline: "bureau:sbom-ai",
+    pipeline: "program:sbom-ai",
     payload: {
       artifactUrl,
       artifactKind,
@@ -147,7 +147,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "publish pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:sbom-ai",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:sbom-ai",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

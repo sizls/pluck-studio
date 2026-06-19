@@ -97,7 +97,7 @@ test.describe("/v1/runs unified surface — DRAGNET wedge", () => {
         authorization: "Bearer dev-test-jwt",
       },
       data: {
-        pipeline: "bureau:dragnet",
+        pipeline: "program:dragnet",
         payload: {
           targetUrl: "https://api.openai.com/v1/chat/completions",
           probePackId: "canon-honesty",

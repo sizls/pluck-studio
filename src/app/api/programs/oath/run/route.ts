@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:oath", payload: { ...this body... } }. !!
+//    { pipeline: "program:oath", payload: { ...this body... } }. !!
 //
 // Sibling-of-DRAGNET migration: this route stays alive as a deprecated
 // alias so callers that haven't migrated keep working, but it now
@@ -129,7 +129,7 @@ export async function POST(req: Request): Promise<Response> {
   // canonicalJson() skips undefined object values, so an absent key and
   // an `undefined` value produce identical hashes.
   const { record } = createRun({
-    pipeline: "bureau:oath",
+    pipeline: "program:oath",
     payload: {
       vendorDomain,
       hostingOrigin: explicitOrigin.length > 0 ? explicitOrigin : undefined,
@@ -139,7 +139,7 @@ export async function POST(req: Request): Promise<Response> {
   });
 
   // The store-assigned runId is a vendor-scoped phrase ID because the
-  // bureau:oath payload carries `vendorDomain` — `runIdForProgram` derives
+  // program:oath payload carries `vendorDomain` — `runIdForProgram` derives
   // `generateScopedPhraseId("https://<vendorDomain>")`, which gives the
   // same `openai-swift-falcon-3742` shape DRAGNET produces from
   // `targetUrl`. runId === phraseId, single primitive on retries.
@@ -155,7 +155,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "verification pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:oath",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:oath",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

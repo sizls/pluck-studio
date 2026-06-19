@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { validateRunSpec } from "../run-spec.js";
 
 const validBody = {
-  pipeline: "bureau:dragnet",
+  pipeline: "program:dragnet",
   payload: {
     targetUrl: "https://api.openai.com/v1/chat/completions",
     probePackId: "canon-honesty",
@@ -29,7 +29,7 @@ describe("validateRunSpec — happy path", () => {
     const r = validateRunSpec(validBody);
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.spec.pipeline).toBe("bureau:dragnet");
+      expect(r.spec.pipeline).toBe("program:dragnet");
       expect(r.spec.payload).toEqual(validBody.payload);
       expect(r.spec.idempotencyKey).toBeUndefined();
     }
@@ -63,7 +63,7 @@ describe("validateRunSpec — unknown top-level key rejection (minor fix)", () =
 
   it("does not reject when only allowed keys are present", () => {
     const r = validateRunSpec({
-      pipeline: "bureau:dragnet",
+      pipeline: "program:dragnet",
       payload: {},
       idempotencyKey: "k",
     });
@@ -103,12 +103,12 @@ describe("validateRunSpec — envelope errors", () => {
   });
 
   it("rejects payload that is an array", () => {
-    const r = validateRunSpec({ pipeline: "bureau:dragnet", payload: [] });
+    const r = validateRunSpec({ pipeline: "program:dragnet", payload: [] });
     expect(r.ok).toBe(false);
   });
 
   it("rejects payload that is null", () => {
-    const r = validateRunSpec({ pipeline: "bureau:dragnet", payload: null });
+    const r = validateRunSpec({ pipeline: "program:dragnet", payload: null });
     expect(r.ok).toBe(false);
   });
 

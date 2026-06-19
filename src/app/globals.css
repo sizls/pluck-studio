@@ -1,17 +1,17 @@
-/* Pluck Studio — global theme + bureau chrome styles. */
+/* Pluck Studio — global theme + Pluck chrome styles. */
 
 :root {
   --studio-bg: #0a0a0a;
   --studio-fg: #f0f0f0;
   --studio-fg-dim: #888;
-  --bureau-border: #222;
-  --bureau-accent: #00d36b;
-  --bureau-tone-green: #00d36b;
-  --bureau-tone-red: #ff3838;
-  --bureau-tone-black: #b48bff;
-  --bureau-tone-yellow: #f5b800;
+  --studio-border: #222;
+  --studio-accent: #00d36b;
+  --studio-tone-green: #00d36b;
+  --studio-tone-red: #ff3838;
+  --studio-tone-black: #b48bff;
+  --studio-tone-yellow: #f5b800;
   --studio-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --bureau-sans: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  --studio-sans: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
 }
 
 * {
@@ -24,7 +24,7 @@ body {
   padding: 0;
   background: var(--studio-bg);
   color: var(--studio-fg);
-  font-family: var(--bureau-sans);
+  font-family: var(--studio-sans);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -38,42 +38,42 @@ a:hover {
   text-decoration: underline;
 }
 
-.bureau-chrome {
+.studio-chrome {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
-.bureau-header {
+.studio-header {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 24px;
   padding: 12px 24px;
-  border-bottom: 1px solid var(--bureau-border);
+  border-bottom: 1px solid var(--studio-border);
   background: #050505;
 }
 
-.bureau-wordmark {
+.studio-wordmark {
   font-family: var(--studio-mono);
   font-weight: 700;
   font-size: 16px;
 }
 
-.bureau-wordmark-pluck {
-  color: var(--bureau-accent);
+.studio-wordmark-pluck {
+  color: var(--studio-accent);
 }
 
-.bureau-wordmark-studio {
+.studio-wordmark-studio {
   color: var(--studio-fg);
 }
 
-.bureau-wordmark-sub {
+.studio-wordmark-sub {
   color: var(--studio-fg-dim);
   font-weight: 400;
 }
 
-.bureau-nav {
+.studio-nav {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -82,43 +82,43 @@ a:hover {
   letter-spacing: 0.04em;
 }
 
-.bureau-nav-link {
+.studio-nav-link {
   color: var(--studio-fg-dim);
 }
 
-.bureau-nav-link:hover,
-.bureau-nav-link.active {
-  color: var(--bureau-accent);
+.studio-nav-link:hover,
+.studio-nav-link.active {
+  color: var(--studio-accent);
   text-decoration: none;
 }
 
-.bureau-nav-programs {
+.studio-nav-programs {
   position: relative;
   font-family: var(--studio-mono);
   font-size: 12px;
   letter-spacing: 0.04em;
 }
 
-.bureau-nav-programs.active > .bureau-nav-programs-summary {
-  color: var(--bureau-accent);
+.studio-nav-programs.active > .studio-nav-programs-summary {
+  color: var(--studio-accent);
 }
 
-.bureau-nav-programs-summary {
+.studio-nav-programs-summary {
   list-style: none;
   cursor: pointer;
   color: var(--studio-fg-dim);
   padding: 2px 0;
 }
 
-.bureau-nav-programs-summary::-webkit-details-marker {
+.studio-nav-programs-summary::-webkit-details-marker {
   display: none;
 }
 
-.bureau-nav-programs-summary:hover {
-  color: var(--bureau-accent);
+.studio-nav-programs-summary:hover {
+  color: var(--studio-accent);
 }
 
-.bureau-nav-programs-list {
+.studio-nav-programs-list {
   position: absolute;
   top: 100%;
   left: 0;
@@ -129,17 +129,17 @@ a:hover {
   margin-top: 6px;
   padding: 8px 12px;
   background: #050505;
-  border: 1px solid var(--bureau-border);
+  border: 1px solid var(--studio-border);
   gap: 8px;
 }
 
-.bureau-auth-slot {
+.studio-auth-slot {
   font-family: var(--studio-mono);
   font-size: 12px;
   color: var(--studio-fg-dim);
 }
 
-.bureau-main {
+.studio-main {
   flex: 1;
   padding: 32px 24px;
   max-width: 1200px;
@@ -147,14 +147,14 @@ a:hover {
   margin: 0 auto;
 }
 
-.bureau-footer {
+.studio-footer {
   padding: 24px;
-  border-top: 1px solid var(--bureau-border);
+  border-top: 1px solid var(--studio-border);
   font-size: 12px;
   color: var(--studio-fg-dim);
 }
 
-.bureau-footer-grid {
+.studio-footer-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 24px;
@@ -162,12 +162,12 @@ a:hover {
   margin: 0 auto;
 }
 
-.bureau-footer-col {
+.studio-footer-col {
   display: flex;
   flex-direction: column;
 }
 
-.bureau-footer-heading {
+.studio-footer-heading {
   font-family: var(--studio-mono);
   font-size: 11px;
   font-weight: 700;
@@ -177,7 +177,7 @@ a:hover {
   margin: 0 0 8px;
 }
 
-.bureau-footer-list {
+.studio-footer-list {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -186,40 +186,40 @@ a:hover {
   gap: 6px;
 }
 
-.bureau-footer-list a {
+.studio-footer-list a {
   color: var(--studio-fg-dim);
 }
 
-.bureau-footer-list a:hover {
-  color: var(--bureau-accent);
+.studio-footer-list a:hover {
+  color: var(--studio-accent);
 }
 
-.bureau-footer-attribution {
+.studio-footer-attribution {
   max-width: 1200px;
   margin: 24px auto 0;
   padding-top: 16px;
-  border-top: 1px solid var(--bureau-border);
+  border-top: 1px solid var(--studio-border);
   font-size: 12px;
   color: var(--studio-fg-dim);
   line-height: 1.6;
 }
 
 /* Tones */
-.bureau-tone-green {
-  color: var(--bureau-tone-green);
+.studio-tone-green {
+  color: var(--studio-tone-green);
 }
-.bureau-tone-red {
-  color: var(--bureau-tone-red);
+.studio-tone-red {
+  color: var(--studio-tone-red);
 }
-.bureau-tone-black {
-  color: var(--bureau-tone-black);
+.studio-tone-black {
+  color: var(--studio-tone-black);
 }
-.bureau-tone-yellow {
-  color: var(--bureau-tone-yellow);
+.studio-tone-yellow {
+  color: var(--studio-tone-yellow);
 }
 
 /* Timeline dot */
-.bureau-timeline-dot {
+.studio-timeline-dot {
   display: inline-block;
   font-size: 18px;
   margin: 0 2px;
@@ -227,31 +227,31 @@ a:hover {
   cursor: pointer;
 }
 
-.bureau-timeline-dot:hover {
+.studio-timeline-dot:hover {
   filter: brightness(1.4);
 }
 
 /* Tile grid */
-.bureau-tile-grid {
+.studio-tile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
   margin-top: 24px;
 }
 
-.bureau-tile {
-  border: 1px solid var(--bureau-border);
+.studio-tile {
+  border: 1px solid var(--studio-border);
   padding: 20px;
   background: #0d0d0d;
   display: block;
 }
 
-.bureau-tile:hover {
-  border-color: var(--bureau-accent);
+.studio-tile:hover {
+  border-color: var(--studio-accent);
   text-decoration: none;
 }
 
-.bureau-tile-name {
+.studio-tile-name {
   font-family: var(--studio-mono);
   font-size: 18px;
   font-weight: 700;
@@ -259,14 +259,14 @@ a:hover {
   color: var(--studio-fg);
 }
 
-.bureau-tile-status {
+.studio-tile-status {
   font-family: var(--studio-mono);
   font-size: 11px;
   color: var(--studio-fg-dim);
   margin-top: 4px;
 }
 
-.bureau-tile-tagline {
+.studio-tile-tagline {
   margin-top: 12px;
   color: var(--studio-fg-dim);
   font-size: 13px;
@@ -274,21 +274,21 @@ a:hover {
 }
 
 /* Leaderboard */
-.bureau-leaderboard {
+.studio-leaderboard {
   width: 100%;
   border-collapse: collapse;
   font-family: var(--studio-mono);
   font-size: 13px;
 }
 
-.bureau-leaderboard th,
-.bureau-leaderboard td {
+.studio-leaderboard th,
+.studio-leaderboard td {
   text-align: left;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--bureau-border);
+  border-bottom: 1px solid var(--studio-border);
 }
 
-.bureau-leaderboard th {
+.studio-leaderboard th {
   color: var(--studio-fg-dim);
   font-weight: 400;
   font-size: 11px;
@@ -296,39 +296,39 @@ a:hover {
   letter-spacing: 0.06em;
 }
 
-.bureau-leaderboard-empty {
+.studio-leaderboard-empty {
   color: var(--studio-fg-dim);
   text-align: center;
   padding: 32px 12px;
 }
 
 /* Embed badge */
-.bureau-embed-badge {
+.studio-embed-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  border: 1px solid var(--bureau-border);
+  border: 1px solid var(--studio-border);
   font-family: var(--studio-mono);
   font-size: 11px;
   background: #0d0d0d;
 }
 
-.bureau-embed-badge-prefix {
-  color: var(--bureau-accent);
+.studio-embed-badge-prefix {
+  color: var(--studio-accent);
   font-weight: 700;
 }
 
-.bureau-embed-badge-divider {
+.studio-embed-badge-divider {
   color: var(--studio-fg-dim);
 }
 
-.bureau-embed-badge-tone {
+.studio-embed-badge-tone {
   font-weight: 700;
 }
 
 /* Quorum badge */
-.bureau-quorum-badge {
+.studio-quorum-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -339,30 +339,30 @@ a:hover {
 }
 
 /* Rekor search */
-.bureau-rekor-search {
+.studio-rekor-search {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin: 16px 0;
 }
 
-.bureau-rekor-search-input {
+.studio-rekor-search-input {
   padding: 8px 12px;
   background: #0d0d0d;
   color: var(--studio-fg);
-  border: 1px solid var(--bureau-border);
+  border: 1px solid var(--studio-border);
   font-family: var(--studio-mono);
   font-size: 13px;
   width: 100%;
   max-width: 600px;
 }
 
-.bureau-rekor-search-input:focus {
+.studio-rekor-search-input:focus {
   outline: none;
-  border-color: var(--bureau-accent);
+  border-color: var(--studio-accent);
 }
 
-.bureau-rekor-search-links {
+.studio-rekor-search-links {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -370,58 +370,58 @@ a:hover {
   font-size: 12px;
 }
 
-.bureau-rekor-search-verify {
+.studio-rekor-search-verify {
   background: #0d0d0d;
-  color: var(--bureau-accent);
-  border: 1px solid var(--bureau-accent);
+  color: var(--studio-accent);
+  border: 1px solid var(--studio-accent);
   padding: 4px 12px;
   font-family: var(--studio-mono);
   font-size: 12px;
   cursor: pointer;
 }
 
-.bureau-rekor-search-verify:hover:not(:disabled) {
-  background: var(--bureau-accent);
+.studio-rekor-search-verify:hover:not(:disabled) {
+  background: var(--studio-accent);
   color: #000;
 }
 
-.bureau-rekor-search-status.ok {
-  color: var(--bureau-tone-green);
+.studio-rekor-search-status.ok {
+  color: var(--studio-tone-green);
   font-family: var(--studio-mono);
 }
 
-.bureau-rekor-search-status.error {
-  color: var(--bureau-tone-red);
+.studio-rekor-search-status.error {
+  color: var(--studio-tone-red);
   font-family: var(--studio-mono);
 }
 
 /* Dossier viewer */
-.bureau-dossier-viewer {
-  border: 1px solid var(--bureau-border);
+.studio-dossier-viewer {
+  border: 1px solid var(--studio-border);
   padding: 24px;
   background: #0d0d0d;
 }
 
-.bureau-dossier-tamper {
-  border-color: var(--bureau-tone-red);
-  color: var(--bureau-tone-red);
+.studio-dossier-tamper {
+  border-color: var(--studio-tone-red);
+  color: var(--studio-tone-red);
 }
 
-.bureau-dossier-header {
+.studio-dossier-header {
   display: flex;
   align-items: baseline;
   gap: 16px;
-  border-bottom: 1px solid var(--bureau-border);
+  border-bottom: 1px solid var(--studio-border);
   padding-bottom: 12px;
 }
 
-.bureau-dossier-title {
+.studio-dossier-title {
   font-family: var(--studio-mono);
   font-size: 18px;
   margin: 0;
 }
 
-.bureau-dossier-program {
+.studio-dossier-program {
   font-family: var(--studio-mono);
   font-size: 11px;
   color: var(--studio-fg-dim);
@@ -429,22 +429,22 @@ a:hover {
   letter-spacing: 0.06em;
 }
 
-.bureau-dossier-stats {
+.studio-dossier-stats {
   margin-left: auto;
   font-family: var(--studio-mono);
   font-size: 12px;
   color: var(--studio-fg-dim);
 }
 
-.bureau-dossier-timeline {
+.studio-dossier-timeline {
   display: flex;
   flex-wrap: wrap;
   padding: 16px 0;
   gap: 2px;
 }
 
-.bureau-dossier-footer {
-  border-top: 1px solid var(--bureau-border);
+.studio-dossier-footer {
+  border-top: 1px solid var(--studio-border);
   padding-top: 12px;
   font-family: var(--studio-mono);
   font-size: 11px;
@@ -481,29 +481,29 @@ a:hover {
  *  720px gates and are not touched here.)
  * ------------------------------------------------------------------------- */
 @media (max-width: 768px) {
-  .bureau-header {
+  .studio-header {
     grid-template-columns: 1fr;
     gap: 12px;
     padding: 12px 16px;
   }
 
-  .bureau-nav {
+  .studio-nav {
     gap: 8px 12px;
     row-gap: 8px;
   }
 
-  .bureau-nav-programs-list {
+  .studio-nav-programs-list {
     position: static;
     margin-top: 8px;
     background: transparent;
-    border: 1px dashed var(--bureau-border);
+    border: 1px dashed var(--studio-border);
   }
 
-  .bureau-auth-slot {
+  .studio-auth-slot {
     justify-self: start;
   }
 
-  .bureau-main {
+  .studio-main {
     padding: 24px 16px;
   }
 
@@ -515,16 +515,16 @@ a:hover {
     font-size: 15px;
   }
 
-  .bureau-footer {
+  .studio-footer {
     padding: 24px 16px;
   }
 
-  .bureau-footer-grid {
+  .studio-footer-grid {
     grid-template-columns: 1fr;
     gap: 20px;
   }
 
-  .bureau-tile-grid {
+  .studio-tile-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -26,7 +26,7 @@ export async function POST(
       error: "ingest endpoint not yet wired",
       program,
       phase: "phase-0",
-      note: "Phase 1 (DRAGNET) wires this endpoint with auth, persistence, and quorum-vote acceptance. Until then, operators run bureau programs locally.",
+      note: "Phase 1 (DRAGNET) wires this endpoint with auth, persistence, and quorum-vote acceptance. Until then, operators run Pluck programs locally.",
     },
     { status: 501 },
   );

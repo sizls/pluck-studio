@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:custody", payload: { ...this body... } }. !!
+//    { pipeline: "program:custody", payload: { ...this body... } }. !!
 //
 // Wave-2 migration: this route stays alive as a deprecated alias so callers
 // that haven't migrated keep working, but it now validates via the shared
@@ -128,7 +128,7 @@ export async function POST(req: Request): Promise<Response> {
   // empty so canonicalJson skips the field and legacy + /v1/runs hash
   // identically.
   const { record } = createRun({
-    pipeline: "bureau:custody",
+    pipeline: "program:custody",
     payload: {
       bundleUrl,
       // expectedVendor is canonical; promote to vendorDomain so the
@@ -149,7 +149,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "verification pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:custody",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:custody",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

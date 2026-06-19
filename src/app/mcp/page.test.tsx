@@ -72,7 +72,7 @@ describe("/mcp page", () => {
     // Working alternative — direct HTTP loop against /api/v1/runs.
     expect(tree).toContain("mcp-curl-loop");
     expect(tree).toContain("/api/v1/runs");
-    expect(tree).toContain("bureau:dragnet");
+    expect(tree).toContain("program:dragnet");
   });
 
   it("sources the version from package.json (no hardcoded literal)", async () => {

@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:fingerprint", payload: { ...this body... } }. !!
+//    { pipeline: "program:fingerprint", payload: { ...this body... } }. !!
 //
 // Wave-2 migration: this route stays alive as a deprecated alias so callers
 // that haven't migrated keep working, but it now validates via the shared
@@ -137,7 +137,7 @@ export async function POST(req: Request): Promise<Response> {
   // identically and legacy + /v1/runs callers converge on the SAME
   // phraseId.
   const { record } = createRun({
-    pipeline: "bureau:fingerprint",
+    pipeline: "program:fingerprint",
     payload: {
       vendor,
       model,
@@ -155,7 +155,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "scan pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:fingerprint",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:fingerprint",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

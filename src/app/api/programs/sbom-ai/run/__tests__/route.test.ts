@@ -165,7 +165,7 @@ describe("POST /api/programs/sbom-ai/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:sbom-ai",
+        pipeline: "program:sbom-ai",
         payload: {
           artifactUrl: "https://example.com/pack.json",
           artifactKind: "probe-pack",

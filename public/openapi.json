@@ -62,7 +62,7 @@
                 "dragnet": {
                   "summary": "Pluck DRAGNET — endpoint honesty probe",
                   "value": {
-                    "pipeline": "bureau:dragnet",
+                    "pipeline": "program:dragnet",
                     "payload": {
                       "targetUrl": "https://api.openai.com/v1/chat/completions",
                       "probePackId": "canon-honesty",
@@ -186,7 +186,7 @@
                   "runs": [
                     {
                       "runId": "openai-swift-falcon-3742",
-                      "pipeline": "bureau:dragnet",
+                      "pipeline": "program:dragnet",
                       "status": "pending",
                       "verdict": null,
                       "verdictColor": "gray",
@@ -251,7 +251,7 @@
                 },
                 "example": {
                   "runId": "openai-swift-falcon-3742",
-                  "pipeline": "bureau:dragnet",
+                  "pipeline": "program:dragnet",
                   "status": "pending",
                   "verdict": null,
                   "verdictColor": "gray",
@@ -320,7 +320,7 @@
                 },
                 "example": {
                   "runId": "openai-swift-falcon-3742",
-                  "pipeline": "bureau:dragnet",
+                  "pipeline": "program:dragnet",
                   "status": "cancelled",
                   "verdict": null,
                   "verdictColor": "gray",
@@ -412,7 +412,7 @@
                 "schema": {
                   "type": "string"
                 },
-                "example": "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"bureau:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/programs/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n"
+                "example": "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"program:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/programs/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n"
               }
             }
           },
@@ -967,34 +967,34 @@
       "StudioPipeline": {
         "type": "string",
         "enum": [
-          "bureau:dragnet",
-          "bureau:oath",
-          "bureau:fingerprint",
-          "bureau:custody",
-          "bureau:whistle",
-          "bureau:bounty",
-          "bureau:sbom-ai",
-          "bureau:rotate",
-          "bureau:tripwire",
-          "bureau:nuclei",
-          "bureau:mole"
+          "program:dragnet",
+          "program:oath",
+          "program:fingerprint",
+          "program:custody",
+          "program:whistle",
+          "program:bounty",
+          "program:sbom-ai",
+          "program:rotate",
+          "program:tripwire",
+          "program:nuclei",
+          "program:mole"
         ],
         "description": "One of the 11 program slugs. Each maps 1:1 to the legacy `/api/programs/<slug>/run` route."
       },
       "RunSpecPipeline": {
         "type": "string",
         "enum": [
-          "bureau:dragnet",
-          "bureau:oath",
-          "bureau:fingerprint",
-          "bureau:custody",
-          "bureau:whistle",
-          "bureau:bounty",
-          "bureau:sbom-ai",
-          "bureau:rotate",
-          "bureau:tripwire",
-          "bureau:nuclei",
-          "bureau:mole",
+          "program:dragnet",
+          "program:oath",
+          "program:fingerprint",
+          "program:custody",
+          "program:whistle",
+          "program:bounty",
+          "program:sbom-ai",
+          "program:rotate",
+          "program:tripwire",
+          "program:nuclei",
+          "program:mole",
           "extract",
           "sense",
           "act",

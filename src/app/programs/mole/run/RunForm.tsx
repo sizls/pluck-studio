@@ -152,7 +152,7 @@ export function MoleRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:mole",
+          pipeline: "program:mole",
           payload: {
             canaryId: normalizedCanaryId,
             canaryUrl: url,

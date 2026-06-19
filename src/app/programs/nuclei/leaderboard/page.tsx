@@ -65,7 +65,7 @@ export default function NucleiLeaderboardPage(): ReactNode {
           underlying probe-pack landed in the SBOM-AI registry with{" "}
           <code>trustTier: &quot;verified&quot;</code> (signer was on a
           trust roster) AND the dossier dot itself was witnessed by a
-          quorum at or above the bureau-default threshold. Ingested-only
+          quorum at or above the studio-default threshold. Ingested-only
           dots do not count toward leaderboard standing.
         </p>
       </section>
@@ -73,7 +73,7 @@ export default function NucleiLeaderboardPage(): ReactNode {
       <section>
         <h2 style={SectionHeadingStyle}>Hydration</h2>
         <p>
-          Phase 3 alpha — pull a snapshot from the bureau{" "}
+          Phase 3 alpha — pull a snapshot from the Pluck{" "}
           <code>pluck nuclei leaderboard --input counts.json</code>.
           Phase 3+ wires Kite Event Log so this page hydrates from the
           public ledger.

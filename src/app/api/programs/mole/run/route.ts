@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:mole", payload: { ...this body... } }. !!
+//    { pipeline: "program:mole", payload: { ...this body... } }. !!
 //
 // Wave-2 migration: this route stays alive as a deprecated alias so callers
 // that haven't migrated keep working, but it now validates via the shared
@@ -133,7 +133,7 @@ export async function POST(req: Request): Promise<Response> {
   // the store payload. canaryBody/canaryContent are rejected upstream
   // by the validator.
   const { record } = createRun({
-    pipeline: "bureau:mole",
+    pipeline: "program:mole",
     payload: {
       canaryId,
       canaryUrl,
@@ -161,7 +161,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "seal pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:mole",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:mole",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

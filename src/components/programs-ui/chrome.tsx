@@ -74,7 +74,7 @@ const CROSS_CUTTING_LINKS: ReadonlyArray<{
 ];
 
 function navClass(isActive: boolean): string {
-  return isActive ? "bureau-nav-link active" : "bureau-nav-link";
+  return isActive ? "studio-nav-link active" : "studio-nav-link";
 }
 
 export function StudioChrome({
@@ -85,14 +85,14 @@ export function StudioChrome({
   const programIsActive = NAV_PROGRAMS.some((p) => p.id === active);
 
   return (
-    <div className="bureau-chrome">
-      <header className="bureau-header">
-        <a className="bureau-wordmark" href="/programs">
-          <span className="bureau-wordmark-pluck">Pluck</span>{" "}
-          <span className="bureau-wordmark-studio">Studio</span>{" "}
-          <span className="bureau-wordmark-sub">/ Pluck</span>
+    <div className="studio-chrome">
+      <header className="studio-header">
+        <a className="studio-wordmark" href="/programs">
+          <span className="studio-wordmark-pluck">Pluck</span>{" "}
+          <span className="studio-wordmark-studio">Studio</span>{" "}
+          <span className="studio-wordmark-sub">/ Pluck</span>
         </a>
-        <nav className="bureau-nav" aria-label="Primary">
+        <nav className="studio-nav" aria-label="Primary">
           <a
             href="/programs/leaderboard"
             className={navClass(active === "leaderboard")}
@@ -111,14 +111,14 @@ export function StudioChrome({
           <details
             className={
               programIsActive
-                ? "bureau-nav-programs active"
-                : "bureau-nav-programs"
+                ? "studio-nav-programs active"
+                : "studio-nav-programs"
             }
           >
-            <summary className="bureau-nav-programs-summary">
+            <summary className="studio-nav-programs-summary">
               Programs ▾
             </summary>
-            <div className="bureau-nav-programs-list">
+            <div className="studio-nav-programs-list">
               {NAV_PROGRAMS.map((p) => (
                 <a
                   key={p.id}
@@ -131,14 +131,14 @@ export function StudioChrome({
             </div>
           </details>
         </nav>
-        <div className="bureau-auth-slot">{authSlot}</div>
+        <div className="studio-auth-slot">{authSlot}</div>
       </header>
-      <main className="bureau-main">{children}</main>
-      <footer className="bureau-footer">
-        <div className="bureau-footer-grid">
-          <div className="bureau-footer-col">
-            <h3 className="bureau-footer-heading">Pluck</h3>
-            <ul className="bureau-footer-list">
+      <main className="studio-main">{children}</main>
+      <footer className="studio-footer">
+        <div className="studio-footer-grid">
+          <div className="studio-footer-col">
+            <h3 className="studio-footer-heading">Pluck</h3>
+            <ul className="studio-footer-list">
               <li>
                 <a href="/programs">Programs</a>
               </li>
@@ -147,9 +147,9 @@ export function StudioChrome({
               </li>
             </ul>
           </div>
-          <div className="bureau-footer-col">
-            <h3 className="bureau-footer-heading">Studio</h3>
-            <ul className="bureau-footer-list">
+          <div className="studio-footer-col">
+            <h3 className="studio-footer-heading">Studio</h3>
+            <ul className="studio-footer-list">
               <li>
                 <a href="/runs">Runs</a>
               </li>
@@ -164,9 +164,9 @@ export function StudioChrome({
               </li>
             </ul>
           </div>
-          <div className="bureau-footer-col">
-            <h3 className="bureau-footer-heading">About</h3>
-            <ul className="bureau-footer-list">
+          <div className="studio-footer-col">
+            <h3 className="studio-footer-heading">About</h3>
+            <ul className="studio-footer-list">
               <li>
                 <a href="/privacy">Privacy</a>
               </li>
@@ -178,9 +178,9 @@ export function StudioChrome({
               </li>
             </ul>
           </div>
-          <div className="bureau-footer-col">
-            <h3 className="bureau-footer-heading">External</h3>
-            <ul className="bureau-footer-list">
+          <div className="studio-footer-col">
+            <h3 className="studio-footer-heading">External</h3>
+            <ul className="studio-footer-list">
               <li>
                 <a href="https://rekor.sigstore.dev" rel="noopener noreferrer">
                   Sigstore Rekor
@@ -197,7 +197,7 @@ export function StudioChrome({
             </ul>
           </div>
         </div>
-        <p className="bureau-footer-attribution">
+        <p className="studio-footer-attribution">
           Pluck anchors every observation to{" "}
           <a href="https://rekor.sigstore.dev" rel="noopener noreferrer">
             Sigstore Rekor

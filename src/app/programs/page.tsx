@@ -37,14 +37,14 @@ export default function ProgramsIndexPage(): ReactNode {
         >
           Programs
         </h2>
-        <div className="bureau-tile-grid">
+        <div className="studio-tile-grid">
           {PROGRAM_TILES.map((tile) => (
             <ProgramTileLink key={tile.id} tile={tile} />
           ))}
         </div>
       </section>
 
-      <section data-testid="bureau-studio-surfaces">
+      <section data-testid="studio-studio-surfaces">
         <h2
           style={{
             fontFamily: "var(--studio-mono)",
@@ -104,10 +104,10 @@ export default function ProgramsIndexPage(): ReactNode {
 
 function ProgramTileLink({ tile }: { tile: ProgramTile }): ReactNode {
   return (
-    <a href={`/programs/${tile.id}`} className="bureau-tile">
-      <div className="bureau-tile-name">{tile.name}</div>
-      <div className="bureau-tile-status">{tile.status}</div>
-      <p className="bureau-tile-tagline">{tile.tagline}</p>
+    <a href={`/programs/${tile.id}`} className="studio-tile">
+      <div className="studio-tile-name">{tile.name}</div>
+      <div className="studio-tile-status">{tile.status}</div>
+      <p className="studio-tile-tagline">{tile.tagline}</p>
     </a>
   );
 }

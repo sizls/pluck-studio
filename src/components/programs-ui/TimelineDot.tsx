@@ -39,13 +39,13 @@ export function TimelineDotMark({ dot, href }: TimelineDotMarkProps): ReactNode 
   return (
     <a
       href={url}
-      className={`bureau-timeline-dot bureau-tone-${dot.tone}`}
+      className={`studio-timeline-dot studio-tone-${dot.tone}`}
       title={tooltip}
       aria-label={`${dot.tone} dot: ${dot.reason}`}
       data-dot-id={dot.dotId}
       data-rekor-uuid={dot.rekorUuid}
     >
-      <span className="bureau-timeline-dot-mark" aria-hidden="true">
+      <span className="studio-timeline-dot-mark" aria-hidden="true">
         {dot.tone === "green" ? "●" : dot.tone === "red" ? "●" : "◆"}
       </span>
     </a>

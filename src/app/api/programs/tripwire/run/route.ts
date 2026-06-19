@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:tripwire", payload: { ...this body... } }. !!
+//    { pipeline: "program:tripwire", payload: { ...this body... } }. !!
 //
 // Wave-3 migration: this route stays alive as a deprecated alias so callers
 // that haven't migrated keep working, but it now validates via the shared
@@ -130,7 +130,7 @@ export async function POST(req: Request): Promise<Response> {
   // policy) so canonicalJson skips it and legacy + /v1/runs hash
   // identically.
   const { record } = createRun({
-    pipeline: "bureau:tripwire",
+    pipeline: "program:tripwire",
     payload: {
       machineId,
       policySource,
@@ -154,7 +154,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "configuration pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:tripwire",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:tripwire",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

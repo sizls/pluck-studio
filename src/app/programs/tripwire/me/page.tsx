@@ -5,7 +5,7 @@
 // Phase 2 alpha. Reads no real data – the dossier lives on the
 // operator's local disk and never auto-publishes. Phase 1+ wires the
 // Kite Event Log so an operator who explicitly opts in can stream
-// dossier dots to the bureau backend; for now this page is the
+// dossier dots to the Pluck backend; for now this page is the
 // landing surface that explains the local-only contract + the path
 // to read the local dossier.
 // ---------------------------------------------------------------------------

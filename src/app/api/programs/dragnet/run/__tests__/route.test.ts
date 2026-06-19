@@ -493,7 +493,7 @@ describe("POST /api/programs/dragnet/run — idempotency dedupe (C1 fix)", () =>
     // Mirror the RunForm's idempotency-key shape: minute-bucketed.
     const minuteBucket = Math.floor(Date.now() / 60_000);
     const v1Body = {
-      pipeline: "bureau:dragnet",
+      pipeline: "program:dragnet",
       payload: validBody(),
       idempotencyKey: `dragnet:canon-honesty:https://api.openai.com/v1/chat/completions:once:${minuteBucket}`,
     };

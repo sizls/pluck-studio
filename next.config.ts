@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       ".js": [".ts", ".tsx", ".js"],
     };
 
-    // The `@sizls/pluck-bureau-*` packages depend on `@sizls/pluck` core,
+    // The `@sizls/pluck-studio-*` packages depend on `@sizls/pluck` core,
     // which has dynamic imports for optional peer deps (sharp, playwright,
     // database drivers, etc.). Studio doesn't use any of these at runtime —
     // they get walked by webpack's module graph during build. Alias them to
@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
     // these deps at runtime. If a future Studio feature needs any of
     // these (e.g. sharp for an image pipeline, ioredis for a cache layer),
     // remove the corresponding alias — and that feature must be implemented
-    // in a way Studio actually uses, not pulled transitively from bureau-*.
+    // in a way Studio actually uses, not pulled transitively from studio-*.
     config.resolve.alias = {
       ...(config.resolve.alias as Record<string, false | string> | undefined),
       // Browser automation

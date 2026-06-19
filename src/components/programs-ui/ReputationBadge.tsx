@@ -96,7 +96,7 @@ export function ReputationBadge({
       rel="noopener noreferrer"
       aria-label={label}
       title={label}
-      className="bureau-reputation-badge-link"
+      className="studio-reputation-badge-link"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

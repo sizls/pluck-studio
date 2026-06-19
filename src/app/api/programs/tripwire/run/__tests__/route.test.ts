@@ -191,7 +191,7 @@ describe("POST /api/programs/tripwire/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:tripwire",
+        pipeline: "program:tripwire",
         payload: {
           machineId: "alice-mbp",
           policySource: "default",

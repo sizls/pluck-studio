@@ -314,7 +314,7 @@ describe("POST /api/programs/fingerprint/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:fingerprint",
+        pipeline: "program:fingerprint",
         payload: {
           vendor: "openai",
           model: "gpt-4o",

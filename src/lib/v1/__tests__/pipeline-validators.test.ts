@@ -169,7 +169,7 @@ describe("PIPELINE_VALIDATORS registry", () => {
   });
 
   it("DRAGNET entry IS the exported validateDragnetPayload (single source of truth)", () => {
-    expect(PIPELINE_VALIDATORS["bureau:dragnet"]).toBe(validateDragnetPayload);
+    expect(PIPELINE_VALIDATORS["program:dragnet"]).toBe(validateDragnetPayload);
   });
 
   it("all 11 validators reject arrays + primitives", () => {
@@ -184,33 +184,33 @@ describe("PIPELINE_VALIDATORS registry", () => {
   });
 
   it("Wave-3 validators are the exported real functions (single source of truth)", () => {
-    expect(PIPELINE_VALIDATORS["bureau:bounty"]).toBe(validateBountyPayload);
-    expect(PIPELINE_VALIDATORS["bureau:sbom-ai"]).toBe(validateSbomAiPayload);
-    expect(PIPELINE_VALIDATORS["bureau:rotate"]).toBe(validateRotatePayload);
-    expect(PIPELINE_VALIDATORS["bureau:tripwire"]).toBe(
+    expect(PIPELINE_VALIDATORS["program:bounty"]).toBe(validateBountyPayload);
+    expect(PIPELINE_VALIDATORS["program:sbom-ai"]).toBe(validateSbomAiPayload);
+    expect(PIPELINE_VALIDATORS["program:rotate"]).toBe(validateRotatePayload);
+    expect(PIPELINE_VALIDATORS["program:tripwire"]).toBe(
       validateTripwirePayload,
     );
-    expect(PIPELINE_VALIDATORS["bureau:whistle"]).toBe(validateWhistlePayload);
+    expect(PIPELINE_VALIDATORS["program:whistle"]).toBe(validateWhistlePayload);
   });
 
   it("NUCLEI entry IS the exported validateNucleiPayload (single source of truth)", () => {
-    expect(PIPELINE_VALIDATORS["bureau:nuclei"]).toBe(validateNucleiPayload);
+    expect(PIPELINE_VALIDATORS["program:nuclei"]).toBe(validateNucleiPayload);
   });
 
   it("OATH entry IS the exported validateOathPayload (single source of truth)", () => {
-    expect(PIPELINE_VALIDATORS["bureau:oath"]).toBe(validateOathPayload);
+    expect(PIPELINE_VALIDATORS["program:oath"]).toBe(validateOathPayload);
   });
 
   it("FINGERPRINT entry IS the exported validateFingerprintPayload (single source of truth)", () => {
-    expect(PIPELINE_VALIDATORS["bureau:fingerprint"]).toBe(validateFingerprintPayload);
+    expect(PIPELINE_VALIDATORS["program:fingerprint"]).toBe(validateFingerprintPayload);
   });
 
   it("CUSTODY entry IS the exported validateCustodyPayload (single source of truth)", () => {
-    expect(PIPELINE_VALIDATORS["bureau:custody"]).toBe(validateCustodyPayload);
+    expect(PIPELINE_VALIDATORS["program:custody"]).toBe(validateCustodyPayload);
   });
 
   it("MOLE entry IS the exported validateMolePayload (single source of truth)", () => {
-    expect(PIPELINE_VALIDATORS["bureau:mole"]).toBe(validateMolePayload);
+    expect(PIPELINE_VALIDATORS["program:mole"]).toBe(validateMolePayload);
   });
 });
 

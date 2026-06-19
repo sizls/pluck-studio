@@ -127,7 +127,7 @@ curl -s -X POST ${STUDIO_BASE_URL}/api/v1/runs \\
   -H 'content-type: application/json' \\
   -H "authorization: Bearer $PLUCK_STUDIO_TOKEN" \\
   -d '{
-    "pipeline": "bureau:dragnet",
+    "pipeline": "program:dragnet",
     "payload": { /* per-pipeline shape — see /openapi.json */ }
   }' | jq .
 

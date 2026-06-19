@@ -101,8 +101,8 @@ function resolveSide(phraseId: string): ReceiptDiffSide | null {
   const stored = getRun(phraseId);
 
   if (stored !== null) {
-    const programSlug = stored.pipeline.startsWith("bureau:")
-      ? stored.pipeline.slice("bureau:".length)
+    const programSlug = stored.pipeline.startsWith("program:")
+      ? stored.pipeline.slice("program:".length)
       : stored.pipeline;
     const meta = lookupProgram(programSlug);
 

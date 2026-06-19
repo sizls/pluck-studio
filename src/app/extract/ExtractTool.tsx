@@ -25,22 +25,22 @@ const fg = "var(--studio-fg)";
 const bg = "var(--studio-bg)";
 
 const dropZone: CSSProperties = { border: `1px dashed ${dim}`, borderRadius: 6, padding: 32, marginTop: 16, fontFamily: mono, fontSize: 13, color: dim, textAlign: "center", background: "rgba(255,255,255,0.02)", cursor: "pointer" };
-const dropZoneActive: CSSProperties = { ...dropZone, borderStyle: "solid", borderColor: "var(--bureau-accent)", color: fg };
-const preview: CSSProperties = { marginTop: 16, border: "1px solid var(--bureau-border)", borderRadius: 6, padding: 12, background: "rgba(255,255,255,0.02)", display: "flex", flexDirection: "column", gap: 12 };
+const dropZoneActive: CSSProperties = { ...dropZone, borderStyle: "solid", borderColor: "var(--studio-accent)", color: fg };
+const preview: CSSProperties = { marginTop: 16, border: "1px solid var(--studio-border)", borderRadius: 6, padding: 12, background: "rgba(255,255,255,0.02)", display: "flex", flexDirection: "column", gap: 12 };
 const previewImg: CSSProperties = { maxWidth: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 4, background: bg, alignSelf: "center" };
 const btn: CSSProperties = { padding: "10px 18px", fontFamily: mono, fontSize: 13, background: fg, color: bg, border: "none", borderRadius: 4, cursor: "pointer" };
 const btnSec: CSSProperties = { ...btn, background: "transparent", color: fg, border: `1px solid ${dim}` };
 const hintInput: CSSProperties = { width: "100%", marginTop: 8, padding: "8px 12px", fontFamily: mono, fontSize: 13, background: bg, color: fg, border: `1px solid ${dim}`, borderRadius: 4 };
 const hintLabel: CSSProperties = { display: "block", marginTop: 16, fontFamily: mono, fontSize: 12, color: dim, textTransform: "uppercase", letterSpacing: "0.06em" };
-const card: CSSProperties = { border: "1px solid var(--bureau-border)", borderRadius: 6, padding: 16, background: "rgba(255,255,255,0.02)" };
+const card: CSSProperties = { border: "1px solid var(--studio-border)", borderRadius: 6, padding: 16, background: "rgba(255,255,255,0.02)" };
 const badge: CSSProperties = { display: "inline-block", padding: "2px 8px", fontFamily: mono, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", borderRadius: 3, marginRight: 8 };
 const cta: CSSProperties = { display: "inline-block", marginTop: 12, padding: "6px 12px", fontFamily: mono, fontSize: 12, background: fg, color: bg, textDecoration: "none", borderRadius: 4 };
-const errStyle: CSSProperties = { marginTop: 12, padding: "10px 14px", fontFamily: mono, fontSize: 13, color: "var(--bureau-tone-red)", border: "1px solid var(--bureau-tone-red)", borderRadius: 4 };
+const errStyle: CSSProperties = { marginTop: 12, padding: "10px 14px", fontFamily: mono, fontSize: 13, color: "var(--studio-tone-red)", border: "1px solid var(--studio-tone-red)", borderRadius: 4 };
 const dimSm: CSSProperties = { marginTop: 8, fontSize: 12, color: dim, lineHeight: 1.5 };
 const sectionLabel: CSSProperties = { fontFamily: mono, fontSize: 12, color: dim, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 8 };
 
 function badgeStyle(c: AssertionConfidence): CSSProperties {
-  const colors: Record<AssertionConfidence, string> = { high: "var(--bureau-tone-green)", medium: "var(--bureau-tone-yellow)", low: dim };
+  const colors: Record<AssertionConfidence, string> = { high: "var(--studio-tone-green)", medium: "var(--studio-tone-yellow)", low: dim };
   return { ...badge, background: colors[c], color: bg };
 }
 

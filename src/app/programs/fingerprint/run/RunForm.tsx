@@ -161,7 +161,7 @@ export function FingerprintRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:fingerprint",
+          pipeline: "program:fingerprint",
           payload: {
             vendor: normalizedVendor,
             model: normalizedModel,

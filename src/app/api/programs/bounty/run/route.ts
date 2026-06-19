@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:bounty", payload: { ...this body... } }. !!
+//    { pipeline: "program:bounty", payload: { ...this body... } }. !!
 //
 // Wave-3 migration: this route stays alive as a deprecated alias so callers
 // that haven't migrated keep working, but it now validates via the shared
@@ -128,7 +128,7 @@ export async function POST(req: Request): Promise<Response> {
   // assigns the canonical target-scoped phraseId — that becomes the
   // user-facing runId.
   const { record } = createRun({
-    pipeline: "bureau:bounty",
+    pipeline: "program:bounty",
     payload: {
       sourceRekorUuid,
       target,
@@ -152,7 +152,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "filing pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:bounty",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:bounty",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

@@ -53,7 +53,7 @@ const EXAMPLE_TS = "2026-05-04T17:00:00.000Z";
 
 const exampleRunRecord = {
   runId: EXAMPLE_RUN_ID,
-  pipeline: "bureau:dragnet",
+  pipeline: "program:dragnet",
   status: "pending",
   verdict: null,
   verdictColor: "gray",
@@ -503,7 +503,7 @@ const paths = {
               dragnet: {
                 summary: "Pluck DRAGNET — endpoint honesty probe",
                 value: {
-                  pipeline: "bureau:dragnet",
+                  pipeline: "program:dragnet",
                   payload: {
                     targetUrl: "https://api.openai.com/v1/chat/completions",
                     probePackId: "canon-honesty",
@@ -629,7 +629,7 @@ const paths = {
             "text/event-stream": {
               schema: { type: "string" },
               example:
-                "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"bureau:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/programs/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n",
+                "id: 1\nevent: state\ndata: {\"runId\":\"openai-swift-falcon-3742\",\"pipeline\":\"program:dragnet\",\"status\":\"pending\",\"verdict\":null,\"verdictColor\":\"gray\",\"payload\":{\"targetUrl\":\"https://api.openai.com/v1/chat/completions\",\"probePackId\":\"canon-honesty\",\"cadence\":\"once\",\"authorizationAcknowledged\":true},\"response\":null,\"createdAt\":\"2026-05-04T17:00:00.000Z\",\"updatedAt\":\"2026-05-04T17:00:00.000Z\",\"receiptUrl\":\"/programs/dragnet/runs/openai-swift-falcon-3742\"}\n\nid: 2\nevent: heartbeat\ndata: {\"ts\":1746381630000}\n\n",
             },
           },
         },

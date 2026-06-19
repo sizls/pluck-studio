@@ -30,7 +30,7 @@ describe("redact — WHISTLE", () => {
       anonymityCaveatAcknowledged: true,
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:whistle", payload);
+    const safe = redactPayloadForGet("program:whistle", payload);
     expect("bundleUrl" in safe).toBe(false);
   });
 
@@ -43,7 +43,7 @@ describe("redact — WHISTLE", () => {
       anonymityCaveatAcknowledged: true,
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:whistle", payload);
+    const safe = redactPayloadForGet("program:whistle", payload);
     expect("manualRedactPhrase" in safe).toBe(false);
   });
 
@@ -56,7 +56,7 @@ describe("redact — WHISTLE", () => {
       anonymityCaveatAcknowledged: true,
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:whistle", payload);
+    const safe = redactPayloadForGet("program:whistle", payload);
     expect(safe.category).toBe("training-data");
     expect(safe.routingPartner).toBe("propublica");
     expect(safe.anonymityCaveatAcknowledged).toBe(true);
@@ -72,7 +72,7 @@ describe("redact — WHISTLE", () => {
       authorizationAcknowledged: true,
     };
     const before = { ...payload };
-    redactPayloadForGet("bureau:whistle", payload);
+    redactPayloadForGet("program:whistle", payload);
     expect(payload).toEqual(before);
   });
 });
@@ -86,7 +86,7 @@ describe("redact — ROTATE", () => {
       operatorNote: "incident #42, attacker IOC: <internal>",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:rotate", payload);
+    const safe = redactPayloadForGet("program:rotate", payload);
     expect("operatorNote" in safe).toBe(false);
   });
 
@@ -98,7 +98,7 @@ describe("redact — ROTATE", () => {
       operatorNote: "anything",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:rotate", payload);
+    const safe = redactPayloadForGet("program:rotate", payload);
     expect(safe.oldKeyFingerprint).toBe("a".repeat(64));
     expect(safe.newKeyFingerprint).toBe("b".repeat(64));
     expect(safe.reason).toBe("compromised");
@@ -114,7 +114,7 @@ describe("redact — ROTATE", () => {
       authorizationAcknowledged: true,
     };
     const before = { ...payload };
-    redactPayloadForGet("bureau:rotate", payload);
+    redactPayloadForGet("program:rotate", payload);
     expect(payload).toEqual(before);
   });
 });
@@ -127,7 +127,7 @@ describe("redact — pass-through programs", () => {
       cadence: "once",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:dragnet", payload);
+    const safe = redactPayloadForGet("program:dragnet", payload);
     expect(safe).toEqual(payload);
   });
 
@@ -136,7 +136,7 @@ describe("redact — pass-through programs", () => {
       vendorDomain: "openai.com",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:oath", payload);
+    const safe = redactPayloadForGet("program:oath", payload);
     expect(safe).toEqual(payload);
   });
 
@@ -146,7 +146,7 @@ describe("redact — pass-through programs", () => {
       model: "gpt-4o",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:fingerprint", payload);
+    const safe = redactPayloadForGet("program:fingerprint", payload);
     expect(safe).toEqual(payload);
   });
 
@@ -156,7 +156,7 @@ describe("redact — pass-through programs", () => {
       expectedVendor: "openai.com",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:custody", payload);
+    const safe = redactPayloadForGet("program:custody", payload);
     expect(safe).toEqual(payload);
   });
 
@@ -169,7 +169,7 @@ describe("redact — pass-through programs", () => {
       model: "gpt-4o",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:bounty", payload);
+    const safe = redactPayloadForGet("program:bounty", payload);
     expect(safe).toEqual(payload);
   });
 
@@ -179,7 +179,7 @@ describe("redact — pass-through programs", () => {
       artifactKind: "probe-pack",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:sbom-ai", payload);
+    const safe = redactPayloadForGet("program:sbom-ai", payload);
     expect(safe).toEqual(payload);
   });
 
@@ -190,7 +190,7 @@ describe("redact — pass-through programs", () => {
       notarize: false,
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:tripwire", payload);
+    const safe = redactPayloadForGet("program:tripwire", payload);
     expect(safe).toEqual(payload);
   });
 
@@ -204,7 +204,7 @@ describe("redact — pass-through programs", () => {
       recommendedInterval: "0 */4 * * *",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:nuclei", payload);
+    const safe = redactPayloadForGet("program:nuclei", payload);
     expect(safe).toEqual(payload);
   });
 
@@ -215,7 +215,7 @@ describe("redact — pass-through programs", () => {
       fingerprintPhrases: "first phrase, second phrase",
       authorizationAcknowledged: true,
     };
-    const safe = redactPayloadForGet("bureau:mole", payload);
+    const safe = redactPayloadForGet("program:mole", payload);
     expect(safe).toEqual(payload);
   });
 });

@@ -174,7 +174,7 @@ export function RotateRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:rotate",
+          pipeline: "program:rotate",
           payload: {
             oldKeyFingerprint: oldKey,
             newKeyFingerprint: newKey,

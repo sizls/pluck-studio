@@ -168,7 +168,7 @@ export function SbomAiRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:sbom-ai",
+          pipeline: "program:sbom-ai",
           payload: {
             artifactUrl: normalizedArtifactUrl,
             artifactKind: normalizedKind,

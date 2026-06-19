@@ -14,7 +14,7 @@ export interface EmbedBadgeProps {
   vendor: string;
   model: string;
   tone: "green" | "red" | "black" | "unknown";
-  /** SSR root for the public bureau (defaults to studio.pluck.run). */
+  /** SSR root for the public Pluck (defaults to studio.pluck.run). */
   origin?: string;
   /** Optional last-checked timestamp (ISO 8601). */
   lastChecked?: string;
@@ -47,18 +47,18 @@ export function EmbedBadge({
       rel="noopener noreferrer"
       className={
         className
-          ? `bureau-embed-badge bureau-tone-${tone} ${className}`
-          : `bureau-embed-badge bureau-tone-${tone}`
+          ? `studio-embed-badge studio-tone-${tone} ${className}`
+          : `studio-embed-badge studio-tone-${tone}`
       }
       aria-label={label}
       title={lastChecked ? `${label} • last checked ${lastChecked}` : label}
     >
-      <span className="bureau-embed-badge-prefix">Pluck</span>
-      <span className="bureau-embed-badge-divider">|</span>
-      <span className="bureau-embed-badge-target">
+      <span className="studio-embed-badge-prefix">Pluck</span>
+      <span className="studio-embed-badge-divider">|</span>
+      <span className="studio-embed-badge-target">
         {vendor}/{model}
       </span>
-      <span className="bureau-embed-badge-tone">{COPY[tone]}</span>
+      <span className="studio-embed-badge-tone">{COPY[tone]}</span>
     </a>
   );
 }

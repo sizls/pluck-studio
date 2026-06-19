@@ -193,7 +193,7 @@ describe("POST /api/programs/mole/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:mole",
+        pipeline: "program:mole",
         payload: {
           canaryId: "nyt-2024-01-15",
           canaryUrl: "https://example.com/canary.txt",

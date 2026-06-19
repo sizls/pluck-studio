@@ -177,7 +177,7 @@ export function BountyRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:bounty",
+          pipeline: "program:bounty",
           payload: {
             sourceRekorUuid: normalizedSource,
             target: normalizedTarget,

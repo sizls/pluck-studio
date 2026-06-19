@@ -13,7 +13,7 @@
 //   2. CSRF defence — same-origin enforced via Sec-Fetch-Site / Origin /
 //      Referer.
 //   3. Per-IP+session rate limit.
-//   4. RunSpec body validation — pipeline must be one of the 11 bureau
+//   4. RunSpec body validation — pipeline must be one of the 11 Pluck
 //      slugs OR documented future surface (extract/sense/act/fleet, all
 //      rejected today with a 400 + "documented but not yet implemented").
 //   5. Idempotency: same canonicalised (pipeline, payload, idempotencyKey)
@@ -40,7 +40,7 @@ import { redactPayloadForGet } from "../../../../lib/v1/redact";
 import { createRun, listRuns } from "../../../../lib/v1/run-store";
 import {
   type StudioPipeline,
-  bureauSlugOf,
+  programSlugOf,
   isProgramPipeline,
   isFuturePipeline,
   isRunStatus,
@@ -51,7 +51,7 @@ import {
 /**
  * Best-effort peek at the pipeline before full validation, used only to
  * pick a pipeline-aware sign-in redirect on the 401 path. Returns a
- * Pluck slug if the body is shaped like `{ pipeline: "bureau:<slug>", … }`,
+ * Pluck slug if the body is shaped like `{ pipeline: "program:<slug>", … }`,
  * otherwise null (caller falls back to the generic /programs redirect).
  */
 function peekProgramSlug(req: Request, raw: unknown): string | null {
@@ -65,8 +65,8 @@ function peekProgramSlug(req: Request, raw: unknown): string | null {
   if (!isProgramPipeline(pipeline)) {
     return null;
   }
-  // Belt — bureauSlugOf trusts the prefix; we already validated it.
-  return bureauSlugOf(pipeline);
+  // Belt — programSlugOf trusts the prefix; we already validated it.
+  return programSlugOf(pipeline);
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -117,7 +117,7 @@ export async function POST(req: Request): Promise<Response> {
   if (isFuturePipeline(spec.pipeline)) {
     return NextResponse.json(
       {
-        error: `Pipeline \`${spec.pipeline}\` is documented but not yet implemented. Use a bureau:* pipeline today; the non-Pluck shelves land in a future release.`,
+        error: `Pipeline \`${spec.pipeline}\` is documented but not yet implemented. Use a Pluck:* pipeline today; the non-Pluck shelves land in a future release.`,
       },
       { status: 400 },
     );
@@ -167,7 +167,7 @@ export async function POST(req: Request): Promise<Response> {
 // scrape never leaks WHISTLE.bundleUrl, ROTATE.operatorNote, etc.
 //
 // Query params:
-//   ?pipeline=bureau:dragnet — filter by bureau pipeline (optional)
+//   ?pipeline=program:dragnet — filter by Pluck pipeline (optional)
 //   ?since=<ISO timestamp>   — runs created strictly after this timestamp
 //   ?limit=N                 — page size, default 20, max 100
 //   ?cursor=<runId>          — opaque pagination cursor (the runId of the
@@ -212,7 +212,7 @@ function parseListQuery(url: URL): ParsedQuery | ParsedQueryErr {
     if (!isProgramPipeline(pipeline)) {
       return {
         ok: false,
-        error: `Unknown pipeline \`${pipeline}\`. Filter must be one of the bureau:* slugs.`,
+        error: `Unknown pipeline \`${pipeline}\`. Filter must be one of the Pluck:* slugs.`,
       };
     }
     out.pipeline = pipeline;

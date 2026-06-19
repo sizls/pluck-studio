@@ -36,7 +36,7 @@ import {
 import type { RunRecord, RunSpec } from "../run-spec.js";
 
 const validProgramSpec: RunSpec = {
-  pipeline: "bureau:dragnet",
+  pipeline: "program:dragnet",
   payload: {
     targetUrl: "https://api.openai.com/v1/chat/completions",
     probePackId: "canon-honesty",
@@ -50,18 +50,18 @@ beforeEach(() => {
 });
 
 describe("run-store — runId generation", () => {
-  it("creates a vendor-scoped phrase ID for bureau pipelines with a targetUrl", () => {
+  it("creates a vendor-scoped phrase ID for Pluck pipelines with a targetUrl", () => {
     const { record } = createRun(validProgramSpec);
     expect(record.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
-    expect(record.pipeline).toBe("bureau:dragnet");
+    expect(record.pipeline).toBe("program:dragnet");
     expect(record.status).toBe("pending");
     expect(record.verdictColor).toBe("gray");
     expect(record.receiptUrl).toBe(`/programs/dragnet/runs/${record.runId}`);
   });
 
-  it("creates a slug-prefixed runId for bureau pipelines without a targetUrl", () => {
+  it("creates a slug-prefixed runId for Pluck pipelines without a targetUrl", () => {
     const { record } = createRun({
-      pipeline: "bureau:custody",
+      pipeline: "program:custody",
       payload: { incidentTitle: "phishing-investigation" },
     });
     expect(record.runId).toMatch(/^custody-[a-z]+-[a-z]+-\d{4}$/);
@@ -114,12 +114,12 @@ describe("run-store — idempotency", () => {
 
   it("computes a stable canonical hash regardless of payload key order", () => {
     const a: RunSpec = {
-      pipeline: "bureau:dragnet",
+      pipeline: "program:dragnet",
       payload: { a: 1, b: 2, nested: { z: 9, x: 1 } },
       idempotencyKey: "k",
     };
     const b: RunSpec = {
-      pipeline: "bureau:dragnet",
+      pipeline: "program:dragnet",
       payload: { nested: { x: 1, z: 9 }, b: 2, a: 1 },
       idempotencyKey: "k",
     };
@@ -230,12 +230,12 @@ describe("run-store — canonicalJson", () => {
 
   it("idempotency hash collides for {a: undefined} vs {} payloads", () => {
     const withUndef = idempotencyHashOf({
-      pipeline: "bureau:dragnet",
+      pipeline: "program:dragnet",
       payload: { ...validProgramSpec.payload, optionalField: undefined },
       idempotencyKey: "k",
     });
     const without = idempotencyHashOf({
-      pipeline: "bureau:dragnet",
+      pipeline: "program:dragnet",
       payload: { ...validProgramSpec.payload },
       idempotencyKey: "k",
     });
@@ -246,7 +246,7 @@ describe("run-store — canonicalJson", () => {
 describe("run-store — listRuns", () => {
   const dragnetSpec: RunSpec = validProgramSpec;
   const oathSpec: RunSpec = {
-    pipeline: "bureau:oath",
+    pipeline: "program:oath",
     payload: { vendorDomain: "openai.com", authorizationAcknowledged: true },
   };
 
@@ -280,7 +280,7 @@ describe("run-store — listRuns", () => {
     const o = createRun({ ...oathSpec, idempotencyKey: "o1" }, t0 + 1000);
     createRun({ ...dragnetSpec, idempotencyKey: "d2" }, t0 + 2000);
 
-    const result = listRuns({ pipeline: "bureau:oath" }, t0 + 3000);
+    const result = listRuns({ pipeline: "program:oath" }, t0 + 3000);
     expect(result.runs.map((r) => r.runId)).toEqual([o.record.runId]);
     expect(result.totalCount).toBe(1);
   });
@@ -441,7 +441,7 @@ describe("run-store — listRuns", () => {
       expect(ids.has(c.record.runId)).toBe(false);
     });
 
-    it("composes with `pipeline` filter (status=cancelled + pipeline=bureau:oath)", () => {
+    it("composes with `pipeline` filter (status=cancelled + pipeline=program:oath)", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
       const dnet = createRun({ ...dragnetSpec, idempotencyKey: "dn" }, t0);
       const oath = createRun({ ...oathSpec, idempotencyKey: "o1" }, t0 + 1000);
@@ -449,7 +449,7 @@ describe("run-store — listRuns", () => {
       cancelRun(oath.record.runId, t0 + 2500);
 
       const result = listRuns(
-        { pipeline: "bureau:oath", status: "cancelled" },
+        { pipeline: "program:oath", status: "cancelled" },
         t0 + 3000,
       );
       expect(result.runs.map((r) => r.runId)).toEqual([oath.record.runId]);
@@ -756,7 +756,7 @@ describe("run-store — pipeline rejection (input layer)", () => {
     // arbitrary strings in and you get arbitrary records out. Don't.
     const { record } = createRun({
       // biome-ignore lint/suspicious/noExplicitAny: testing the store's permissive seam
-      pipeline: "bureau:dragnet" as any,
+      pipeline: "program:dragnet" as any,
       payload: {},
     });
     expect(record.runId).toMatch(/^dragnet-[a-z]+-[a-z]+-\d{4}$/);

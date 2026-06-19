@@ -181,7 +181,7 @@ export function CustodyRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:custody",
+          pipeline: "program:custody",
           payload: {
             bundleUrl: normalizedBundleUrl,
             vendorDomain:

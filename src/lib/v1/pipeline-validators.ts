@@ -18,25 +18,25 @@
 // Migration status: ALL 11 Pluck pipelines now have REAL validators —
 // every legacy /api/programs/<slug>/run alias delegates here, and /v1/runs
 // runs the same validator before persisting. One source of truth.
-//   - bureau:dragnet     — extracted Phase 3 wedge.
-//   - bureau:nuclei      — Wave 1 (cron grammar + license allowlist + …).
-//   - bureau:oath        — Wave 1 (hostname grammar + private-IP block + …).
-//   - bureau:fingerprint — Wave 2 (vendor slug + hosted-mode allowlist + …).
-//   - bureau:custody     — Wave 2 (https-only bundleUrl + …).
-//   - bureau:mole        — Wave 2 (canaryId slug + privacy invariant
+//   - program:dragnet     — extracted Phase 3 wedge.
+//   - program:nuclei      — Wave 1 (cron grammar + license allowlist + …).
+//   - program:oath        — Wave 1 (hostname grammar + private-IP block + …).
+//   - program:fingerprint — Wave 2 (vendor slug + hosted-mode allowlist + …).
+//   - program:custody     — Wave 2 (https-only bundleUrl + …).
+//   - program:mole        — Wave 2 (canaryId slug + privacy invariant
 //                          rejecting canaryBody / canaryContent).
-//   - bureau:bounty      — Wave 3 (target enum + program slug + vendor/model
+//   - program:bounty      — Wave 3 (target enum + program slug + vendor/model
 //                          slug grammar + auth-ack + privacy invariant
 //                          rejecting any auth-token-shaped key).
-//   - bureau:sbom-ai     — Wave 3 (artifactKind enum + https-only artifactUrl
+//   - program:sbom-ai     — Wave 3 (artifactKind enum + https-only artifactUrl
 //                          + private-IP block + optional expectedSha256).
-//   - bureau:rotate      — Wave 3 (SPKI fingerprint grammar + reason enum +
+//   - program:rotate      — Wave 3 (SPKI fingerprint grammar + reason enum +
 //                          old !== new + privacy invariant rejecting any
 //                          private-key-shaped key).
-//   - bureau:tripwire    — Wave 3 (machineId slug + policySource enum +
+//   - program:tripwire    — Wave 3 (machineId slug + policySource enum +
 //                          https-only customPolicyUrl when policySource
 //                          = "custom" + private-IP block).
-//   - bureau:whistle     — Wave 3 (https-only bundleUrl + category +
+//   - program:whistle     — Wave 3 (https-only bundleUrl + category +
 //                          routingPartner enums + anonymity caveat +
 //                          privacy invariant rejecting any source-
 //                          identifying key).
@@ -99,7 +99,7 @@ export interface DragnetPayload {
 }
 
 /**
- * Validate a `bureau:dragnet` activation payload. Identical to the rules
+ * Validate a `program:dragnet` activation payload. Identical to the rules
  * the legacy `/api/programs/dragnet/run` route enforces — both call sites
  * share THIS function so the contract cannot drift.
  */
@@ -209,7 +209,7 @@ export interface BountyPayload {
 }
 
 /**
- * Validate a `bureau:bounty` file-bounty payload. Identical to the rules
+ * Validate a `program:bounty` file-bounty payload. Identical to the rules
  * the legacy `/api/programs/bounty/run` route enforces — both call sites
  * share THIS function so the contract cannot drift.
  */
@@ -316,7 +316,7 @@ export interface SbomAiPayload {
 }
 
 /**
- * Validate a `bureau:sbom-ai` publish-attestation payload. Identical to
+ * Validate a `program:sbom-ai` publish-attestation payload. Identical to
  * the rules the legacy `/api/programs/sbom-ai/run` route enforces — both
  * call sites share THIS function so the contract cannot drift.
  */
@@ -420,7 +420,7 @@ export interface RotatePayload {
 }
 
 /**
- * Validate a `bureau:rotate` rotate-key payload. Identical to the rules
+ * Validate a `program:rotate` rotate-key payload. Identical to the rules
  * the legacy `/api/programs/rotate/run` route enforces — both call sites
  * share THIS function so the contract cannot drift.
  */
@@ -527,7 +527,7 @@ export interface TripwirePayload {
 }
 
 /**
- * Validate a `bureau:tripwire` configure-deployment payload. Identical
+ * Validate a `program:tripwire` configure-deployment payload. Identical
  * to the rules the legacy `/api/programs/tripwire/run` route enforces —
  * both call sites share THIS function so the contract cannot drift.
  */
@@ -650,7 +650,7 @@ export interface WhistlePayload {
 }
 
 /**
- * Validate a `bureau:whistle` submit-tip payload. Identical to the rules
+ * Validate a `program:whistle` submit-tip payload. Identical to the rules
  * the legacy `/api/programs/whistle/run` route enforces — both call sites
  * share THIS function so the contract cannot drift.
  */
@@ -769,7 +769,7 @@ export interface NucleiPayload {
 }
 
 /**
- * Validate a `bureau:nuclei` publish payload. Identical to the rules the
+ * Validate a `program:nuclei` publish payload. Identical to the rules the
  * legacy `/api/programs/nuclei/run` route enforces — both call sites share
  * THIS function so the contract cannot drift.
  */
@@ -901,7 +901,7 @@ export interface OathPayload {
 }
 
 /**
- * Validate a `bureau:oath` verify payload. Identical to the rules the
+ * Validate a `program:oath` verify payload. Identical to the rules the
  * legacy `/api/programs/oath/run` route enforces — both call sites share
  * THIS function so the contract cannot drift.
  */
@@ -987,7 +987,7 @@ export interface FingerprintPayload {
 }
 
 /**
- * Validate a `bureau:fingerprint` scan payload. Identical to the rules
+ * Validate a `program:fingerprint` scan payload. Identical to the rules
  * the legacy `/api/programs/fingerprint/run` route enforces — both call
  * sites share THIS function so the contract cannot drift.
  */
@@ -1071,7 +1071,7 @@ export interface CustodyPayload {
 }
 
 /**
- * Validate a `bureau:custody` verify-bundle payload. Identical to the
+ * Validate a `program:custody` verify-bundle payload. Identical to the
  * rules the legacy `/api/programs/custody/run` route enforces — both call
  * sites share THIS function so the contract cannot drift.
  */
@@ -1159,7 +1159,7 @@ export interface MolePayload {
 }
 
 /**
- * Validate a `bureau:mole` seal-canary payload. Identical to the rules
+ * Validate a `program:mole` seal-canary payload. Identical to the rules
  * the legacy `/api/programs/mole/run` route enforces — both call sites
  * share THIS function so the contract cannot drift.
  */
@@ -1262,17 +1262,17 @@ export function validateMolePayload(payload: unknown): ValidatorResult {
 // ---------------------------------------------------------------------------
 
 export const PIPELINE_VALIDATORS: Record<StudioPipeline, PipelineValidator> = {
-  "bureau:dragnet": validateDragnetPayload,
-  "bureau:oath": validateOathPayload,
-  "bureau:fingerprint": validateFingerprintPayload,
-  "bureau:custody": validateCustodyPayload,
-  "bureau:whistle": validateWhistlePayload,
-  "bureau:bounty": validateBountyPayload,
-  "bureau:sbom-ai": validateSbomAiPayload,
-  "bureau:rotate": validateRotatePayload,
-  "bureau:tripwire": validateTripwirePayload,
-  "bureau:nuclei": validateNucleiPayload,
-  "bureau:mole": validateMolePayload,
+  "program:dragnet": validateDragnetPayload,
+  "program:oath": validateOathPayload,
+  "program:fingerprint": validateFingerprintPayload,
+  "program:custody": validateCustodyPayload,
+  "program:whistle": validateWhistlePayload,
+  "program:bounty": validateBountyPayload,
+  "program:sbom-ai": validateSbomAiPayload,
+  "program:rotate": validateRotatePayload,
+  "program:tripwire": validateTripwirePayload,
+  "program:nuclei": validateNucleiPayload,
+  "program:mole": validateMolePayload,
 };
 
 // Belt-and-suspenders runtime check — if BUREAU_PIPELINES grows and someone
@@ -1282,7 +1282,7 @@ export const PIPELINE_VALIDATORS: Record<StudioPipeline, PipelineValidator> = {
 for (const p of BUREAU_PIPELINES) {
   if (!(p in PIPELINE_VALIDATORS)) {
     throw new Error(
-      `[pipeline-validators] missing validator for bureau pipeline: ${p}`,
+      `[pipeline-validators] missing validator for Pluck pipeline: ${p}`,
     );
   }
 }

@@ -322,7 +322,7 @@ describe("POST /api/programs/custody/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:custody",
+        pipeline: "program:custody",
         payload: {
           bundleUrl: "https://example.com/bundle.intoto.jsonl",
           vendorDomain: "openai.com",

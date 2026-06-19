@@ -65,18 +65,18 @@ const FEED_AUTHOR_NAME = "Pluck Studio";
 const FEED_SUBTITLE =
   "Per-vendor receipts across DRAGNET, OATH, FINGERPRINT, CUSTODY, NUCLEI, MOLE programs.";
 
-// Map vendor-bearing program slug → bureau pipeline string used by the
+// Map vendor-bearing program slug → Pluck pipeline string used by the
 // redactor. The redactor itself returns PASS_THROUGH for anything not
 // in the table, but we want to use the official pipeline identifier so
 // future per-program redactors are picked up automatically.
 const PROGRAM_TO_PIPELINE: Readonly<Record<VendorProgramSlug, string>> =
   Object.freeze({
-    dragnet: "bureau:dragnet",
-    oath: "bureau:oath",
-    fingerprint: "bureau:fingerprint",
-    custody: "bureau:custody",
-    nuclei: "bureau:nuclei",
-    mole: "bureau:mole",
+    dragnet: "program:dragnet",
+    oath: "program:oath",
+    fingerprint: "program:fingerprint",
+    custody: "program:custody",
+    nuclei: "program:nuclei",
+    mole: "program:mole",
   });
 
 const PROGRAM_LABEL: Readonly<Record<VendorProgramSlug, string>> = Object.freeze(

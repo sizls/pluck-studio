@@ -360,7 +360,7 @@ describe("POST /api/programs/oath/run — idempotency dedupe", () => {
       // Form omits `hostingOrigin` when not explicit; effective origin for
       // the key is `https://<vendorDomain>`. Legacy route mirrors this.
       const v1Body = {
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         payload: {
           vendorDomain: "openai.com",
           authorizationAcknowledged: true,

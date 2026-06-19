@@ -24,7 +24,7 @@ export const metadata = {
 
 const heading: CSSProperties = { fontFamily: "var(--studio-mono)", fontSize: 14, color: "var(--studio-fg-dim)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 32 };
 const callout: CSSProperties = { marginTop: 16, padding: "12px 16px", fontFamily: "var(--studio-mono)", fontSize: 13, color: "var(--studio-fg-dim)", border: "1px dashed var(--studio-fg-dim)", borderRadius: 4, background: "rgba(255,255,255,0.02)" };
-const stubCallout: CSSProperties = { ...callout, marginTop: 12, borderColor: "var(--bureau-tone-yellow)", color: "var(--studio-fg)" };
+const stubCallout: CSSProperties = { ...callout, marginTop: 12, borderColor: "var(--studio-tone-yellow)", color: "var(--studio-fg)" };
 
 export default function ExtractPage(): ReactNode {
   return (

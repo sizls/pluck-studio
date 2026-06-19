@@ -226,7 +226,7 @@ describe("POST /api/programs/nuclei/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:nuclei",
+        pipeline: "program:nuclei",
         payload: valid(),
         idempotencyKey: `nuclei:alice:canon-honesty@0.1:${"a".repeat(64)}:${minuteBucket}`,
       };

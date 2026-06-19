@@ -247,7 +247,7 @@ export function NucleiRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:nuclei",
+          pipeline: "program:nuclei",
           payload: {
             author: trimmedAuthor,
             packName: trimmedPackName,

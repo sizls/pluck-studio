@@ -8,7 +8,7 @@
 // deep-links to:
 //   - sigstore.dev search       (logIndex)
 //   - rekor.sigstore.dev API    (uuid)
-//   - the bureau's own page     (cross-checks against our index)
+//   - the Pluck's own page     (cross-checks against our index)
 //
 // Renders inclusion-proof status if the caller wires a verifier; the
 // component itself is presentation-only (network calls live in the
@@ -77,7 +77,7 @@ export function RekorSearch({
   }
 
   return (
-    <div className="bureau-rekor-search">
+    <div className="studio-rekor-search">
       <input
         type="text"
         value={value}
@@ -88,11 +88,11 @@ export function RekorSearch({
         placeholder={placeholder}
         spellCheck={false}
         autoComplete="off"
-        className="bureau-rekor-search-input"
+        className="studio-rekor-search-input"
         aria-label="Rekor uuid or logIndex"
       />
       {(isUuid || isLogIndex) && (
-        <div className="bureau-rekor-search-links">
+        <div className="studio-rekor-search-links">
           <a href={sigstoreSearch} rel="noopener noreferrer" target="_blank">
             sigstore search
           </a>
@@ -106,7 +106,7 @@ export function RekorSearch({
               type="button"
               onClick={handleVerify}
               disabled={status.kind === "verifying"}
-              className="bureau-rekor-search-verify"
+              className="studio-rekor-search-verify"
             >
               {status.kind === "verifying" ? "verifying…" : "verify inclusion"}
             </button>
@@ -114,10 +114,10 @@ export function RekorSearch({
         </div>
       )}
       {status.kind === "ok" && (
-        <span className="bureau-rekor-search-status ok">✓ inclusion verified</span>
+        <span className="studio-rekor-search-status ok">✓ inclusion verified</span>
       )}
       {status.kind === "error" && (
-        <span className="bureau-rekor-search-status error">
+        <span className="studio-rekor-search-status error">
           ✗ {status.reason}
         </span>
       )}

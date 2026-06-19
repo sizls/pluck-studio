@@ -60,7 +60,7 @@ src/
 │   ├── privacy/page.tsx                 "/privacy" — operator privacy posture
 │   ├── sign-in/page.tsx                 "/sign-in" — Supabase auth entrypoint
 │   ├── sitemap.ts + robots.ts           "/sitemap.xml" + "/robots.txt"
-│   ├── bureau/                          per-program landing/run/receipt
+│   ├── Pluck/                          per-program landing/run/receipt
 │   │   ├── page.tsx                       "/programs" — full program library
 │   │   ├── monitors/[name]/page.tsx       per-program monitor detail
 │   │   └── <11 program slugs>/            see § 3
@@ -68,7 +68,7 @@ src/
 │       ├── v1/runs/                      canonical /v1/runs surface
 │       │   ├── route.ts                    POST (create) + GET (list, paginated)
 │       │   └── [id]/route.ts               GET (single, redacted) + DELETE (cancel)
-│       └── bureau/<slug>/run/             11 deprecated legacy aliases (one per program)
+│       └── Pluck/<slug>/run/             11 deprecated legacy aliases (one per program)
 │
 ├── lib/                                 non-UI logic (the "engine")
 │   ├── programs/
@@ -141,7 +141,7 @@ field schemas, validators, and redactors.
    facts; React reads via `useFact` / `useDerived`.
 3. **Run API** — Two endpoints:
    - `/api/v1/runs` (canonical) — accepts
-     `{ pipeline: "bureau:<slug>", payload, idempotencyKey }`.
+     `{ pipeline: "program:<slug>", payload, idempotencyKey }`.
    - `/api/programs/<slug>/run` (deprecated alias, RFC 8594 signaled) —
      accepts the legacy per-program body shape, runs the same shared
      validator, dual-writes into the same v1 store. Both surfaces
@@ -166,7 +166,7 @@ field schemas, validators, and redactors.
 | v1 API | `src/app/api/v1/runs/route.ts` |
 | Legacy alias | `src/app/api/programs/dragnet/run/route.ts` |
 | Validator | `validateDragnetPayload` in `src/lib/v1/pipeline-validators.ts` |
-| Redactor | `PAYLOAD_REDACTORS["bureau:dragnet"]` in `src/lib/v1/redact.ts` |
+| Redactor | `PAYLOAD_REDACTORS["program:dragnet"]` in `src/lib/v1/redact.ts` |
 | Run-store scoping | `runIdForProgram` in `src/lib/v1/run-store.ts` |
 | Receipt page | `src/app/programs/dragnet/runs/[id]/ReceiptView.tsx` |
 | Receipt module | `src/lib/dragnet/run-receipt-module.ts` |
@@ -359,7 +359,7 @@ Each legacy alias does the same five things:
    step every legacy POST would create a ghost run that no `/v1/runs`
    caller could ever dedupe against. (C1 critical from the AE review.)
 4. **Dual-write to the v1 store.** Calls `createRun()` directly with
-   `pipeline: "bureau:<slug>"` — so the receipt page reads a canonical
+   `pipeline: "program:<slug>"` — so the receipt page reads a canonical
    record from `GET /api/v1/runs/[id]` regardless of which surface the
    client used to write.
 5. **Emit RFC 8594 signals.** Every response carries:
@@ -725,9 +725,9 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
    `src/lib/dragnet/run-receipt-module.ts`.
 
 3. **Register the pipeline in the v1 type system.**
-   Add `"bureau:tenth"` to `BUREAU_PIPELINES` in
+   Add `"program:tenth"` to `BUREAU_PIPELINES` in
    `src/lib/v1/run-spec.ts`. The `StudioPipeline` union and
-   `bureau:tenth` runtime guards auto-derive.
+   `program:tenth` runtime guards auto-derive.
 
 4. **Register the program in `ACTIVE_PROGRAMS`.**
    Add an entry to `src/lib/programs/registry.ts` with slug, name,
@@ -740,11 +740,11 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
 5. **Implement the payload validator.**
    Add `validateTenthPayload(payload: unknown): ValidatorResult` in
    `src/lib/v1/pipeline-validators.ts`. Wire it into
-   `PIPELINE_VALIDATORS["bureau:tenth"]`. The runtime check at module
+   `PIPELINE_VALIDATORS["program:tenth"]`. The runtime check at module
    load enforces this; the type system enforces it in CI.
 
 6. **Add a redactor entry.**
-   `PAYLOAD_REDACTORS["bureau:tenth"]` in `src/lib/v1/redact.ts`. Use
+   `PAYLOAD_REDACTORS["program:tenth"]` in `src/lib/v1/redact.ts`. Use
    `PASS_THROUGH` unless TENTH carries a privacy-sensitive persisted
    field (then write a per-program redactor — see `REDACT_WHISTLE` /
    `REDACT_ROTATE` for the pattern).
@@ -761,7 +761,7 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
    - `src/app/programs/tenth/run/page.tsx` — server shell.
    - `src/app/programs/tenth/run/RunForm.tsx` — client component, reads
      the form module via `useFact` / `useDerived`. Posts to
-     `/api/v1/runs` with `pipeline: "bureau:tenth"`.
+     `/api/v1/runs` with `pipeline: "program:tenth"`.
    - `src/app/programs/tenth/runs/[id]/page.tsx` — server shell.
    - `src/app/programs/tenth/runs/[id]/ReceiptView.tsx` — client
      component, reads the receipt module + the v1 status via
@@ -772,7 +772,7 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
 9. **Build the legacy alias.**
    `src/app/api/programs/tenth/run/route.ts`. CSRF + rate-limit + auth
    gates → `validateTenthPayload` → synthesize idempotency key →
-   `createRun({ pipeline: "bureau:tenth", … })` → return `{ runId,
+   `createRun({ pipeline: "program:tenth", … })` → return `{ runId,
    phraseId, status, deprecated: true, replacement: "/api/v1/runs" }`
    with the standard `Deprecation` / `Sunset` / `Link` headers.
    Mirror `src/app/api/programs/dragnet/run/route.ts` exactly.
@@ -791,7 +791,7 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
 
 11. **Update docs.**
     - `docs/V1_API.md` — add a "Per-pipeline payload reference"
-      section for `bureau:tenth` and bump the migrated table to 12/12.
+      section for `program:tenth` and bump the migrated table to 12/12.
     - `docs/ARCHITECTURE.md` — extend the Section 3 table with
       TENTH's row.
 

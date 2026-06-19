@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:nuclei", payload: { ...this body... } }. !!
+//    { pipeline: "program:nuclei", payload: { ...this body... } }. !!
 //
 // Sibling-of-DRAGNET migration: this route stays alive as a deprecated
 // alias so callers that haven't migrated keep working, but it now
@@ -136,7 +136,7 @@ export async function POST(req: Request): Promise<Response> {
   // payloads carrying `author` — same shape the legacy route produced
   // pre-migration, and the same shape the /v1/runs caller sees.
   const { record } = createRun({
-    pipeline: "bureau:nuclei",
+    pipeline: "program:nuclei",
     payload: {
       author,
       packName,
@@ -175,7 +175,7 @@ export async function POST(req: Request): Promise<Response> {
       pendingTrustTier,
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:nuclei",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:nuclei",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

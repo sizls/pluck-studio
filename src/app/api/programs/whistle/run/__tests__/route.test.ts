@@ -381,7 +381,7 @@ describe("POST /api/programs/whistle/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://example.com/tip.json",
           category: "training-data",

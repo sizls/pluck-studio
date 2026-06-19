@@ -80,17 +80,17 @@ const REDACT_ROTATE: PayloadRedactor = (payload) => {
 // POST. No persisted privacy-sensitive fields to redact on GET. PASS_THROUGH.
 
 export const PAYLOAD_REDACTORS: Record<StudioPipeline, PayloadRedactor> = {
-  "bureau:dragnet": PASS_THROUGH,
-  "bureau:oath": PASS_THROUGH,
-  "bureau:fingerprint": PASS_THROUGH,
-  "bureau:custody": PASS_THROUGH,
-  "bureau:whistle": REDACT_WHISTLE,
-  "bureau:bounty": PASS_THROUGH,
-  "bureau:sbom-ai": PASS_THROUGH,
-  "bureau:rotate": REDACT_ROTATE,
-  "bureau:tripwire": PASS_THROUGH,
-  "bureau:nuclei": PASS_THROUGH,
-  "bureau:mole": PASS_THROUGH,
+  "program:dragnet": PASS_THROUGH,
+  "program:oath": PASS_THROUGH,
+  "program:fingerprint": PASS_THROUGH,
+  "program:custody": PASS_THROUGH,
+  "program:whistle": REDACT_WHISTLE,
+  "program:bounty": PASS_THROUGH,
+  "program:sbom-ai": PASS_THROUGH,
+  "program:rotate": REDACT_ROTATE,
+  "program:tripwire": PASS_THROUGH,
+  "program:nuclei": PASS_THROUGH,
+  "program:mole": PASS_THROUGH,
 };
 
 // Belt-and-suspenders runtime check — if BUREAU_PIPELINES grows and someone
@@ -100,7 +100,7 @@ export const PAYLOAD_REDACTORS: Record<StudioPipeline, PayloadRedactor> = {
 for (const p of BUREAU_PIPELINES) {
   if (!(p in PAYLOAD_REDACTORS)) {
     throw new Error(
-      `[redact] missing redactor for bureau pipeline: ${p}`,
+      `[redact] missing redactor for Pluck pipeline: ${p}`,
     );
   }
 }

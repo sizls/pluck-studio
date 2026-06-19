@@ -247,14 +247,14 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
       expect(validate({ pipeline, payload: {} })).toBe(true);
     }
 
-    expect(validate({ pipeline: "bureau:not-a-real-program", payload: {} })).toBe(
+    expect(validate({ pipeline: "program:not-a-real-program", payload: {} })).toBe(
       false,
     );
-    expect(validate({ pipeline: "bureau:dragnet" })).toBe(false); // missing payload
+    expect(validate({ pipeline: "program:dragnet" })).toBe(false); // missing payload
     expect(validate({ payload: {} })).toBe(false); // missing pipeline
     expect(
       validate({
-        pipeline: "bureau:dragnet",
+        pipeline: "program:dragnet",
         payload: {},
         idempotencyKey: "abc",
       }),
@@ -271,7 +271,7 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
     expect(validate({})).toBe(true);
 
     // Each filter independently.
-    expect(validate({ pipeline: "bureau:dragnet" })).toBe(true);
+    expect(validate({ pipeline: "program:dragnet" })).toBe(true);
     expect(validate({ since: "2026-05-04T00:00:00Z" })).toBe(true);
     expect(validate({ limit: 25 })).toBe(true);
     expect(validate({ cursor: "opaque-cursor-abc" })).toBe(true);
@@ -280,7 +280,7 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
     // All filters at once.
     expect(
       validate({
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         since: "2026-01-01T00:00:00Z",
         limit: 10,
         cursor: "abc",
@@ -300,7 +300,7 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
 
     // Reject bogus inputs.
     expect(validate({ unknownField: 1 })).toBe(false);
-    expect(validate({ pipeline: "bureau:not-a-real-program" })).toBe(false);
+    expect(validate({ pipeline: "program:not-a-real-program" })).toBe(false);
     expect(validate({ status: "not-a-status" })).toBe(false);
     expect(validate({ limit: 0 })).toBe(false); // < minimum
     expect(validate({ limit: 1000 })).toBe(false); // > maximum

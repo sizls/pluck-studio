@@ -26,7 +26,7 @@
 //
 // Auto-generation invariant — like the OpenAPI generator:
 //   - Resources for each ACTIVE_PROGRAMS entry (`pluck://program/<slug>`).
-//   - Tool input schemas reference the same `bureau:*` pipeline values
+//   - Tool input schemas reference the same `program:*` pipeline values
 //     as `BUREAU_PIPELINES`. Adding a new program is a one-line registry
 //     change; the manifest auto-includes it.
 //
@@ -174,7 +174,7 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
     },
   ];
 
-  const bureauPipelineEnum = [...BUREAU_PIPELINES];
+  const programPipelineEnum = [...BUREAU_PIPELINES];
   const runStatusEnum = [...RUN_STATUSES];
 
   const tools: McpTool[] = [
@@ -237,7 +237,7 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
           pipeline: {
             type: "string",
             description: "Pluck pipeline slug. Adding a new program auto-extends this enum.",
-            enum: bureauPipelineEnum,
+            enum: programPipelineEnum,
           },
           payload: {
             type: "object",
@@ -266,7 +266,7 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
           pipeline: {
             type: "string",
             description: "Filter by Pluck pipeline slug. Adding a new program auto-extends this enum.",
-            enum: bureauPipelineEnum,
+            enum: programPipelineEnum,
           },
           since: {
             type: "string",

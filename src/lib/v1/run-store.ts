@@ -40,7 +40,7 @@ import {
 } from "../phrase-id";
 import {
   type StudioPipeline,
-  bureauSlugOf,
+  programSlugOf,
   isProgramPipeline,
   type RunRecord,
   type RunSpec,
@@ -437,7 +437,7 @@ function runIdForProgram(
   if (author !== null) {
     return generateScopedPhraseId(`https://${author}.example`);
   }
-  const slug = bureauSlugOf(pipeline);
+  const slug = programSlugOf(pipeline);
 
   return `${slug}-${generatePhraseId()}`;
 }
@@ -514,7 +514,7 @@ function uniqueRunId(
 
 function receiptUrlFor(pipeline: RunSpecPipeline, runId: string): string {
   if (isProgramPipeline(pipeline)) {
-    return `/programs/${bureauSlugOf(pipeline)}/runs/${runId}`;
+    return `/programs/${programSlugOf(pipeline)}/runs/${runId}`;
   }
   return `/${pipeline}/runs/${runId}`;
 }

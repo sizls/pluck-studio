@@ -17,7 +17,7 @@ import type { RunSpec } from "../../../../lib/v1/run-spec.js";
 import { sampleSearchablePhraseIds } from "../../../../lib/search/phrase-stitch.js";
 
 const dragnetSpec: RunSpec = {
-  pipeline: "bureau:dragnet",
+  pipeline: "program:dragnet",
   payload: {
     targetUrl: "https://api.openai.com/v1/chat/completions",
     probePackId: "canon-honesty",

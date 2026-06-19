@@ -46,7 +46,7 @@ interface VariantSpec {
 
 // Muted HSL palette — saturation 38%, lightness 42% on the foreground;
 // background is the same hue at 12% alpha so the pill blends with the
-// bureau dark surface without screaming for attention.
+// Pluck dark surface without screaming for attention.
 const VARIANT_SPECS: Readonly<Record<VerdictBadgeVariant, VariantSpec>> =
   Object.freeze({
     verified: {

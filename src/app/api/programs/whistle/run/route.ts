@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:whistle", payload: { ...this body... } }. !!
+//    { pipeline: "program:whistle", payload: { ...this body... } }. !!
 //
 // Wave-3 migration: this route stays alive as a deprecated alias so callers
 // that haven't migrated keep working, but it now validates via the shared
@@ -132,7 +132,7 @@ export async function POST(req: Request): Promise<Response> {
   // becomes the user-facing runId. The phrase prefix is the routing
   // partner, NEVER the bundle source — anonymity-by-default.
   const { record } = createRun({
-    pipeline: "bureau:whistle",
+    pipeline: "program:whistle",
     payload: {
       bundleUrl,
       category,
@@ -162,7 +162,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "submission pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:whistle",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:whistle",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

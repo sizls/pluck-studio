@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:rotate", payload: { ...this body... } }. !!
+//    { pipeline: "program:rotate", payload: { ...this body... } }. !!
 //
 // Wave-3 migration: this route stays alive as a deprecated alias so callers
 // that haven't migrated keep working, but it now validates via the shared
@@ -125,7 +125,7 @@ export async function POST(req: Request): Promise<Response> {
   // assigns the canonical reason-scoped phraseId — that becomes the
   // user-facing runId.
   const { record } = createRun({
-    pipeline: "bureau:rotate",
+    pipeline: "program:rotate",
     payload: {
       oldKeyFingerprint,
       newKeyFingerprint,
@@ -152,7 +152,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "rotation pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:rotate",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:rotate",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

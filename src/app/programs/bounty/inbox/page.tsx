@@ -81,7 +81,7 @@ export default function BountyInboxPage(): ReactNode {
 
       <section>
         <h2 style={SectionHeadingStyle}>Default seed directory</h2>
-        <table className="bureau-leaderboard">
+        <table className="studio-leaderboard">
           <thead>
             <tr>
               <th scope="col">Vendor</th>

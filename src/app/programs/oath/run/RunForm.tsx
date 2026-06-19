@@ -180,7 +180,7 @@ export function OathRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:oath",
+          pipeline: "program:oath",
           payload: {
             vendorDomain: normalizedDomain,
             hostingOrigin:

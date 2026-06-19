@@ -251,7 +251,7 @@ export function DragnetRunForm(): ReactNode {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          pipeline: "bureau:dragnet",
+          pipeline: "program:dragnet",
           payload: {
             targetUrl,
             probePackId,

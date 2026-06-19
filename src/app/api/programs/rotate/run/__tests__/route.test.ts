@@ -192,7 +192,7 @@ describe("POST /api/programs/rotate/run — idempotency dedupe", () => {
 
       const minuteBucket = Math.floor(Date.now() / 60_000);
       const v1Body = {
-        pipeline: "bureau:rotate",
+        pipeline: "program:rotate",
         payload: {
           oldKeyFingerprint: "a".repeat(64),
           newKeyFingerprint: "b".repeat(64),

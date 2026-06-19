@@ -26,17 +26,17 @@ interface RunSpec {
 
 type RunSpecPipeline =
   // Pluck programs — shipped in stub form today
-  | "bureau:dragnet"
-  | "bureau:oath"
-  | "bureau:fingerprint"
-  | "bureau:custody"
-  | "bureau:whistle"
-  | "bureau:bounty"
-  | "bureau:sbom-ai"
-  | "bureau:rotate"
-  | "bureau:tripwire"
-  | "bureau:nuclei"
-  | "bureau:mole"
+  | "program:dragnet"
+  | "program:oath"
+  | "program:fingerprint"
+  | "program:custody"
+  | "program:whistle"
+  | "program:bounty"
+  | "program:sbom-ai"
+  | "program:rotate"
+  | "program:tripwire"
+  | "program:nuclei"
+  | "program:mole"
   // Future surface — accepted by the schema, returns 400 today
   | "extract"
   | "sense"
@@ -44,7 +44,7 @@ type RunSpecPipeline =
   | "fleet";
 ```
 
-`payload` is per-pipeline. For `bureau:<program>`, the payload shape is
+`payload` is per-pipeline. For `program:<program>`, the payload shape is
 the existing per-program request body (see "Per-pipeline payload
 reference" below).
 
@@ -146,7 +146,7 @@ curl -sS -X POST http://localhost:3030/api/v1/runs \
   -H 'sec-fetch-site: same-origin' \
   -H 'authorization: Bearer dev-jwt' \
   -d '{
-    "pipeline": "bureau:dragnet",
+    "pipeline": "program:dragnet",
     "payload": {
       "targetUrl": "https://api.openai.com/v1/chat/completions",
       "probePackId": "canon-honesty",
@@ -198,7 +198,7 @@ vector.
 
 | Param | Type | Notes |
 |---|---|---|
-| `pipeline` | `bureau:<slug>` | Filter to a single bureau pipeline. Must be one of the 11 bureau slugs. Omit to include all pipelines. |
+| `pipeline` | `program:<slug>` | Filter to a single Pluck pipeline. Must be one of the 11 Pluck slugs. Omit to include all pipelines. |
 | `since` | ISO-8601 | Only runs created strictly AFTER this timestamp. Unparseable values return 400. |
 | `limit` | integer | Page size. Clamped to `[1, 100]`; default `20`. |
 | `cursor` | string ≤128 chars | Opaque pagination cursor — pass back the `nextCursor` from a prior response to fetch the next page. |
@@ -235,7 +235,7 @@ curl -sS 'http://localhost:3030/api/v1/runs?limit=20' \
 # → { "runs": [...], "nextCursor": "openai-swift-falcon-3742", "totalCount": 47 }
 
 # Filter to one pipeline + a creation cutoff.
-curl -sS 'http://localhost:3030/api/v1/runs?pipeline=bureau:dragnet&since=2026-05-01T00:00:00Z' \
+curl -sS 'http://localhost:3030/api/v1/runs?pipeline=program:dragnet&since=2026-05-01T00:00:00Z' \
   -H 'sec-fetch-site: same-origin'
 
 # Next page — pass the previous nextCursor.
@@ -247,7 +247,7 @@ curl -sS 'http://localhost:3030/api/v1/runs?status=pending,running' \
   -H 'sec-fetch-site: same-origin'
 
 # Combined filters — DRAGNET cancellations only.
-curl -sS 'http://localhost:3030/api/v1/runs?pipeline=bureau:dragnet&status=cancelled' \
+curl -sS 'http://localhost:3030/api/v1/runs?pipeline=program:dragnet&status=cancelled' \
   -H 'sec-fetch-site: same-origin'
 ```
 
@@ -588,17 +588,17 @@ status. As each program migrates, its payload reference moves from
 
 | Pipeline | Payload reference | Migrated to /v1/runs |
 |---|---|---|
-| `bureau:dragnet` | `src/lib/dragnet/run-form-module.ts` | **Yes (Phase 3 wedge)** |
-| `bureau:nuclei` | `src/lib/nuclei/run-form-module.ts` | **Yes (Wave 1)** |
-| `bureau:oath` | `src/lib/oath/run-form-module.ts` | **Yes (Wave 1)** |
-| `bureau:fingerprint` | `src/lib/fingerprint/run-form-module.ts` | **Yes (Wave 2)** |
-| `bureau:custody` | `src/lib/custody/run-form-module.ts` | **Yes (Wave 2)** |
-| `bureau:mole` | `src/lib/mole/run-form-module.ts` | **Yes (Wave 2)** |
-| `bureau:bounty` | `src/lib/bounty/run-form-module.ts` | **Yes (Wave 3)** |
-| `bureau:sbom-ai` | `src/lib/sbom-ai/run-form-module.ts` | **Yes (Wave 3)** |
-| `bureau:rotate` | `src/lib/rotate/run-form-module.ts` | **Yes (Wave 3)** |
-| `bureau:tripwire` | `src/lib/tripwire/run-form-module.ts` | **Yes (Wave 3)** |
-| `bureau:whistle` | `src/lib/whistle/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:dragnet` | `src/lib/dragnet/run-form-module.ts` | **Yes (Phase 3 wedge)** |
+| `program:nuclei` | `src/lib/nuclei/run-form-module.ts` | **Yes (Wave 1)** |
+| `program:oath` | `src/lib/oath/run-form-module.ts` | **Yes (Wave 1)** |
+| `program:fingerprint` | `src/lib/fingerprint/run-form-module.ts` | **Yes (Wave 2)** |
+| `program:custody` | `src/lib/custody/run-form-module.ts` | **Yes (Wave 2)** |
+| `program:mole` | `src/lib/mole/run-form-module.ts` | **Yes (Wave 2)** |
+| `program:bounty` | `src/lib/bounty/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:sbom-ai` | `src/lib/sbom-ai/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:rotate` | `src/lib/rotate/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:tripwire` | `src/lib/tripwire/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:whistle` | `src/lib/whistle/run-form-module.ts` | **Yes (Wave 3)** |
 
 **Migration progress:** 11/11 Pluck pipelines now POST to `/v1/runs` —
 the entire alpha-program surface is on the unified contract. Every
@@ -607,7 +607,7 @@ that delegates to the same shared validator and dual-writes into the
 v1 store, so legacy and v1 callers converge on the same `phraseId` for
 the same payload.
 
-### `bureau:dragnet` payload
+### `program:dragnet` payload
 
 ```ts
 {
@@ -618,7 +618,7 @@ the same payload.
 }
 ```
 
-### `bureau:nuclei` payload
+### `program:nuclei` payload
 
 ```ts
 {
@@ -663,7 +663,7 @@ prefill pattern from `/extract`. The NUCLEI receipt back-links to the
 SBOM-AI source artifact via the rekor UUID code block + cosign verify
 command in the "Source artifact" section.
 
-### `bureau:oath` payload
+### `program:oath` payload
 
 ```ts
 {
@@ -683,7 +683,7 @@ RunForm + legacy alias:
 `effectiveHostingOrigin` is the explicit override or
 `https://<vendorDomain>` when omitted.
 
-### `bureau:fingerprint` payload
+### `program:fingerprint` payload
 
 ```ts
 {
@@ -709,7 +709,7 @@ The legacy alias additionally echoes `runId === phraseId`, `vendor`,
 `model`, `status: "scan pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
-### `bureau:custody` payload
+### `program:custody` payload
 
 ```ts
 {
@@ -744,7 +744,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 `bundleUrl`, `expectedVendor` (or null), `status: "verification pending"`,
 `deprecated: true`, and `replacement: "/api/v1/runs"`.
 
-### `bureau:mole` payload
+### `program:mole` payload
 
 ```ts
 {
@@ -786,7 +786,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 the canary body), `status: "seal pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
-### `bureau:bounty` payload
+### `program:bounty` payload
 
 ```ts
 {
@@ -824,7 +824,7 @@ The legacy alias additionally echoes `runId === phraseId`, `target`,
 `program`, `vendor`, `model`, `sourceRekorUuid`, `status: "filing pending"`,
 `deprecated: true`, and `replacement: "/api/v1/runs"`.
 
-### `bureau:sbom-ai` payload
+### `program:sbom-ai` payload
 
 ```ts
 {
@@ -867,7 +867,7 @@ and `mcp-server` artifacts do NOT show the CTA — NUCLEI registry
 only accepts probe-pack artifacts. Mirrors the DRAGNET
 `?vendor=&assertion=` prefill pattern from the `/extract` integration.
 
-### `bureau:rotate` payload
+### `program:rotate` payload
 
 ```ts
 {
@@ -913,7 +913,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 `status: "rotation pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
-### `bureau:tripwire` payload
+### `program:tripwire` payload
 
 ```ts
 {
@@ -948,7 +948,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 `status: "configuration pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
-### `bureau:whistle` payload
+### `program:whistle` payload
 
 ```ts
 {

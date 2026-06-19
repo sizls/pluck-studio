@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // !! DEPRECATED — clients should POST to /api/v1/runs with
-//    { pipeline: "bureau:dragnet", payload: { ...this body... } }. !!
+//    { pipeline: "program:dragnet", payload: { ...this body... } }. !!
 //
 // This route stays alive as a deprecated alias so callers that haven't
 // migrated yet keep working. Existing contract tests (CSRF, auth, body
@@ -155,7 +155,7 @@ export async function POST(req: Request): Promise<Response> {
   // posting the same body. Without this, every legacy POST created a
   // ghost run regardless of dedupe (C1 critical from the AE review).
   const { record } = createRun({
-    pipeline: "bureau:dragnet",
+    pipeline: "program:dragnet",
     payload: {
       targetUrl,
       probePackId,
@@ -180,7 +180,7 @@ export async function POST(req: Request): Promise<Response> {
       status: "cycle pending",
       deprecated: true,
       replacement: "/api/v1/runs",
-      note: "deprecated alias — POST to /api/v1/runs with pipeline=bureau:dragnet",
+      note: "deprecated alias — POST to /api/v1/runs with pipeline=program:dragnet",
     },
     { status: 200, headers: DEPRECATION_HEADERS },
   );

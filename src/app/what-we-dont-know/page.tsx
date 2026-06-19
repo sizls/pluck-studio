@@ -44,7 +44,7 @@ const SectionHeadingStyle: CSSProperties = {
 };
 
 const CardStyle: CSSProperties = {
-  border: "1px solid var(--bureau-border)",
+  border: "1px solid var(--studio-border)",
   borderRadius: 6,
   padding: 24,
   marginTop: 16,
@@ -62,7 +62,7 @@ const SlugDotStyle: CSSProperties = {
   width: 10,
   height: 10,
   borderRadius: "50%",
-  background: "var(--bureau-accent)",
+  background: "var(--studio-accent)",
   flex: "none",
 };
 
@@ -91,7 +91,7 @@ const TwoColumnStyle: CSSProperties = {
 const ColumnLabelKnowsNotStyle: CSSProperties = {
   fontFamily: "var(--studio-mono)",
   fontSize: 11,
-  color: "var(--bureau-accent)",
+  color: "var(--studio-accent)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginBottom: 8,
@@ -140,7 +140,7 @@ const KnowsNotPrefixStyle: CSSProperties = {
   position: "absolute",
   left: 0,
   fontFamily: "var(--studio-mono)",
-  color: "var(--bureau-accent)",
+  color: "var(--studio-accent)",
 };
 
 const PrefixSourceLineStyle: CSSProperties = {
@@ -149,14 +149,14 @@ const PrefixSourceLineStyle: CSSProperties = {
   color: "var(--studio-fg-dim)",
   marginTop: 16,
   paddingTop: 12,
-  borderTop: "1px solid var(--bureau-border)",
+  borderTop: "1px solid var(--studio-border)",
   lineHeight: 1.5,
 };
 
 const FooterStyle: CSSProperties = {
   marginTop: 48,
   paddingTop: 24,
-  borderTop: "1px solid var(--bureau-border)",
+  borderTop: "1px solid var(--studio-border)",
   fontFamily: "var(--studio-mono)",
   fontSize: 13,
   color: "var(--studio-fg-dim)",

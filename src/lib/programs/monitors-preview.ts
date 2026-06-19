@@ -43,7 +43,7 @@ export const MONITORS_PREVIEW: ReadonlyArray<MonitorEntry> = [
   },
   {
     packName: "weekday-watch@1.2",
-    author: "bureau-ops",
+    author: "studio-ops",
     recommendedInterval: "0 0 * * 1-5",
     predicateUri: NUCLEI_PACK_ENTRY_PREDICATE_URI,
     tone: "amber",

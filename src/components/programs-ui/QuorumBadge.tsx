@@ -21,13 +21,13 @@ export function QuorumBadge({ vote }: QuorumBadgeProps): ReactNode {
 
   return (
     <span
-      className={`bureau-quorum-badge bureau-tone-${tone}`}
+      className={`studio-quorum-badge studio-tone-${tone}`}
       title={`Quorum ${vote.threshold.required}-of-${vote.threshold.outOf} • agree:${agreeCount} disagree:${disagreeCount}`}
     >
-      <span className="bureau-quorum-badge-decision">
+      <span className="studio-quorum-badge-decision">
         {vote.decision.toUpperCase()}
       </span>
-      <span className="bureau-quorum-badge-detail">
+      <span className="studio-quorum-badge-detail">
         {agreeCount}/{vote.threshold.outOf} agree
       </span>
     </span>
