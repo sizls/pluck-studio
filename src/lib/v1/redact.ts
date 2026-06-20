@@ -28,7 +28,7 @@
 // DESIGN: per-pipeline registry, additive. Each program's redactor lists
 // the explicit fields to strip; everything else passes through. New
 // programs default to PASS_THROUGH and the type system enforces
-// exhaustiveness via `Record<BureauPipeline, …>`. The redactor receives
+// exhaustiveness via `Record<StudioPipeline, …>`. The redactor receives
 // the canonical-JSON-stable payload + returns a safe-to-publish version
 // (does not mutate the input — the run-store record still holds the
 // original for idempotency / audit).
@@ -40,7 +40,7 @@
 //   - THIS MODULE (GET): output-layer gate. Defense-in-depth.
 // ---------------------------------------------------------------------------
 
-import { type BureauPipeline, BUREAU_PIPELINES } from "./run-spec";
+import { type StudioPipeline, PROGRAM_PIPELINES } from "./run-spec";
 
 export type PayloadRedactor = (
   payload: Record<string, unknown>,
@@ -79,28 +79,28 @@ const REDACT_ROTATE: PayloadRedactor = (payload) => {
 // BOUNTY: validator already rejects auth-token-shaped fields entirely at
 // POST. No persisted privacy-sensitive fields to redact on GET. PASS_THROUGH.
 
-export const PAYLOAD_REDACTORS: Record<BureauPipeline, PayloadRedactor> = {
-  "bureau:dragnet": PASS_THROUGH,
-  "bureau:oath": PASS_THROUGH,
-  "bureau:fingerprint": PASS_THROUGH,
-  "bureau:custody": PASS_THROUGH,
-  "bureau:whistle": REDACT_WHISTLE,
-  "bureau:bounty": PASS_THROUGH,
-  "bureau:sbom-ai": PASS_THROUGH,
-  "bureau:rotate": REDACT_ROTATE,
-  "bureau:tripwire": PASS_THROUGH,
-  "bureau:nuclei": PASS_THROUGH,
-  "bureau:mole": PASS_THROUGH,
+export const PAYLOAD_REDACTORS: Record<StudioPipeline, PayloadRedactor> = {
+  "program:dragnet": PASS_THROUGH,
+  "program:oath": PASS_THROUGH,
+  "program:fingerprint": PASS_THROUGH,
+  "program:custody": PASS_THROUGH,
+  "program:whistle": REDACT_WHISTLE,
+  "program:bounty": PASS_THROUGH,
+  "program:sbom-ai": PASS_THROUGH,
+  "program:rotate": REDACT_ROTATE,
+  "program:tripwire": PASS_THROUGH,
+  "program:nuclei": PASS_THROUGH,
+  "program:mole": PASS_THROUGH,
 };
 
-// Belt-and-suspenders runtime check — if BUREAU_PIPELINES grows and someone
+// Belt-and-suspenders runtime check — if PROGRAM_PIPELINES grows and someone
 // forgets to add an entry to PAYLOAD_REDACTORS, this throws at import time
-// in dev. The `Record<BureauPipeline, …>` already enforces this at the type
+// in dev. The `Record<StudioPipeline, …>` already enforces this at the type
 // level; this catches the (rare) case where the union and the array drift.
-for (const p of BUREAU_PIPELINES) {
+for (const p of PROGRAM_PIPELINES) {
   if (!(p in PAYLOAD_REDACTORS)) {
     throw new Error(
-      `[redact] missing redactor for bureau pipeline: ${p}`,
+      `[redact] missing redactor for Pluck pipeline: ${p}`,
     );
   }
 }
@@ -130,4 +130,148 @@ export function redactPayloadForGet(
   }
 
   return redactor(payload);
+}
+
+// ---------------------------------------------------------------------------
+// /v1/watches — GET-side record redaction
+// ---------------------------------------------------------------------------
+//
+// PROBLEM: `/api/v1/watches/[id]` is public-read by phraseId — the phraseId
+// is the share credential, mirroring the Pluck receipt-link model. The
+// stored WatchRecord carries operator-private fields that MUST NOT echo to
+// a phraseId-credentialed reader:
+//
+//   - `alertChannels.email`     — operator's notification address list
+//   - `alertChannels.webhook`   — operator's automation endpoint(s)
+//   - `alertChannels.slack`     — operator's incident-channel URLs
+//
+// These are credentials/PII the operator did not consent to publish. Strip
+// them at the GET boundary. The stored record stays untouched (alerts still
+// dispatch correctly). Apply to:
+//
+//   - GET /api/v1/watches/[id]              (single)
+//   - GET /api/v1/watches                   (list — each row)
+//   - GET /api/v1/watches/[id]/events       (SSE `state` event payload)
+//
+// The flag-shaped channels (`dashboard`, `phraseId`) are NOT secret — they
+// tell a reader "this watch has dashboard live + receipts on" without
+// leaking destinations. We keep those on the wire.
+//
+// Boolean shape is preserved: the public view replaces the address arrays
+// with their COUNTS so the dashboard can render "Email (3)" without
+// disclosing the addresses.
+// ---------------------------------------------------------------------------
+
+export interface PublicAlertChannelSummary {
+  readonly dashboard: boolean;
+  readonly phraseId: boolean;
+  readonly emailCount: number;
+  readonly webhookCount: number;
+  readonly slackCount: number;
+}
+
+export interface PublicWatchRecord {
+  readonly watchId: string;
+  readonly name: string;
+  readonly url: string;
+  readonly cron: string;
+  readonly intent: string;
+  readonly fetcherKind: string;
+  readonly autonomyMode: string;
+  readonly status: string;
+  readonly alertChannels: PublicAlertChannelSummary;
+  readonly confidenceThreshold: number;
+  readonly diffThreshold: number;
+  readonly ignoreSelectors: ReadonlyArray<string>;
+  readonly useVisionDefault: boolean;
+  readonly dailyBudgetUsd: number;
+  readonly agentTokensSpentTotal: number;
+  readonly agentCostUsdTotal: number;
+  readonly lastObservationId: string | null;
+  readonly lastFiredAt: string | null;
+  readonly receiptUrl: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+interface AlertChannelsLike {
+  dashboard?: unknown;
+  phraseId?: unknown;
+  email?: unknown;
+  webhook?: unknown;
+  slack?: unknown;
+}
+
+interface WatchRecordLike {
+  watchId: string;
+  name: string;
+  url: string;
+  cron: string;
+  intent: string;
+  fetcherKind: string;
+  autonomyMode: string;
+  status: string;
+  alertChannels: AlertChannelsLike;
+  confidenceThreshold: number;
+  diffThreshold: number;
+  ignoreSelectors: ReadonlyArray<string>;
+  useVisionDefault: boolean;
+  dailyBudgetUsd: number;
+  agentTokensSpentTotal: number;
+  agentCostUsdTotal: number;
+  lastObservationId: string | null;
+  // Internal encoding is Unix ms — `store.ts` is the only writer and it
+  // always writes `number | null`. The earlier `string` arm was defensive
+  // polymorphism that is now dead post-R3. R5 ARCH-A1 lockdown.
+  lastFiredAt: number | null;
+  receiptUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function arrayLen(v: unknown): number {
+  return Array.isArray(v) ? v.length : 0;
+}
+
+/**
+ * Project a stored WatchRecord into the public view served by GET routes
+ * and SSE `state` events. Address arrays in alertChannels are replaced
+ * with counts. `lastFiredAt` (Unix ms internally) is rendered as ISO so
+ * the public surface uses a single timestamp encoding.
+ */
+export function redactWatchForGet(record: WatchRecordLike): PublicWatchRecord {
+  const c = record.alertChannels;
+
+  return {
+    watchId: record.watchId,
+    name: record.name,
+    url: record.url,
+    cron: record.cron,
+    intent: record.intent,
+    fetcherKind: record.fetcherKind,
+    autonomyMode: record.autonomyMode,
+    status: record.status,
+    alertChannels: {
+      dashboard: c.dashboard === true,
+      phraseId: c.phraseId === true,
+      emailCount: arrayLen(c.email),
+      webhookCount: arrayLen(c.webhook),
+      slackCount: arrayLen(c.slack),
+    },
+    confidenceThreshold: record.confidenceThreshold,
+    diffThreshold: record.diffThreshold,
+    ignoreSelectors: record.ignoreSelectors,
+    useVisionDefault: record.useVisionDefault,
+    dailyBudgetUsd: record.dailyBudgetUsd,
+    agentTokensSpentTotal: record.agentTokensSpentTotal,
+    agentCostUsdTotal: record.agentCostUsdTotal,
+    lastObservationId: record.lastObservationId,
+    lastFiredAt:
+      record.lastFiredAt === null
+        ? null
+        : new Date(record.lastFiredAt).toISOString(),
+    receiptUrl: record.receiptUrl,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
 }

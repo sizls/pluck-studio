@@ -2,7 +2,7 @@
 // Studio MCP discovery document — pure function over the program registry
 // ---------------------------------------------------------------------------
 //
-// Studio is the operator-facing surface for the Pluck Bureau. AI agents
+// Studio is the operator-facing surface for Pluck. AI agents
 // (Claude Desktop, Cursor, custom MCP clients) discover Studio through
 // this discovery document — a JSON file describing the resources,
 // tools, and prompts the external `@sizls/pluck-mcp` server exposes
@@ -20,14 +20,14 @@
 // This builder is pure: same registry input → same discovery output.
 // No `Math.random`, no `Date.now`, no clock dependence — every resource
 // URI and tool input-schema is derived from the static program registry
-// and the BUREAU_PIPELINES enum. That determinism is what lets the
+// and the PROGRAM_PIPELINES enum. That determinism is what lets the
 // /api/mcp/manifest.json route serve a cacheable response without ever
 // drifting from the runtime taxonomy.
 //
 // Auto-generation invariant — like the OpenAPI generator:
 //   - Resources for each ACTIVE_PROGRAMS entry (`pluck://program/<slug>`).
-//   - Tool input schemas reference the same `bureau:*` pipeline values
-//     as `BUREAU_PIPELINES`. Adding a new program is a one-line registry
+//   - Tool input schemas reference the same `program:*` pipeline values
+//     as `PROGRAM_PIPELINES`. Adding a new program is a one-line registry
 //     change; the manifest auto-includes it.
 //
 // Related contracts:
@@ -46,7 +46,7 @@
 // ---------------------------------------------------------------------------
 
 import { ACTIVE_PROGRAMS } from "../programs/registry";
-import { BUREAU_PIPELINES, RUN_STATUSES } from "../v1/run-spec";
+import { PROGRAM_PIPELINES, RUN_STATUSES } from "../v1/run-spec";
 
 /**
  * Manifest-shape root — Studio-invented discovery document.
@@ -133,14 +133,14 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
       uri: "pluck://run/{id}",
       name: "A single signed run receipt",
       description:
-        "DSSE-signed in-toto envelope for one Bureau program run. The {id} is the phrase ID (e.g. `openai-swift-falcon-3742`) returned by /v1/runs POST. Anchored in the Sigstore Rekor transparency log; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
+        "DSSE-signed in-toto envelope for one program run. The {id} is the phrase ID (e.g. `openai-swift-falcon-3742`) returned by /v1/runs POST. Anchored in the Sigstore Rekor transparency log; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
       mimeType: DSSE_MIME,
     },
     {
       uri: "pluck://runs/recent",
       name: "Recent runs across all programs",
       description:
-        "Cursor-paginated list of recent runs across all 11 Bureau programs. Mirrors GET /api/v1/runs. Filters: pipeline, since (ISO timestamp), status. Payloads are GET-redacted per program.",
+        "Cursor-paginated list of recent runs across all the Pluck programs. Mirrors GET /api/v1/runs. Filters: pipeline, since (ISO timestamp), status. Payloads are GET-redacted per program.",
       mimeType: JSON_MIME,
     },
     {
@@ -174,14 +174,14 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
     },
   ];
 
-  const bureauPipelineEnum = [...BUREAU_PIPELINES];
+  const programPipelineEnum = [...PROGRAM_PIPELINES];
   const runStatusEnum = [...RUN_STATUSES];
 
   const tools: McpTool[] = [
     {
       name: "pluck.search",
       description:
-        "Search by phrase ID — decompose the slug into vendor + adjective + noun + serial, fan out across all 11 programs and return every receipt that shares any component.",
+        "Search by phrase ID — decompose the slug into vendor + adjective + noun + serial, fan out across all 51 programs and return every receipt that shares any component.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -229,15 +229,15 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
     {
       name: "pluck.run",
       description:
-        "Execute a Bureau program through /v1/runs. Returns the runId / phrase ID and the receipt URL. Mirrors POST /api/v1/runs — same idempotency, auth, and per-pipeline payload contract.",
+        "Execute a program through /v1/runs. Returns the runId / phrase ID and the receipt URL. Mirrors POST /api/v1/runs — same idempotency, auth, and per-pipeline payload contract.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
         properties: {
           pipeline: {
             type: "string",
-            description: "Bureau pipeline slug. Adding a new program auto-extends this enum.",
-            enum: bureauPipelineEnum,
+            description: "Pluck pipeline slug. Adding a new program auto-extends this enum.",
+            enum: programPipelineEnum,
           },
           payload: {
             type: "object",
@@ -265,8 +265,8 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
         properties: {
           pipeline: {
             type: "string",
-            description: "Filter by Bureau pipeline slug. Adding a new program auto-extends this enum.",
-            enum: bureauPipelineEnum,
+            description: "Filter by Pluck pipeline slug. Adding a new program auto-extends this enum.",
+            enum: programPipelineEnum,
           },
           since: {
             type: "string",

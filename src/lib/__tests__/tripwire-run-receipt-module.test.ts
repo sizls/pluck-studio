@@ -75,7 +75,7 @@ describe("tripwireRunReceiptModule", () => {
   it("timelineUrl populated once machineId is set", () => {
     const sys = setup();
     sys.facts.machineId = "alice-mbp";
-    expect(sys.derive.timelineUrl).toBe("/bureau/tripwire/me");
+    expect(sys.derive.timelineUrl).toBe("/programs/tripwire/me");
   });
 
   it("predicate URI is canonical wire form", () => {

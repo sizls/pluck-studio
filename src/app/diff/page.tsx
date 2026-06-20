@@ -20,9 +20,9 @@ export const metadata: Metadata = {
 };
 
 const S: Record<string, CSSProperties> = {
-  header: { borderBottom: "1px solid var(--bureau-fg-dim)", paddingBottom: 16, marginBottom: 24 },
-  h2: { fontFamily: "var(--bureau-mono)", fontSize: 13, color: "var(--bureau-fg-dim)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 32, marginBottom: 12 },
-  sample: { border: "1px solid var(--bureau-fg-dim)", borderRadius: 6, padding: 16, background: "rgba(255, 255, 255, 0.02)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, textDecoration: "none", color: "inherit", fontFamily: "var(--bureau-mono)", fontSize: 13, marginTop: 12 },
+  header: { borderBottom: "1px solid var(--studio-fg-dim)", paddingBottom: 16, marginBottom: 24 },
+  h2: { fontFamily: "var(--studio-mono)", fontSize: 13, color: "var(--studio-fg-dim)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 32, marginBottom: 12 },
+  sample: { border: "1px solid var(--studio-fg-dim)", borderRadius: 6, padding: 16, background: "rgba(255, 255, 255, 0.02)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, textDecoration: "none", color: "inherit", fontFamily: "var(--studio-mono)", fontSize: 13, marginTop: 12 },
 };
 
 export default function DiffIndexPage(): ReactNode {
@@ -32,7 +32,7 @@ export default function DiffIndexPage(): ReactNode {
   return (
     <main data-testid="diff-index" style={{ maxWidth: 760, margin: "0 auto", padding: "32px 24px 64px" }}>
       <header style={S.header}>
-        <h1 style={{ fontFamily: "var(--bureau-mono)", fontSize: 28, margin: 0 }}>Receipt Diff</h1>
+        <h1 style={{ fontFamily: "var(--studio-mono)", fontSize: 28, margin: 0 }}>Receipt Diff</h1>
         <p style={{ marginTop: 8, lineHeight: 1.6 }}>
           Two cycles. One vendor. Side by side. Vendor-honesty time machine.
         </p>
@@ -48,13 +48,13 @@ export default function DiffIndexPage(): ReactNode {
       <h2 style={S.h2}>Try a same-vendor sample</h2>
       <a href={`/diff/${sample.base}?since=${sample.target}`} style={S.sample} data-testid="diff-index-sample-link">
         <span>/diff/{sample.base}?since={sample.target}</span>
-        <span style={{ color: "var(--bureau-fg-dim)" }}>→ diff</span>
+        <span style={{ color: "var(--studio-fg-dim)" }}>→ diff</span>
       </a>
 
       <h2 style={S.h2}>Try a cross-vendor sample (rejected)</h2>
       <a href={`/diff/${cross.base}?since=${cross.target}`} style={S.sample} data-testid="diff-index-cross-vendor-sample-link">
         <span>/diff/{cross.base}?since={cross.target}</span>
-        <span style={{ color: "var(--bureau-fg-dim)" }}>→ rejected</span>
+        <span style={{ color: "var(--studio-fg-dim)" }}>→ rejected</span>
       </a>
 
       <h2 style={S.h2}>Find phrase IDs</h2>

@@ -77,7 +77,7 @@ describe("nucleiRunReceiptModule", () => {
     sys.facts.author = "alice";
     sys.facts.packName = "canon-honesty@0.1";
     expect(sys.derive.packDossierUrl).toBe(
-      "/bureau/nuclei/alice/canon-honesty",
+      "/programs/nuclei/alice/canon-honesty",
     );
   });
 

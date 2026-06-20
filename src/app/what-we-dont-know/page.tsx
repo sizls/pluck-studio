@@ -35,16 +35,16 @@ export const metadata = {
 };
 
 const SectionHeadingStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginTop: 32,
 };
 
 const CardStyle: CSSProperties = {
-  border: "1px solid var(--bureau-border)",
+  border: "1px solid var(--studio-border)",
   borderRadius: 6,
   padding: 24,
   marginTop: 16,
@@ -62,22 +62,22 @@ const SlugDotStyle: CSSProperties = {
   width: 10,
   height: 10,
   borderRadius: "50%",
-  background: "var(--bureau-accent)",
+  background: "var(--studio-accent)",
   flex: "none",
 };
 
 const ProgramNameStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 18,
   letterSpacing: "0.06em",
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
   margin: 0,
 };
 
 const SlugStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   marginLeft: "auto",
 };
 
@@ -89,18 +89,18 @@ const TwoColumnStyle: CSSProperties = {
 };
 
 const ColumnLabelKnowsNotStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 11,
-  color: "var(--bureau-accent)",
+  color: "var(--studio-accent)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginBottom: 8,
 };
 
 const ColumnLabelKnowsStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 11,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginBottom: 8,
@@ -114,7 +114,7 @@ const ListStyle: CSSProperties = {
 
 const KnowsNotItemStyle: CSSProperties = {
   fontSize: 14,
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
   lineHeight: 1.6,
   paddingLeft: 18,
   position: "relative",
@@ -123,7 +123,7 @@ const KnowsNotItemStyle: CSSProperties = {
 
 const KnowsItemStyle: CSSProperties = {
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   lineHeight: 1.6,
   paddingLeft: 18,
   position: "relative",
@@ -133,33 +133,33 @@ const KnowsItemStyle: CSSProperties = {
 const PrefixStyle: CSSProperties = {
   position: "absolute",
   left: 0,
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
 };
 
 const KnowsNotPrefixStyle: CSSProperties = {
   position: "absolute",
   left: 0,
-  fontFamily: "var(--bureau-mono)",
-  color: "var(--bureau-accent)",
+  fontFamily: "var(--studio-mono)",
+  color: "var(--studio-accent)",
 };
 
 const PrefixSourceLineStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 11,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   marginTop: 16,
   paddingTop: 12,
-  borderTop: "1px solid var(--bureau-border)",
+  borderTop: "1px solid var(--studio-border)",
   lineHeight: 1.5,
 };
 
 const FooterStyle: CSSProperties = {
   marginTop: 48,
   paddingTop: 24,
-  borderTop: "1px solid var(--bureau-border)",
-  fontFamily: "var(--bureau-mono)",
+  borderTop: "1px solid var(--studio-border)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   lineHeight: 1.7,
 };
 
@@ -228,11 +228,11 @@ function PostureCard({
 export default function WhatWeDontKnowPage(): ReactNode {
   return (
     <>
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">
           What we don't know about your operation
         </h1>
-        <p className="bureau-hero-tagline">
+        <p className="studio-hero-tagline">
           Most security tools brag about what they collect; here's what
           we refuse to know. This page is everything Pluck Studio
           refuses to see / store / log about your operation, by program,

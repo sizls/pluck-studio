@@ -1,4 +1,4 @@
-import { BureauChrome } from "@/components/bureau-ui";
+import { StudioChrome } from "@/components/programs-ui";
 import type { ReactNode } from "react";
 
 export default function ExtractLayout({
@@ -6,5 +6,5 @@ export default function ExtractLayout({
 }: {
   children: ReactNode;
 }): ReactNode {
-  return <BureauChrome>{children}</BureauChrome>;
+  return <StudioChrome>{children}</StudioChrome>;
 }

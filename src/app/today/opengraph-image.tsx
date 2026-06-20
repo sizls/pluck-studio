@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // The daily-tweet asset. Operators paste `studio.pluck.run/today` into
-// Slack / X / Discord and the unfurl shows all 11 Bureau programs'
+// Slack / X / Discord and the unfurl shows all the Pluck programs'
 // last-24h verdict density in a single card.
 //
 // Layout: 4×3 grid (12 cells, one empty) — each tile carries program
@@ -22,7 +22,7 @@ import {
 } from "../../lib/programs/today-rollup.js";
 
 export const runtime = "edge";
-export const alt = "Pluck — today's honesty signal across 11 Bureau programs";
+export const alt = "Pluck — today's honesty signal across the Pluck programs";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -155,7 +155,7 @@ function ProgramTile({ program }: { program: ProgramRollup }): ReactElement {
 
 export default function Image(): Response {
   // TODO(pluck-api): pass new Date() once /v1/runs since-24h queries land
-  // TODO(sigil): /today is an aggregate across 11 programs — there is no
+  // TODO(sigil): /today is an aggregate across 51 programs — there is no
   // single phraseId here, so PhraseSigil does not apply directly. If a
   // future layout swaps to per-cell receipt highlights, integrate
   // <PhraseSigil renderPhraseSigil() bytes /> per cell once edge runtime

@@ -13,7 +13,7 @@ Captured by the AE Review Loop. Game changers that pass the "FUCK YES, build tha
    - Status: shipped in `src/lib/phrase-id.ts` + receipt routes resolve `/runs/{phrase}` and `/runs/{uuid}`.
 
 2. **Live "probe prep" stream on the pending receipt** — terminal-style live feed during the wait
-   - Why it's a game changer: turns dead-air "pending" wait into screenshot bait. The bureau-mono terminal aesthetic IS the brand. Operators will record the wait.
+   - Why it's a game changer: turns dead-air "pending" wait into screenshot bait. The studio-mono terminal aesthetic IS the brand. Operators will record the wait.
    - Compound effect: same component renders real engine events when pluck-api lands. Free instrumentation surface.
    - Buildable in: 1 day.
    - Status: deferred to R2 — needs SSE endpoint + typewriter component, lands when pluck-api stub events are real.
@@ -44,13 +44,13 @@ Captured by the AE Review Loop. Game changers that pass the "FUCK YES, build tha
    - Why: every receipt URL gets its own coat of arms — adjective-hashed HSL fill + noun-hashed shape (one of 10 hand-built primitives) + serial-number badge + program-accent border.
    - Compound: massive — renders into /search results (64px), /vendor receipt rows (40px), every receipt-page header (96px). OG cards + RSS embeds + MP4 burn-ins follow as later phases when next/og + dynamic SVG plumbing matures.
    - Buildable in: shipped in 1 round. No external silhouette assets — all 10 shapes hand-built from SVG primitives, no font loads (system mono only), pure-deterministic generator at `src/lib/sigil/phrase-sigil.ts`.
-   - Status: shipped. `<PhraseSigil>` exported from `@sizls/pluck-bureau-ui`; deterministic SVG output snapshotted for byte-stability lock.
+   - Status: shipped. `<PhraseSigil>` exported from `@sizls/pluck-programs-ui`; deterministic SVG output snapshotted for byte-stability lock.
 
 2. **Dynamic OG Card with Live Contradict-Count** — `/runs/{phrase}/opengraph-image` returns 1200×630 PNG **(SHIPPED R2)**
    - Why: every paste of a receipt URL into Slack/X/Discord/iMessage now auto-unfurls into self-marketing. Vendor name + cycle status + brand chrome.
    - Compound: high — every link-paste in any platform becomes free marketing.
    - Buildable in: 1 day.
-   - Status: shipped in `src/app/bureau/dragnet/runs/[id]/opengraph-image.tsx` with stub status (real classification counts come when the runner lands).
+   - Status: shipped in `src/app/programs/dragnet/runs/[id]/opengraph-image.tsx` with stub status (real classification counts come when the runner lands).
 
 3. **Receipt Diff** — `?since=<phrase-id>` shows what changed between two cycles for the same vendor **(SHIPPED R2)**
    - Why: turns DRAGNET into a vendor-honesty time machine. Karpathy-quote-tweet candidate: "OpenAI's pricing claim said X on swift-falcon-3742, now says Y on calm-otter-0918."
@@ -74,7 +74,7 @@ These came out of R3's domain review but require breaking changes / external wor
    - Defer until v0.5 or until we have data on user confusion.
 
 2. **Probe-pack provenance preview** (signer fingerprint, probe count, summary)
-   - Bureau practitioners flag this as TOFU red flag — running an unvetted pack against production is the cardinal sin.
+   - Pluck practitioners flag this as TOFU red flag — running an unvetted pack against production is the cardinal sin.
    - Blocked on NUCLEI registry. When NUCLEI ships, the form's probe-pack ID input becomes a picker that fetches manifest metadata before submit.
    - Defer to NUCLEI integration milestone.
 
@@ -98,7 +98,7 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
 ### Top 5 Ranked
 
 1. **Vendor Honesty Index** — `studio.pluck.run/vendor/openai`
-   - Why: every vendor gets a permanent live URL aggregating ALL 11 programs' receipts (DRAGNET reds, FINGERPRINT swaps, OATH expirations, MOLE verdicts, ROTATE notices) into one scrolling timeline.
+   - Why: every vendor gets a permanent live URL aggregating ALL 51 programs' receipts (DRAGNET reds, FINGERPRINT swaps, OATH expirations, MOLE verdicts, ROTATE notices) into one scrolling timeline.
    - Tweet: *"openai's pluck profile right now: 12 contradictions this week, 1 silent model swap, oath expired 3 days ago. Permanent URL. Updates live."*
    - Compound: massive — every future receipt across every program auto-enriches every vendor page. Permanent SEO + share surface per vendor. Karpathy bookmarks `/vendor/openai`.
    - Buildable in: 2 days. Server-side groupBy on phrase-ID prefix is the entire query (prefixes already vendor-scoped: `openai-...`, `nyt20240115-...`, etc.).
@@ -106,7 +106,7 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
    - Status: **FUCK YES tier — top priority for next build phase.**
 
 2. **Phrase-ID Auto-Stitch Search** — paste any phrase ID, see the receipt graph **(SHIPPED v3-R1 Backlog #2)**
-   - Why: single search bar; paste `openai-swift-falcon-3742`; get every related receipt across all 11 programs (same vendor, same operator, BOUNTY/DRAGNET parent-child links).
+   - Why: single search bar; paste `openai-swift-falcon-3742`; get every related receipt across all 51 programs (same vendor, same operator, BOUNTY/DRAGNET parent-child links).
    - Compound: high — every new program inherits search for free. Becomes the default landing page when someone receives a phrase ID cold.
    - Buildable in: 1 day. Index implicit in prefix scheme; `/search?q=swift-falcon-3742` does prefix decomposition + fan-out.
    - Status: **SHIPPED — `/search` page renders form + decomposition + direct match + related-by-scope grid; runs against vendor-preview today, swaps to `pluck-api /v1/runs?phraseIdPrefix=` when live data lands. Pure aggregator at `src/lib/search/phrase-stitch.ts`; parser at `src/lib/phrase-id.ts` exports `parsePhraseId`.**
@@ -118,11 +118,11 @@ Surfaced after all 11 alpha programs activated through the unified pattern. Comp
    - Status: **SHIPPED — `NucleiPublishCta` on SBOM-AI receipt (gated to `artifactKind === "probe-pack"`, greyed-out while pending), `?sbomRekorUuid=&packName=` query-param prefill on NUCLEI RunForm with banner, "Source artifact" section on NUCLEI receipt with rekor UUID + cosign verify-blob command. `/runs` callout. E2E in `e2e/nuclei-sbom-ai-loop.spec.ts`. See `docs/ARCHITECTURE.md` → "Cross-program flows" and `docs/V1_API.md` → "Cross-publish to NUCLEI" / "Pre-fill via query params".**
 
 4. **Daily Roll-Up OG Card** — `/today/opengraph-image` shows one tile per program color-coded by today's verdict density **(SHIPPED v3-R1 Backlog #3)**
-   - Why: the daily-tweet asset; one shareable image summarizes Pluck's last 24h across all 11 programs.
+   - Why: the daily-tweet asset; one shareable image summarizes Pluck's last 24h across all 51 programs.
    - Compound: medium-high — pairs with #1 + #2 as the daily distribution arm.
    - Buildable in: 1 day. Reuses existing OG infrastructure.
    - Risk: empty days look sad — pre-seed with stub-status colors.
-   - Status: SHIPPED — `/today` page + `/today/opengraph-image` 1200×630 PNG. Aggregation helper at `src/lib/programs/today-rollup.ts` covers all 11 programs (vendor-bearing programs fold from vendor-preview, non-vendor-bearing programs use a deterministic stub). Watermark "DEMO DATA — PREVIEW" carried on the OG card per VHI pattern. Public `getDailyRollup(now?)` API stays stable — the swap to pluck-api `/v1/runs?since=24h` is one private function.
+   - Status: SHIPPED — `/today` page + `/today/opengraph-image` 1200×630 PNG. Aggregation helper at `src/lib/programs/today-rollup.ts` covers all 51 programs (vendor-bearing programs fold from vendor-preview, non-vendor-bearing programs use a deterministic stub). Watermark "DEMO DATA — PREVIEW" carried on the OG card per VHI pattern. Public `getDailyRollup(now?)` API stays stable — the swap to pluck-api `/v1/runs?since=24h` is one private function.
 
 5. **Receipt Subscription Feed** — RSS/Atom per vendor (`/vendor/openai/feed.xml`) **(SHIPPED v3-R1 Backlog #4)**
    - Why: free passive distribution. Journalists subscribe; every new red dot lands in their RSS reader.
@@ -165,7 +165,7 @@ Surfaced after R1 hardened the activation surface (D1 license tightening, D3 cro
    - Tweet: *"NUCLEI's amber 'registry-fenced' badge: 'this pack is in the registry, but consumers refuse to honor it until the SBOM-AI cross-reference clears.' transparent supply-chain trust state, one pixel."*
    - Compound: medium-high — multiplies VHI / Auto-Stitch when those land. Polish on its own; load-bearing combined.
    - Buildable in: hours.
-   - Status: shipped. `<VerdictBadge>` server component at `src/components/bureau-ui/VerdictBadge.tsx` with 6 variants (verified / registry-fenced / re-witnessed / expired / failed / pending). `verdictToBadgeVariant()` mapping at `src/lib/programs/verdict-mapping.ts`. Wired into /search results, /vendor receipt rows, and the NUCLEI + MOLE receipt headers — load-bearing trust tiers are now a system-wide visual primitive instead of per-receipt callouts.
+   - Status: shipped. `<VerdictBadge>` server component at `src/components/programs-ui/VerdictBadge.tsx` with 6 variants (verified / registry-fenced / re-witnessed / expired / failed / pending). `verdictToBadgeVariant()` mapping at `src/lib/programs/verdict-mapping.ts`. Wired into /search results, /vendor receipt rows, and the NUCLEI + MOLE receipt headers — load-bearing trust tiers are now a system-wide visual primitive instead of per-receipt callouts.
 
 ### Recommended sequence
 
@@ -190,7 +190,7 @@ Surfaced after Receipt Diff + MCP scaffold landed. R1 review found 5 majors (fix
 
 2. **`pluck://` Resolver Protocol Handler + `/r/<uri>` Web Bridge** (1 day, HIGH compound, HIGH viral)
    - Pitch: the MCP manifest mints `pluck://program/<slug>`, `pluck://run/<id>`, `pluck://phrase/{id}`, `pluck://diff/{base}/{target}` URIs but nothing dereferences them on the web. Ship `/r/[...uri]/page.tsx` that resolves any `pluck://` URI → the human receipt + the DSSE bytes via `Accept` negotiation, plus a `registerProtocolHandler('pluck', ...)` button.
-   - Tweet: *"AI agents now speak pluck://. Paste pluck://run/abc123 into Claude, Cursor, or your terminal and the Bureau resolves it. The first protocol handler for AI-audit receipts. /mcp wired the agents — pluck:// wires the rest of the world."*
+   - Tweet: *"AI agents now speak pluck://. Paste pluck://run/abc123 into Claude, Cursor, or your terminal and the Pluck resolves it. The first protocol handler for AI-audit receipts. /mcp wired the agents — pluck:// wires the rest of the world."*
    - Why FUCK YES: first-class URI scheme is a category-creating move (think `magnet:`, `did:`). MCP folks will quote-tweet. Compounds with /diff, /open, Crest — every existing surface gets a canonical address overnight.
    - Compound: every existing URL primitive (phraseId / diff / vendor / program) gets a stable cite-able machine address.
    - Status: **DEFERRED** — same fix-first rule.
@@ -206,6 +206,44 @@ Surfaced after Receipt Diff + MCP scaffold landed. R1 review found 5 majors (fix
 
 If the loop converges with 0 critical / 0 major after R2, all three are buildable in <2 days each. Recommend **#1 `/proof`** first — the cryptographic-proof artifact is the strongest viral candidate AND retroactively justifies every "we don't log that" claim across the existing 7 redaction boundaries.
 
+## R-Watch1 — Watch surface (Sherlock Moments)
+
+Surfaced by Round 1 of the AE loop on the Week-1 Watch scaffold (commit 8af75f0). User chose to **defer all** game changers this round because R1 turned up 8 critical and ~22 major issues — fix first, build the wedge in R3+.
+
+### The Three Wedge Picks (ranked)
+
+1. **The Stakeout — `/watch/[id]/stakeout`** (1 day, HIGH viral × HIGH compound)
+   - Pitch: full-screen cinematic "the agent is watching right now" view. SSE-driven typewriter streaming the agent's `reasoning`; yellow-highlighted `evidenceQuote` pull-quotes slide in; next-fire countdown tick against the cron. Pluck-mono terminal aesthetic IS the brand.
+   - Demo moment: 15-second clip. Black terminal, vendor URL up top, typewriter spits "Price changed from $79 → $129. Reason: removed the introductory tier." Evidence quote highlights yellow. Cron clock ticks `04:43`. Single frame = TechCrunch hero asset.
+   - Implementation (Directive-first): `stakeoutModule` with `schema: { observations, countdownMs, typewriterIndex }`, derivations for `latestEvidenceQuote` / `nextFireAt` / `streamProgress`, 1s `tickCountdown` effect. SSE feed → `system.facts.observations.push(...)`. `useDerived` drives the typewriter.
+   - Compound: SSE endpoint already exists, `Observation.reasoning`/`evidenceQuote` already in the contract. Stub today → real agent text streams in Week-2 for free.
+   - Status: **DEFERRED to R3+** — fix-first.
+
+2. **Receipt Trio — auto-mint OG card + haiku + evidence poster per observation** (1.5 days, HIGH viral × HIGH compound)
+   - Pitch: every observation auto-mints three shareable artifacts on save: (a) 1200×630 OG card with the evidence quote pull-quoted, (b) 6-line haiku blurb generated from `causalExplanation` for Slack/Twitter, (c) `/observation/<phraseId>/poster.svg` "police-evidence-board" poster with Phrase Crest sigil — printable.
+   - Demo moment: Slack DM screenshot: *"Stripe raised checkout fees. / Three hours past midnight Pacific. / swift-falcon-1188"* attached to a black-and-yellow evidence poster. The haiku is the unhinged-but-perfect distribution wedge — nobody else does this.
+   - Implementation (Directive-first): Add `effects.onObservation` on the watch module that calls `renderTrio()` when a new observation lands. Haiku is a deterministic structured-output stub until the Week-2 agent ships. Posters reuse the existing Phrase Crest SVG generator.
+   - Compound: `phrase-id.ts` already minted, `Observation.evidenceQuote`/`causalExplanation` already typed, `WatchRecord.receiptUrl` already exposed.
+   - Status: **DEFERRED to R3+** — fix-first.
+
+3. **The Vigil — `/watch/[id]/vigil`** (4 hours, MEDIUM viral × MEDIUM compound)
+   - Pitch: one number, very large. "Pluck has been watching this page for 47 days, 3 hours, 12 minutes." Below it: total observations, longest unchanged streak, single most alert-worthy moment linked to its receipt. That's the whole page. No charts.
+   - Demo moment: a 30-second clip of pasting the URL into an article: *"Pluck has been watching OpenAI's pricing page for 134 days. In that time they changed it 9 times."* The number is hypnotic. Karpathy-quote-tweet bait.
+   - Implementation (Directive-first): `vigilModule` with `schema: { startedAt, observationCount, longestUnchangedStreak, peakAlertObsId }`. Derivation `currentDuration = (facts) => Date.now() - facts.startedAt` re-evaluates on a 1s effect tick. SSR for SEO; one client component for the live ticking.
+   - Compound: `WatchRecord.createdAt` + `listObservations` + observation phrase-IDs — all already in place.
+   - Status: **DEFERRED to R3+** — fix-first. (Cheapest of the three; great candidate for the first R3 commit.)
+
+### Other ideas (backlog)
+
+4. **Two-Watch Duel — `/duel/<watch-a>/<watch-b>`** (1 day) — side-by-side scoreboard of two watches with synchronized cron-tick header. Cross-module derivation `verdict = (facts) => compareObservationStreams(facts.a, facts.b)`. The only monitoring tool that watches comparatively.
+5. **Patience Score badge — `/watch/[id]/patience.svg`** (4 hours) — calibrated "this watch saved you 14 hours of refreshing" badge. ROI on monitoring tools is invisible; Patience Score makes the savings visible and shareable.
+6. **Watch-of-Watches — meta-watch on `/watch` itself** (2 hours) — recursive: "alert me when a new watch is created or an existing one fires alert-worthy." Hofstadter screenshot waiting to happen + genuinely useful team feature.
+7. **Watch Roulette — `/watch/roulette`** (2 hours) — random redirect to a live `/watch/<id>/stakeout`. "I'm Feeling Lucky" for monitoring. Disco frames are screenshot bait. Requires opt-in `WatchSpec.public` flag.
+
+### R-Watch1 wedge bundle estimate
+
+Stakeout + Receipt Trio + Vigil = ~3 days of focused work. Single launch announcement writes itself: **"The Stakeout. The Haiku. The Vigil. Watch is live."**
+
 ## R0 (plan-doc) — already captured in `mighty-gliding-swan.md`
 
 These are part of the plan, not surfaced this round:
@@ -215,3 +253,37 @@ These are part of the plan, not surfaced this round:
 - Twitter/X card image for receipt URLs
 - Public Discord with `#receipts` auto-feed
 - Replay last week's incident with a different LLM (Kite's flagship demo)
+
+## R-Watch2 — Composition Wedges
+
+Surfaced by Round 2 of the AE loop after the R1 hardening commit (`2c8aecb`). R1 was *Watch by itself*; R2 is *Watch composing with the rest of Pluck*.
+
+### The Three Wedge Picks (R2)
+
+1. **The Provocation Probe — Watch alert → auto-fired Pluck DRAGNET cycle** (1.5 days)
+   - Pitch: when a Watch goes `alertWorthy: true`, the runtime auto-mints a DRAGNET run probing the new claim and binds the resulting receipt as the alert payload. Slack message links to both phrase-IDs.
+   - Why category-defining: nobody composes "monitor the change" with "audit the change." Watch detects drift, Pluck interrogates it, the receipt page shows both. The seam doesn't exist yet (flagged in `docs/ARCHITECTURE.md §16`).
+   - Demo: Slack alert — *"openai.com/pricing changed. DRAGNET probed and found 2 contradictions. → `pricing-swift-falcon-1188` (Watch) → `openai-bold-marlin-3742` (DRAGNET)."*
+   - Implementation (Directive-first): `provocationModule` constraint `autoProbe: { when: facts.lastObservation.alertWorthy && facts.spec.autoProbe === "dragnet", require: { type: "MINT_DRAGNET_RUN", … } }`. Resolver POSTs `/api/v1/runs`. Dedupe key `probe-${observationId}`.
+   - Risk: cost amplification — needs `autoProbeBudgetUsd` cap + explicit opt-in.
+
+2. **`pluck watch <url> "<intent>"` — 30-second CLI magic moment** (1 day)
+   - Pitch: single CLI command creates the watch, prints the phrase-ID, opens `/watch/[id]` in the browser, and tails SSE in the terminal until first observation lands.
+   - Why category-defining: Sentry's `npx @sentry/wizard` is a category move; this is the same beat for monitoring.
+   - Demo: 28-second `asciinema` — command → yellow phrase-ID prints → SSE bar fills → first observation prints inline.
+   - Implementation (Directive-first): `cliWatchModule` with `schema: { url, intent, watchId, observations }`, init POSTs `/v1/watches`, effect `tailSSE` opens events endpoint.
+   - Risk: anonymous-owner stub means publicly enumerable until pluck-api owner-scoping lands; add `--anonymous` flag explicit ack.
+
+3. **Watch-Diff — `/watch/[id]/diff?since=<obs-phrase>`** (4-6 hours)
+   - Pitch: compose the existing `/diff/[id]` primitive with Watch. Two observation phrase-IDs → diff of extractedFields + evidenceQuote + classification transition.
+   - Why category-defining: time machine for one URL. Compounds Stakeout (R1, live) with retrospective view.
+   - Demo: two side-by-side observation cards, "Stripe checkout fee: 2.9% → 3.4%" highlighted yellow.
+   - Implementation (Directive-first): extend `src/lib/diff/receipt-diff.ts` with `observationDiff(prev, curr)`; new route `/watch/[id]/diff/page.tsx`. Pure-fn.
+   - Status: **CANDIDATE for R2 commit — cheapest compound on the board.**
+
+### R-Watch2 Backlog (4)
+
+4. **`/watch/[id]/proof` — DSSE-signed "we are still watching" attestation** (1 day) — bridges existing /proof primitive into Watch. Companion `/proof.svg` badge: "WATCHED · 47d · 9 fires · verified".
+5. **Receipt-Symphony Page — `/observation/<phraseId>` Directive timeline UI** (1.5-2 days) — surface Directive's time-travel debugger as end-user UX. Tabs: "What the agent thought" / "did" / "engine evaluated."
+6. **Two-Way Trust Loop — public disagreement ledger** (1.5 days) — every alert renders "agent was wrong" button → phrase-ID'd disagreement receipt. Inverts surveillance pattern. Compounds with Vendor Honesty Index.
+7. **Fleet Heatmap — `/watch` landing as live cron-grid** (1 day) — 24×N grid, cells colored by classification density, SSE pulses on each fire. Requires opt-in `public: true` per watch.

@@ -1,11 +1,11 @@
 // ---------------------------------------------------------------------------
-// today-rollup — daily honesty signal across all 11 Bureau programs
+// today-rollup — daily honesty signal across all the Pluck programs
 // ---------------------------------------------------------------------------
 //
 // Aggregation helper consumed by `/today` (page) and
 // `/today/opengraph-image` (1200×630 PNG). Returns a `DailyRollup` that
 // covers EVERY active program, not just the 6 vendor-bearing ones —
-// the daily card has to demonstrate the full Bureau surface.
+// the daily card has to demonstrate the full Pluck surface.
 //
 // Phase-stub: pluck-api `/v1/runs?since=24h-ago` isn't live yet. Until
 // it lands we fold per-vendor preview activity into per-program

@@ -78,7 +78,7 @@ describe("/search page — server render", () => {
 
   it("each result tile carries a receipt URL", async () => {
     const html = await render("openai-bold-marlin-1188");
-    expect(html).toMatch(/href="\/bureau\/[a-z-]+\/runs\/openai-/);
+    expect(html).toMatch(/href="\/programs\/[a-z-]+\/runs\/openai-/);
   });
 
   it("renders the total-count summary", async () => {

@@ -13,7 +13,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("CUSTODY activation flow", () => {
   test("unauthenticated user is shown a sign-in prompt", async ({ page }) => {
-    await page.goto("/bureau/custody/run");
+    await page.goto("/programs/custody/run");
     await expect(page.getByTestId("custody-run-form")).toBeVisible();
 
     await page
@@ -43,7 +43,7 @@ test.describe("CUSTODY activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/custody/run");
+    await page.goto("/programs/custody/run");
     await page
       .getByTestId("bundle-url")
       .fill("https://chat.openai.com/bundle.intoto.jsonl");
@@ -53,7 +53,7 @@ test.describe("CUSTODY activation flow", () => {
 
     // Phrase ID prefix uses the expectedVendor slug.
     await page.waitForURL(
-      /\/bureau\/custody\/runs\/openai-[a-z]+-[a-z]+-\d{4}$/,
+      /\/programs\/custody\/runs\/openai-[a-z]+-[a-z]+-\d{4}$/,
     );
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("run-status")).toContainText(/pending/);
@@ -68,7 +68,7 @@ test.describe("CUSTODY activation flow", () => {
   test("submit blocked until bundleUrl + auth-ack are both present", async ({
     page,
   }) => {
-    await page.goto("/bureau/custody/run");
+    await page.goto("/programs/custody/run");
     await expect(page.getByTestId("run-submit")).toBeDisabled();
 
     await page
@@ -94,7 +94,7 @@ test.describe("CUSTODY activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/custody/run");
+    await page.goto("/programs/custody/run");
     await page
       .getByTestId("bundle-url")
       .fill("http://example.com/bundle.json");
@@ -107,10 +107,10 @@ test.describe("CUSTODY activation flow", () => {
   test("CUSTODY landing exposes both Run + Verify-offline CTAs", async ({
     page,
   }) => {
-    await page.goto("/bureau/custody");
+    await page.goto("/programs/custody");
     await expect(page.getByTestId("run-cta")).toBeVisible();
     await expect(page.getByTestId("verify-offline-cta")).toBeVisible();
     await page.getByTestId("run-cta").click();
-    await page.waitForURL(/\/bureau\/custody\/run$/);
+    await page.waitForURL(/\/programs\/custody\/run$/);
   });
 });

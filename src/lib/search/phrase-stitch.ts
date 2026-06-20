@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// phrase-stitch — auto-stitch search across all 11 Bureau programs
+// phrase-stitch — auto-stitch search across all the Pluck programs
 // ---------------------------------------------------------------------------
 //
 // Paste any phrase ID. Get back every related receipt across all 11
@@ -48,7 +48,7 @@ export interface SearchAggregateResult {
   readonly directMatch: SearchResult | null;
   /**
    * All other receipts whose phrase-ID scope matches `parsed.scope`,
-   * across every Bureau program. Excludes the directMatch (deduped).
+   * across every program. Excludes the directMatch (deduped).
    * Sorted newest-first.
    */
   readonly relatedByScope: ReadonlyArray<SearchResult>;
@@ -93,7 +93,7 @@ function lookupProgram(slug: string): ProgramLookup {
 }
 
 function receiptUrl(programSlug: string, phraseId: string): string {
-  return `/bureau/${programSlug}/runs/${encodeURIComponent(phraseId)}`;
+  return `/programs/${programSlug}/runs/${encodeURIComponent(phraseId)}`;
 }
 
 /**

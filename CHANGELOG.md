@@ -1,5 +1,152 @@
 # @sizls/pluck-studio
 
+## Unreleased
+
+### Watch R5 — DNS fail-closed, cooldown rollback, taxonomy invariants, dead-code
+
+Closes R4 review: 0 criticals, 7 majors closed (SEC-M1 DNS fail-closed, SEC-M3 cooldown failure-latch, SEC-M4 Accept-Encoding identity, ARCH-A1 lastFiredAt polymorphism, ARCH-A2 OpenAPI 413, ARCH-A3 OPERATOR_MUTABLE_STATUSES invariant, ARCH-A5 ALERT_CHANNEL_KEYS invariant, DX-4 WatchEvent.alert dead union). All R3 fixes confirmed holding by R4 security agent ("ALL R3 FIXES HOLD").
+
+Tests: 1322 → 1329 (+7 SSRF v2 / cooldown / taxonomy tests). Playwright +1 STUB-ribbon spec. Typecheck clean.
+
+Security:
+- **DNS fail-closed (SEC-R4-M1)**: `assertResolvedHostnameIsPublic` now throws on lookup error instead of silently falling through. A hostile DNS server that SERVFAILs or rate-limits our resolver can no longer bypass the rebind guard.
+- **Cooldown failure rollback (SEC-R4-M3)**: triggerWatch captures `prevLastFiredAt` and restores it on fetch failure; `recordObservation` preserves `watch.lastFiredAt` on `error` kind. A failed fetch no longer latches the watch into a 15s cooldown lockout — operators investigating a flaking site can re-trigger immediately.
+- **Accept-Encoding: identity (SEC-R4-M4)**: `safeFetchFollowingRedirects` disables transparent gzip/br decompression so a small compressed body can't drive unbounded CPU before the 1 MiB text cap aborts.
+- DNS lookup function injectable via `DnsLookupImpl` for tests (parameterized like `fetchImpl`).
+
+Architecture:
+- **ARCH-R4-A1 lastFiredAt polymorphism removed**: `redactWatchForGet`'s input type locked to `number | null`. The `string` arm was dead post-R3.
+- **ARCH-R4-A3 OPERATOR_MUTABLE_STATUSES constant** in `watch-spec.ts` — `validateWatchUpdate` references it; OpenAPI builder references it; drift-invariant test asserts equality. Adding a new operator-mutable status trips CI until all three sites agree.
+- **ARCH-R4-A5 ALERT_CHANNEL_KEYS constant + invariant test**: OpenAPI `AlertChannels.required` array derived from the constant; test asserts equality. Adding a 6th channel trips CI.
+- **ARCH-R4-A2 OpenAPI 413**: `PayloadTooLarge` response component added; POST + PATCH responses reference it. The 64 KiB body cap is now visible in the public contract.
+
+DX:
+- **WatchEvent.alert dead union arm removed (DX-R4-4)** — the variant was exported + switch-handled but never published. Re-adds with the Week-2 alert dispatcher in the same commit. Type consumers stop seeing a phantom case.
+
+Tests:
+- DNS rebinding rejection (mocked lookup returns 10.0.0.5 → error observation)
+- DNS lookup failure (SERVFAIL → error observation, fetch never called)
+- HTTPS→HTTP downgrade rejection (302 with http:// Location → error)
+- Cooldown failure rollback (failed fire doesn't extend cooldown window)
+- TOCTOU parallel triggers (one succeeds, other blocked)
+- OPERATOR_MUTABLE_STATUSES drift invariant
+- ALERT_CHANNEL_KEYS drift invariant
+- Playwright STUB ribbon visibility on Week-1 mock observations
+
+Docs:
+- `docs/WATCH_WEEK2.md` — added "Stub-mode contract today" table mapping each of the 20 contract-design items to (stub today / Week-2 contract / fix-now de-risk). Recommends 10 of 20 ship in a focused PR before Week-2 starts.
+
+### Watch R3 — SSRF v2 (DNS rebinding + no-downgrade), TOCTOU, OpenAPI, UX
+
+Closes R2 review: 5 criticals (SSRF DNS rebinding, HTTPS→HTTP downgrade, phrase-id slashes, API shape inconsistency, OpenAPI gap) + ~12 majors (cooldown TOCTOU, readBoundedText cancel hang, nosniff headers, observation NN predictability, /watch landing raw record, runtime on /new, SSE reconnect pill, 429 countdown, STUB ribbon, cron preset active state, autonomy label flip, plus the Watch-Week-2 design backlog).
+
+Tests: 1308 → 1322 (+14). All 75 Vitest files green, 7 Playwright specs green, typecheck clean.
+
+R2 review verdicts confirm ALL R1 fixes hold: security agent reported "ALL R1 FIXES HOLD" as part of regression check.
+
+Security:
+- **DNS-rebinding defense:** `safeFetchFollowingRedirects` now calls `dns.promises.lookup` for every hop and passes each resolved A/AAAA through `validateResolvedIp` (closes SEC-R2-C1). The `validateResolvedIp` helper existed in R1 but was unused — wired in now.
+- **HTTPS→HTTP downgrade rejection:** when the watch URL is `https://`, any redirect `Location` with `http://` is refused (closes SEC-R2-C2).
+- **Cooldown TOCTOU closed:** `triggerWatch` claims the cooldown slot SYNCHRONOUSLY (sets `lastFiredAt = now` and status `running` in the same event-loop tick before any await), so two parallel triggers can't both pass the gate (closes SEC-R2-M1).
+- **`readBoundedText` slowloris hardening:** fire-and-forget `reader.cancel()` (was awaited; hostile server could stall it indefinitely) (closes SEC-R2-M3).
+- **SSE response headers:** `X-Content-Type-Options: nosniff` + `Referrer-Policy: no-referrer` (closes SEC-R2-M5).
+- **Observation phrase-ID enumeration defeat:** 4-char hex random suffix on the `obs-NN` counter (closes SEC-R2-M6).
+
+API + DX:
+- **Phrase-ID format `pluck/watch/<id>/<ymd>/observation-NN` → `pluck:watch:<id>:<ymd>:obs-NN-<r4>`** (closes DX-R2-C2). Slashes broke URL paths, Slack code blocks, email subjects. `:` separator is URL-safe; the 4-char suffix doubles as enumeration defeat.
+- **POST response shape locked** to the canonical envelope `{watchId, receiptUrl, status, reused}` — removed the `id` alias added in R1 (it created MORE asymmetry with `/v1/runs.runId`, not less) (closes DX-R2-C1). Pattern documented in V1_API.md "Response-shape convention" block.
+- **DELETE semantics paragraph rewritten** to explain WHY runs cancel vs watches archive (DX-R2-M8).
+- **`/v1/watches` OpenAPI surface** — full schemas (WatchSpec, WatchUpdate, AlertChannels, PublicAlertChannelSummary, PublicWatchRecord, Observation, ObservationRecord, CreateWatchResponse, WatchDetailResponse, ListWatchesResponse, DeleteWatchResponse) + all 7 paths under `Watches` tag + drift-invariant tests for AUTONOMY_MODES / FETCHER_KINDS / WATCH_STATUSES / OBSERVATION_KINDS / OBSERVATION_CLASSIFICATIONS (closes DX-R2-C3).
+- **SSE reconnect pill** — `live` (green) / `reconnecting` (amber) / `dead` (red) chip near the watch detail status header, driven by `EventSource.readyState` + heartbeat re-confirmation (closes DX-R2-M1).
+- **429 cooldown countdown** — Trigger button reads `retryAfterMs` from the trigger route's 429 body and renders `Cooldown — Xs` with a 1s ticker (closes DX-R2-M2).
+- **STUB ribbon** on Week-1 mock observation cards (when `modelUsed === null && kind !== "error"`) — amber border + corner chip + title hint (closes DX-R2-M3).
+- **Cron preset active state** — `aria-pressed` + bold/thicker underline when the input matches a preset (closes DX-R2-M4).
+- **Autonomy labels flipped** — lead with outcome ("Cost-saver — cheap text diff first…") instead of jargon (closes DX-R2-M6).
+
+Architecture:
+- **Defense-in-depth: `/watch` landing wraps every record through `redactWatchForGet`** before it reaches the RSC tree — prevents accidental address-list leaks from future debug cards (closes ARCH-R2-M4).
+- **Explicit `runtime = "nodejs"` on `/watch/new/page.tsx`** — sibling pages had it; symmetry locks the runtime even if a future config flip points the app at edge (closes ARCH-R2-M5).
+
+Docs:
+- **`docs/WATCH_WEEK2.md`** — new file capturing the 20 contract-shape items the domain-expert lane raised (alert hysteresis, per-channel routing rules, classification expansion, maintenance windows, calibration period, trust feedback loop, extractedFields typing, polling politeness, stagger/jitter, Bureau composition seam, internal-host allowlist, always-agent queue, vocabulary clash, etc.). P0/P1/P2 sorted; flags vocabulary clash as the single biggest week-2 decision.
+- **R-Watch2 wedge picks added to `docs/IDEAS.md`**: Provocation Probe (Watch→Bureau DRAGNET composition), `pluck watch` CLI (30-sec magic moment), Watch-Diff (cheapest compound). User deferred all per "fix first" call.
+- **V1_API.md**: phrase-ID format updated, "Response-shape convention" block added, DELETE semantics paragraph rewritten.
+- **ARCHITECTURE.md §16**: phrase-ID format updated.
+
+### Watch — Directive-native periodic monitoring (Week-1 scaffold + R1 hardening)
+
+Standalone surface, peer to Bureau. Operators describe what to watch in
+plain language; the agent (Week-2) decides what changed. The wedge: the
+agent IS the selector — pages can be rewritten and watches keep working.
+
+Adds (commit `8af75f0`):
+
+- `WatchSpec` / `WatchRecord` / `Observation` types in `src/lib/v1/watch-spec.ts`
+- `validateWatchSpec` / `validateWatchUpdate` with URL guard, cron grammar,
+  channel address shapes
+- In-memory store (`src/lib/watch/store.ts`) mirroring `run-store.ts` —
+  globalThis-pinned `Map`, idempotency, pub/sub, mock `triggerWatch`
+- Directive form module (`src/lib/watch/watch-form-module.ts`)
+- REST + SSE surface under `/api/v1/watches/` (POST/GET/PATCH/DELETE/trigger/events)
+- UI under `/watch/`: landing + list, `/new` create form, `/[id]` detail
+  with live SSE-driven observation cards
+- 53 Vitest tests + 7 Playwright E2E specs
+
+R1 AE-review hardening (this revision):
+
+- **SSRF defense (`src/lib/security/url-guard.ts`)** — IPv6 literals (bracket
+  strip + ULA/link-local/multicast), numeric IPv4 via `node:net.isIP`,
+  trailing-dot strip, userinfo rejection, reserved TLDs (`.local`, `.internal`,
+  `.test`, `.invalid`, `.localhost`), IPv4-mapped IPv6, `validateResolvedIp`
+  for DNS-rebinding defense at fetch time. 42 unit tests.
+- **Safe redirect walker in `triggerWatch`** — `redirect: "manual"`, every
+  `Location` header re-validated through the URL guard, max 3 hops,
+  1 MiB body cap.
+- **Per-watch trigger cooldown** (15s) — defeats trigger amplification.
+- **Atomic `recordObservation`** + **per-watch observation FIFO** (200/watch,
+  was global — a noisy watch could evict a quiet watch's baseline).
+- **GET-side redaction (`redactWatchForGet`)** — operator address lists in
+  `alertChannels.email/webhook/slack` stripped from public reads, list,
+  single GET, and SSE `state` events. Replaced with counts.
+- **Owner-scoped idempotency hash** (stub `ownerId = "anonymous"` Week-1) —
+  ready for cross-tenant gating when pluck-api lands.
+- **`subscribeToWatch` returns `() => void | null`** — throwing on a quota
+  event was API smell; null is the explicit, typed signal.
+- **`Last-Event-ID` clamped** strict `/^\d{1,8}$/` + `[0, 1_000_000]` so a
+  malformed header cannot push the local counter past `MAX_SAFE_INTEGER`.
+- **Global SSE subscriber cap** (5000 across all watches; 100 per watch).
+- **Webhook + Slack URLs run through the same public-host guard** (closes
+  Week-2 dispatch SSRF surface).
+- **Auth-before-JSON-parse** on POST + PATCH; 64 KiB body cap on all writes.
+- **Bearer-token affordance** gated on `NODE_ENV ∈ {test, development}` OR
+  positive `PLUCK_DEV_BEARER_AUTH=1` — preview/staging with unset NODE_ENV
+  is now auth-locked by default.
+- **`validateWatchUpdate` rebuilt without `as WatchUpdate` cast** — typed
+  conditional-spread mirror of `validateWatchSpec`.
+- **Status filter capped** (1..10 comma-separated values, ≤128 chars total).
+- **Page-level `runtime = "nodejs"`** on `/watch/page.tsx` and
+  `/watch/[id]/page.tsx` (store uses `node:crypto`).
+- **Stable per-render idempotency key in the form** via `crypto.randomUUID()`
+  — replaces the minute-bucket client clock.
+- **DELETE-already-archived null-check** on re-fetch.
+- **Error observations have `prevObservationId = null`** — receipt diff
+  views never compare an error to a baseline.
+
+Nav + docs:
+
+- `Watch` entry added to global nav (`src/components/bureau-ui/chrome.tsx`
+  header + footer) + `app/watch/layout.tsx` highlights it.
+- `docs/V1_API.md` — full `/v1/watches` section: WatchSpec, endpoint table,
+  DELETE semantics rationale, redaction shape, observation contract,
+  auth posture, SSE event schema.
+- `docs/ARCHITECTURE.md` — §16 Watch surface block: stub seam, SSRF posture,
+  three autonomy modes, Bureau ↔ Watch composition.
+- `docs/IDEAS.md` — R-Watch1 game-changers captured (Stakeout, Receipt Trio,
+  The Vigil); deferred per user's "fix first" call.
+
+Tests: 53 → 105 watch+security tests; 1256 → 1308 total Studio Vitest;
+7 Playwright E2E specs all green; typecheck clean.
+
 ## 0.1.1
 
 ### Patch Changes

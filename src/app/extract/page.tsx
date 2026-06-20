@@ -22,16 +22,16 @@ export const metadata = {
     "Paste a screenshot of a vendor marketing claim. Studio extracts testable assertions; one click pre-fills DRAGNET. Your screenshot stays in your browser.",
 };
 
-const heading: CSSProperties = { fontFamily: "var(--bureau-mono)", fontSize: 14, color: "var(--bureau-fg-dim)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 32 };
-const callout: CSSProperties = { marginTop: 16, padding: "12px 16px", fontFamily: "var(--bureau-mono)", fontSize: 13, color: "var(--bureau-fg-dim)", border: "1px dashed var(--bureau-fg-dim)", borderRadius: 4, background: "rgba(255,255,255,0.02)" };
-const stubCallout: CSSProperties = { ...callout, marginTop: 12, borderColor: "var(--bureau-tone-yellow)", color: "var(--bureau-fg)" };
+const heading: CSSProperties = { fontFamily: "var(--studio-mono)", fontSize: 14, color: "var(--studio-fg-dim)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 32 };
+const callout: CSSProperties = { marginTop: 16, padding: "12px 16px", fontFamily: "var(--studio-mono)", fontSize: 13, color: "var(--studio-fg-dim)", border: "1px dashed var(--studio-fg-dim)", borderRadius: 4, background: "rgba(255,255,255,0.02)" };
+const stubCallout: CSSProperties = { ...callout, marginTop: 12, borderColor: "var(--studio-tone-yellow)", color: "var(--studio-fg)" };
 
 export default function ExtractPage(): ReactNode {
   return (
     <main data-testid="extract-page">
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Screenshot probe extractor</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">Screenshot probe extractor</h1>
+        <p className="studio-hero-tagline">
           Drop a screenshot of a vendor's marketing claim. Studio extracts testable assertions and offers one-click pre-fill into DRAGNET. You review and click submit; nothing fires automatically.
         </p>
       </section>
@@ -61,7 +61,7 @@ export default function ExtractPage(): ReactNode {
       <section>
         <h2 style={heading}>Where this fits</h2>
         <p style={{ lineHeight: 1.7 }}>
-          The activations directory at <a href="/runs">/runs</a> lists every Bureau program. This extractor is a zero-friction onboarding loop: turn any marketing screenshot into a probe in seconds. Read <a href="/what-we-dont-know">/what-we-dont-know</a> for the EXTRACT line ("we don't see your screenshot").
+          The activations directory at <a href="/runs">/runs</a> lists every program. This extractor is a zero-friction onboarding loop: turn any marketing screenshot into a probe in seconds. Read <a href="/what-we-dont-know">/what-we-dont-know</a> for the EXTRACT line ("we don't see your screenshot").
         </p>
       </section>
     </main>

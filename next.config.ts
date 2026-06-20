@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   webpack: (config, { isServer }) => {
     config.resolve = config.resolve ?? {};
 
-    // Vendored bureau-ui sources use NodeNext-style imports
+    // Vendored programs-ui sources use NodeNext-style imports
     // (`./foo.js` resolving to `./foo.tsx` source). Webpack only honors
     // those mappings when `extensionAlias` is configured.
     config.resolve.extensionAlias = {
@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       ".js": [".ts", ".tsx", ".js"],
     };
 
-    // The `@sizls/pluck-bureau-*` packages depend on `@sizls/pluck` core,
+    // The `@sizls/pluck-studio-*` packages depend on `@sizls/pluck` core,
     // which has dynamic imports for optional peer deps (sharp, playwright,
     // database drivers, etc.). Studio doesn't use any of these at runtime —
     // they get walked by webpack's module graph during build. Alias them to
@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
     // these deps at runtime. If a future Studio feature needs any of
     // these (e.g. sharp for an image pipeline, ioredis for a cache layer),
     // remove the corresponding alias — and that feature must be implemented
-    // in a way Studio actually uses, not pulled transitively from bureau-*.
+    // in a way Studio actually uses, not pulled transitively from studio-*.
     config.resolve.alias = {
       ...(config.resolve.alias as Record<string, false | string> | undefined),
       // Browser automation
@@ -116,8 +116,8 @@ const nextConfig: NextConfig = {
   },
 
   // Vanity rewrites – `studio.pluck.run/dragnet/...` resolves to the
-  // canonical `/bureau/dragnet/...` route. Every shared link is a
-  // Pluck Bureau ad.
+  // canonical `/programs/dragnet/...` route. Every shared link is a
+  // Pluck ad.
   async rewrites() {
     const programs = [
       "dragnet",
@@ -135,8 +135,38 @@ const nextConfig: NextConfig = {
 
     return programs.map((p) => ({
       source: `/${p}/:path*`,
-      destination: `/bureau/${p}/:path*`,
+      destination: `/programs/${p}/:path*`,
     }));
+  },
+
+  // Permanent redirects from the previous `/bureau/*` route to the new
+  // `/programs/*` route. Press coverage, prior screenshots, Slack and
+  // email links accumulated under the old path; a permanent 308
+  // preserves SEO + sends search engines the canonical destination
+  // without breaking any pasted URL.
+  //
+  // Covers both the user-facing pages (`/bureau/<program>/...`) and the
+  // JSON API surface (`/api/bureau/<program>/run`) so machine clients
+  // that still POST to the old URL receive a 308 with the new Location
+  // header and the request body re-sent unmodified.
+  async redirects() {
+    return [
+      {
+        source: "/bureau",
+        destination: "/programs",
+        permanent: true,
+      },
+      {
+        source: "/bureau/:path*",
+        destination: "/programs/:path*",
+        permanent: true,
+      },
+      {
+        source: "/api/bureau/:path*",
+        destination: "/api/programs/:path*",
+        permanent: true,
+      },
+    ];
   },
 };
 

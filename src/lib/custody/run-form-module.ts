@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // Fourth program through the Studio activation pattern. CUSTODY's
-// existing `/bureau/custody/verify` is a journalist drag-and-drop
+// existing `/programs/custody/verify` is a journalist drag-and-drop
 // tool — runs the verifier client-side, no signed receipt produced.
 // This `/run` flow is the operator complement: paste a CustodyBundle
 // URL, Studio fetches + verifies server-side, produces a signed

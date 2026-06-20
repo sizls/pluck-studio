@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// /today — Daily Roll-Up across all 11 Bureau programs
+// /today — Daily Roll-Up across all the Pluck programs
 // ---------------------------------------------------------------------------
 //
 // Server-rendered, no client JS. Renders one tile per program (in
@@ -23,7 +23,7 @@ import { VERDICT_COLORS } from "../vendor/_ui";
 import { CopyShareLink } from "./CopyShareLink";
 
 const PAGE_DESCRIPTION =
-  "Today on Pluck — one tile per Bureau program showing the last 24h verdict density. The shareable daily honesty card.";
+  "Today on Pluck — one tile per program showing the last 24h verdict density. The shareable daily honesty card.";
 
 export const metadata: Metadata = {
   title: "Today on Pluck — Daily Honesty Signal",
@@ -41,28 +41,28 @@ export const metadata: Metadata = {
 };
 
 const HeaderStyle: CSSProperties = {
-  borderBottom: "1px solid var(--bureau-fg-dim)",
+  borderBottom: "1px solid var(--studio-fg-dim)",
   paddingBottom: 16,
   marginBottom: 24,
 };
 
 const HeaderDateStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   letterSpacing: "0.08em",
   textTransform: "uppercase",
   marginTop: 8,
 };
 
 const PreviewBannerStyle: CSSProperties = {
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderLeft: "3px solid #fbbf24",
   background: "rgba(251, 191, 36, 0.06)",
   padding: "12px 16px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   margin: "16px 0 24px",
   lineHeight: 1.6,
 };
@@ -75,23 +75,23 @@ const GridStyle: CSSProperties = {
 };
 
 const TileWrapperStyle: CSSProperties = {
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 6,
   padding: 16,
   background: "rgba(255, 255, 255, 0.02)",
 };
 
 const TileNameStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
   letterSpacing: "0.08em",
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
 };
 
 const TileTotalStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 11,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   marginTop: 6,
 };
 
@@ -107,9 +107,9 @@ const BarRowStyle: CSSProperties = {
 };
 
 const SectionHeadingStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -121,7 +121,7 @@ const OgPreviewStyle: CSSProperties = {
   maxWidth: 720,
   height: "auto",
   marginTop: 16,
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 4,
 };
 
@@ -129,11 +129,11 @@ const ShareLinkStyle: CSSProperties = {
   display: "inline-block",
   marginTop: 16,
   padding: "8px 16px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
   background: "transparent",
-  color: "var(--bureau-fg)",
-  border: "1px solid var(--bureau-fg-dim)",
+  color: "var(--studio-fg)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 4,
   cursor: "pointer",
 };
@@ -219,10 +219,10 @@ export default function TodayPage(): ReactNode {
 
   return (
     <div data-testid="today-page">
-      <section className="bureau-hero" style={HeaderStyle}>
-        <h1 className="bureau-hero-title">Today on Pluck</h1>
-        <p className="bureau-hero-tagline">
-          Daily honesty signal across all 11 Bureau programs. One tile
+      <section className="studio-hero" style={HeaderStyle}>
+        <h1 className="studio-hero-title">Today on Pluck</h1>
+        <p className="studio-hero-tagline">
+          Daily honesty signal across all the Pluck programs. One tile
           per program, color-coded by today&apos;s verdict density. The
           card below auto-unfurls when this URL is pasted into Slack /
           X / Discord / iMessage.
@@ -241,7 +241,7 @@ export default function TodayPage(): ReactNode {
 
       <section>
         <h2 style={SectionHeadingStyle}>
-          All 11 programs ({rollup.programs.length})
+          All 51 programs ({rollup.programs.length})
         </h2>
         <div style={GridStyle}>
           {rollup.programs.map((program) => (
@@ -288,7 +288,7 @@ export default function TodayPage(): ReactNode {
           </li>
           <li>
             <a href="/vendor">/vendor</a> — the Vendor Honesty Index.
-            Per-vendor profiles across all 11 programs.
+            Per-vendor profiles across all 51 programs.
           </li>
           <li>
             <a href="/monitors">/monitors</a> — the next 24h timeline of

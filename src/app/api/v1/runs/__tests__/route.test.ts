@@ -65,7 +65,7 @@ function getReq(headers: Record<string, string> = SAME_SITE_AUTHED): Request {
 
 function validBody(overrides: Record<string, unknown> = {}): unknown {
   return {
-    pipeline: "bureau:dragnet",
+    pipeline: "program:dragnet",
     payload: {
       targetUrl: "https://api.openai.com/v1/chat/completions",
       probePackId: "canon-honesty",
@@ -102,18 +102,18 @@ describe("POST /api/v1/runs — auth + same-site", () => {
     expect(res.status).toBe(401);
   });
 
-  it("401 carries a pipeline-aware signInUrl when the body names a bureau pipeline", async () => {
+  it("401 carries a pipeline-aware signInUrl when the body names a Pluck pipeline", async () => {
     const res = await POST(postReq(validBody(), SAME_SITE));
     expect(res.status).toBe(401);
     const body = (await res.json()) as { signInUrl: string };
-    expect(body.signInUrl).toBe("/sign-in?redirect=/bureau/dragnet/run");
+    expect(body.signInUrl).toBe("/sign-in?redirect=/programs/dragnet/run");
   });
 
-  it("401 falls back to /bureau when the body doesn't name a known bureau pipeline", async () => {
+  it("401 falls back to /programs when the body doesn't name a known Pluck pipeline", async () => {
     const res = await POST(postReq({ pipeline: "extract", payload: {} }, SAME_SITE));
     expect(res.status).toBe(401);
     const body = (await res.json()) as { signInUrl: string };
-    expect(body.signInUrl).toBe("/sign-in?redirect=/bureau");
+    expect(body.signInUrl).toBe("/sign-in?redirect=/programs");
   });
 
   it("accepts same-site authed POST", async () => {
@@ -137,19 +137,19 @@ describe("POST /api/v1/runs — body shape", () => {
 
   it("400 on unknown pipeline", async () => {
     const res = await POST(
-      postReq({ pipeline: "bureau:made-up", payload: {} }),
+      postReq({ pipeline: "program:made-up", payload: {} }),
     );
     expect(res.status).toBe(400);
   });
 
   it("400 on missing payload", async () => {
-    const res = await POST(postReq({ pipeline: "bureau:dragnet" }));
+    const res = await POST(postReq({ pipeline: "program:dragnet" }));
     expect(res.status).toBe(400);
   });
 
   it("400 on payload that is an array, not an object", async () => {
     const res = await POST(
-      postReq({ pipeline: "bureau:dragnet", payload: [] }),
+      postReq({ pipeline: "program:dragnet", payload: [] }),
     );
     expect(res.status).toBe(400);
   });
@@ -188,7 +188,7 @@ describe("POST /api/v1/runs — success shape", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/dragnet/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/dragnet/runs/${body.runId}`);
     expect(body.status).toBe("pending");
     expect(body.reused).toBe(false);
   });
@@ -230,7 +230,7 @@ describe("GET /api/v1/runs/[id]", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as RunRecord;
     expect(body.runId).toBe(id);
-    expect(body.pipeline).toBe("bureau:dragnet");
+    expect(body.pipeline).toBe("program:dragnet");
     expect(body.status).toBe("pending");
     expect(body.payload.targetUrl).toBe(
       "https://api.openai.com/v1/chat/completions",
@@ -272,7 +272,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects DRAGNET payload pointing at localhost (private IP block)", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:dragnet",
+        pipeline: "program:dragnet",
         payload: {
           targetUrl: "http://localhost:8080/",
           probePackId: "canon-honesty",
@@ -289,7 +289,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects DRAGNET payload with a javascript: scheme", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:dragnet",
+        pipeline: "program:dragnet",
         payload: {
           targetUrl: "javascript:alert(1)",
           probePackId: "canon-honesty",
@@ -306,7 +306,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects DRAGNET payload with an unknown probe-pack id", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:dragnet",
+        pipeline: "program:dragnet",
         payload: {
           targetUrl: "https://api.openai.com/v1/chat/completions",
           probePackId: "canon-honestly",
@@ -323,7 +323,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects DRAGNET payload missing authorizationAcknowledged", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:dragnet",
+        pipeline: "program:dragnet",
         payload: {
           targetUrl: "https://api.openai.com/v1/chat/completions",
           probePackId: "canon-honesty",
@@ -346,7 +346,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects NUCLEI payload with malformed cron (no longer a stub)", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:nuclei",
+        pipeline: "program:nuclei",
         payload: {
           author: "alice",
           packName: "canon-honesty@0.1",
@@ -366,7 +366,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects NUCLEI payload with out-of-range cron ('0 25 * * *')", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:nuclei",
+        pipeline: "program:nuclei",
         payload: {
           author: "alice",
           packName: "canon-honesty@0.1",
@@ -384,7 +384,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects NUCLEI payload with a non-allowed license", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:nuclei",
+        pipeline: "program:nuclei",
         payload: {
           author: "alice",
           packName: "canon-honesty@0.1",
@@ -402,7 +402,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("accepts a fully-formed OATH payload (real validator)", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         payload: {
           vendorDomain: "openai.com",
           authorizationAcknowledged: true,
@@ -414,13 +414,13 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
     // Vendor-scoped phrase ID — OATH carries `vendorDomain`, so the
     // run-store derives `generateScopedPhraseId("https://openai.com")`.
     expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/oath/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/oath/runs/${body.runId}`);
   });
 
   it("rejects OATH payload missing vendorDomain", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         payload: { authorizationAcknowledged: true },
       }),
     );
@@ -432,7 +432,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects OATH payload pointing at localhost (private-IP block)", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         payload: {
           vendorDomain: "localhost",
           authorizationAcknowledged: true,
@@ -445,7 +445,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects OATH payload missing authorizationAcknowledged", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         payload: { vendorDomain: "openai.com" },
       }),
     );
@@ -457,7 +457,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("rejects OATH payload with http:// hostingOrigin", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         payload: {
           vendorDomain: "openai.com",
           hostingOrigin: "http://openai.com",
@@ -471,7 +471,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
   it("accepts a fully-formed NUCLEI payload (real validator) — author-scoped phrase ID", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:nuclei",
+        pipeline: "program:nuclei",
         payload: {
           author: "alice",
           packName: "canon-honesty@0.1",
@@ -488,7 +488,7 @@ describe("POST /api/v1/runs — per-pipeline payload validation (M1 fix)", () =>
     // Author-scoped phrase ID — the run-store derives
     // `generateScopedPhraseId("https://alice.example")` for NUCLEI.
     expect(body.runId).toMatch(/^alice-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/nuclei/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/nuclei/runs/${body.runId}`);
   });
 });
 
@@ -496,7 +496,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
   it("BOUNTY — accepts a fully-formed payload + assigns target-scoped runId", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:bounty",
+        pipeline: "program:bounty",
         payload: {
           sourceRekorUuid: "a".repeat(64),
           target: "hackerone",
@@ -510,13 +510,13 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^hackerone-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/bounty/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/bounty/runs/${body.runId}`);
   });
 
   it("BOUNTY — PRIVACY INVARIANT: rejects payloads carrying Bearer token", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:bounty",
+        pipeline: "program:bounty",
         payload: {
           sourceRekorUuid: "a".repeat(64),
           target: "hackerone",
@@ -536,7 +536,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
   it("SBOM-AI — accepts a fully-formed payload + assigns kind-scoped runId", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:sbom-ai",
+        pipeline: "program:sbom-ai",
         payload: {
           artifactUrl: "https://example.com/pack.json",
           artifactKind: "probe-pack",
@@ -550,13 +550,13 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     // strips non-alphanum). Three-segment match guards against a future
     // slug-shape change.
     expect(body.runId).toMatch(/^[a-z]+-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/sbom-ai/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/sbom-ai/runs/${body.runId}`);
   });
 
   it("SBOM-AI — rejects http:// artifactUrl", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:sbom-ai",
+        pipeline: "program:sbom-ai",
         payload: {
           artifactUrl: "http://example.com/pack.json",
           artifactKind: "probe-pack",
@@ -570,7 +570,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
   it("ROTATE — accepts a fully-formed payload + assigns reason-scoped runId", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:rotate",
+        pipeline: "program:rotate",
         payload: {
           oldKeyFingerprint: "a".repeat(64),
           newKeyFingerprint: "b".repeat(64),
@@ -582,13 +582,13 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^compromised-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/rotate/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/rotate/runs/${body.runId}`);
   });
 
   it("ROTATE — PRIVACY INVARIANT: rejects payloads carrying privateKey", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:rotate",
+        pipeline: "program:rotate",
         payload: {
           oldKeyFingerprint: "a".repeat(64),
           newKeyFingerprint: "b".repeat(64),
@@ -606,7 +606,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
   it("TRIPWIRE — accepts a fully-formed payload + assigns machine-scoped runId", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:tripwire",
+        pipeline: "program:tripwire",
         payload: {
           machineId: "alice-mbp",
           policySource: "default",
@@ -618,13 +618,13 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^alicembp-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/tripwire/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/tripwire/runs/${body.runId}`);
   });
 
   it("TRIPWIRE — rejects custom policySource without customPolicyUrl", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:tripwire",
+        pipeline: "program:tripwire",
         payload: {
           machineId: "alice-mbp",
           policySource: "custom",
@@ -639,7 +639,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
   it("WHISTLE — accepts a fully-formed payload + assigns partner-scoped runId", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://example.com/tip.json",
           category: "training-data",
@@ -652,13 +652,13 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^propublica-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/whistle/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/whistle/runs/${body.runId}`);
   });
 
   it("WHISTLE — PRIVACY INVARIANT: rejects payloads carrying sourceName", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://example.com/tip.json",
           category: "training-data",
@@ -677,7 +677,7 @@ describe("POST /api/v1/runs — Wave-3 migrated pipelines (BOUNTY/SBOM-AI/ROTATE
   it("WHISTLE — phrase prefix is the routing partner not the bundle host", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://anonymous-source-host.example/bundle.json",
           category: "policy-violation",
@@ -697,7 +697,7 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
   it("FINGERPRINT — accepts a fully-formed payload + assigns vendor-scoped runId", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:fingerprint",
+        pipeline: "program:fingerprint",
         payload: {
           vendor: "openai",
           model: "gpt-4o",
@@ -708,13 +708,13 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
     expect(res.status).toBe(200);
     const body = (await res.json()) as PostSuccessBody;
     expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/fingerprint/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/fingerprint/runs/${body.runId}`);
   });
 
   it("FINGERPRINT — rejects unsupported vendor slug", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:fingerprint",
+        pipeline: "program:fingerprint",
         payload: {
           vendor: "acme",
           model: "gpt-4o",
@@ -730,7 +730,7 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
   it("CUSTODY — accepts a fully-formed payload with expectedVendor (vendor-scoped runId)", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:custody",
+        pipeline: "program:custody",
         payload: {
           bundleUrl: "https://chat.openai.com/bundle.json",
           vendorDomain: "openai.com",
@@ -744,13 +744,13 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
     // expectedVendor is promoted to vendorDomain so the run-store
     // assigns a vendor-scoped phrase rather than the bundle hostname.
     expect(body.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/custody/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/custody/runs/${body.runId}`);
   });
 
   it("CUSTODY — falls back to bundleUrl hostname when no expectedVendor", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:custody",
+        pipeline: "program:custody",
         payload: {
           bundleUrl: "https://example.com/bundle.json",
           authorizationAcknowledged: true,
@@ -765,7 +765,7 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
   it("CUSTODY — rejects http:// bundleUrl", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:custody",
+        pipeline: "program:custody",
         payload: {
           bundleUrl: "http://example.com/bundle.json",
           authorizationAcknowledged: true,
@@ -778,7 +778,7 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
   it("MOLE — accepts a fully-formed payload + assigns canary-id-scoped runId", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:mole",
+        pipeline: "program:mole",
         payload: {
           canaryId: "nyt-2024-01-15",
           canaryUrl: "https://example.com/canary.txt",
@@ -793,13 +793,13 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
     // Phrase prefix is the canaryId with hyphens stripped per slug
     // normalization (nyt-2024-01-15 → nyt20240115).
     expect(body.runId).toMatch(/^nyt20240115-[a-z]+-[a-z]+-\d{4}$/);
-    expect(body.receiptUrl).toBe(`/bureau/mole/runs/${body.runId}`);
+    expect(body.receiptUrl).toBe(`/programs/mole/runs/${body.runId}`);
   });
 
   it("MOLE — PRIVACY INVARIANT: rejects payloads with canaryBody", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:mole",
+        pipeline: "program:mole",
         payload: {
           canaryId: "nyt-2024-01-15",
           canaryUrl: "https://example.com/canary.txt",
@@ -817,7 +817,7 @@ describe("POST /api/v1/runs — Wave-2 migrated pipelines (FINGERPRINT/CUSTODY/M
   it("MOLE — PRIVACY INVARIANT: rejects payloads with canaryContent", async () => {
     const res = await POST(
       postReq({
-        pipeline: "bureau:mole",
+        pipeline: "program:mole",
         payload: {
           canaryId: "nyt-2024-01-15",
           canaryUrl: "https://example.com/canary.txt",
@@ -835,7 +835,7 @@ describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
   it("WHISTLE: bundleUrl is NOT echoed in the GET response payload", async () => {
     const post = await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://leaked-host.example/bundle.json",
           category: "training-data",
@@ -868,7 +868,7 @@ describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
   it("WHISTLE: manualRedactPhrase is NOT echoed in the GET response payload", async () => {
     const post = await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://example.com/bundle.json",
           category: "policy-violation",
@@ -892,7 +892,7 @@ describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
     const idempotencyKey = "whistle-replay-test-key";
     const r1 = (await (await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://example.com/bundle.json",
           category: "training-data",
@@ -911,7 +911,7 @@ describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
     // GET boundary and never touches the canonical hash input.
     const r2 = (await (await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://example.com/bundle.json",
           category: "training-data",
@@ -936,7 +936,7 @@ describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
   it("ROTATE: operatorNote is NOT echoed in the GET response payload", async () => {
     const post = await POST(
       postReq({
-        pipeline: "bureau:rotate",
+        pipeline: "program:rotate",
         payload: {
           oldKeyFingerprint: "a".repeat(64),
           newKeyFingerprint: "b".repeat(64),
@@ -968,7 +968,7 @@ describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
       authorizationAcknowledged: true,
     };
     const post = await POST(
-      postReq({ pipeline: "bureau:dragnet", payload: original }),
+      postReq({ pipeline: "program:dragnet", payload: original }),
     );
     const { runId } = (await post.json()) as PostSuccessBody;
 
@@ -986,7 +986,7 @@ describe("GET /api/v1/runs/[id] — privacy redaction (per-pipeline)", () => {
       authorizationAcknowledged: true,
     };
     const post = await POST(
-      postReq({ pipeline: "bureau:mole", payload: original }),
+      postReq({ pipeline: "program:mole", payload: original }),
     );
     const { runId } = (await post.json()) as PostSuccessBody;
 
@@ -1047,16 +1047,16 @@ describe("GET /api/v1/runs — list endpoint", () => {
     expect(body.runs[1]?.runId).toBe(b.runId);
   });
 
-  it("filters by pipeline=bureau:oath", async () => {
+  it("filters by pipeline=program:oath", async () => {
     await postBody(validBody({ idempotencyKey: "d1" }));
     const o = await postBody({
-      pipeline: "bureau:oath",
+      pipeline: "program:oath",
       payload: { vendorDomain: "openai.com", authorizationAcknowledged: true },
       idempotencyKey: "o1",
     });
     await postBody(validBody({ idempotencyKey: "d2" }));
 
-    const res = await LIST(listReq("?pipeline=bureau:oath"));
+    const res = await LIST(listReq("?pipeline=program:oath"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as ListBody;
     expect(body.runs.length).toBe(1);
@@ -1065,7 +1065,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
   });
 
   it("rejects an unknown pipeline filter with 400", async () => {
-    const res = await LIST(listReq("?pipeline=bureau:made-up"));
+    const res = await LIST(listReq("?pipeline=Pluck:made-up"));
     expect(res.status).toBe(400);
   });
 
@@ -1159,7 +1159,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
 
   it("PRIVACY: WHISTLE bundleUrl is REDACTED in the list payload", async () => {
     await postBody({
-      pipeline: "bureau:whistle",
+      pipeline: "program:whistle",
       payload: {
         bundleUrl: "https://leaked-host.example/bundle.json",
         category: "training-data",
@@ -1169,7 +1169,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
       },
     });
 
-    const res = await LIST(listReq("?pipeline=bureau:whistle"));
+    const res = await LIST(listReq("?pipeline=program:whistle"));
     const body = (await res.json()) as ListBody;
     expect(body.runs.length).toBe(1);
     const first = body.runs[0]!;
@@ -1182,7 +1182,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
 
   it("PRIVACY: WHISTLE manualRedactPhrase is REDACTED in the list payload", async () => {
     await postBody({
-      pipeline: "bureau:whistle",
+      pipeline: "program:whistle",
       payload: {
         bundleUrl: "https://example.com/bundle.json",
         category: "policy-violation",
@@ -1193,7 +1193,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
       },
     });
 
-    const res = await LIST(listReq("?pipeline=bureau:whistle"));
+    const res = await LIST(listReq("?pipeline=program:whistle"));
     const body = (await res.json()) as ListBody;
     const first = body.runs[0]!;
     expect("manualRedactPhrase" in first.payload).toBe(false);
@@ -1310,7 +1310,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
     it("composes with ?pipeline — DRAGNET cancellations only", async () => {
       const a = await postBody(validBody({ idempotencyKey: "a" }));
       const oath = await postBody({
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         payload: { vendorDomain: "openai.com", authorizationAcknowledged: true },
         idempotencyKey: "o-cancel",
       });
@@ -1323,7 +1323,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
       });
 
       const res = await LIST(
-        listReq("?pipeline=bureau:dragnet&status=cancelled"),
+        listReq("?pipeline=program:dragnet&status=cancelled"),
       );
       const body = (await res.json()) as ListBody;
       expect(body.totalCount).toBe(1);
@@ -1350,7 +1350,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
 
   it("PRIVACY: ROTATE operatorNote is REDACTED in the list payload", async () => {
     await postBody({
-      pipeline: "bureau:rotate",
+      pipeline: "program:rotate",
       payload: {
         oldKeyFingerprint: "a".repeat(64),
         newKeyFingerprint: "b".repeat(64),
@@ -1360,7 +1360,7 @@ describe("GET /api/v1/runs — list endpoint", () => {
       },
     });
 
-    const res = await LIST(listReq("?pipeline=bureau:rotate"));
+    const res = await LIST(listReq("?pipeline=program:rotate"));
     const body = (await res.json()) as ListBody;
     expect(body.runs.length).toBe(1);
     const first = body.runs[0]!;
@@ -1545,7 +1545,7 @@ describe("DELETE /api/v1/runs/[id] — privacy redaction", () => {
   it("WHISTLE: bundleUrl is NOT echoed in the cancel response payload", async () => {
     const post = await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://leaked-host.example/bundle.json",
           category: "training-data",
@@ -1577,7 +1577,7 @@ describe("DELETE /api/v1/runs/[id] — privacy redaction", () => {
   it("WHISTLE: manualRedactPhrase is NOT echoed in the cancel response", async () => {
     const post = await POST(
       postReq({
-        pipeline: "bureau:whistle",
+        pipeline: "program:whistle",
         payload: {
           bundleUrl: "https://example.com/bundle.json",
           category: "policy-violation",
@@ -1601,7 +1601,7 @@ describe("DELETE /api/v1/runs/[id] — privacy redaction", () => {
   it("ROTATE: operatorNote is NOT echoed in the cancel response", async () => {
     const post = await POST(
       postReq({
-        pipeline: "bureau:rotate",
+        pipeline: "program:rotate",
         payload: {
           oldKeyFingerprint: "a".repeat(64),
           newKeyFingerprint: "b".repeat(64),
@@ -1632,7 +1632,7 @@ describe("DELETE /api/v1/runs/[id] — privacy redaction", () => {
       authorizationAcknowledged: true,
     };
     const post = await POST(
-      postReq({ pipeline: "bureau:dragnet", payload: original }),
+      postReq({ pipeline: "program:dragnet", payload: original }),
     );
     const { runId } = (await post.json()) as PostSuccessBody;
 

@@ -1,4 +1,4 @@
-import { BureauChrome } from "@/components/bureau-ui";
+import { StudioChrome } from "@/components/programs-ui";
 import type { ReactNode } from "react";
 
 export default function McpLayout({
@@ -6,5 +6,5 @@ export default function McpLayout({
 }: {
   children: ReactNode;
 }): ReactNode {
-  return <BureauChrome>{children}</BureauChrome>;
+  return <StudioChrome>{children}</StudioChrome>;
 }

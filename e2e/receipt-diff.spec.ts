@@ -73,7 +73,7 @@ test.describe("/diff — Receipt Diff", () => {
     // Go to a DRAGNET receipt page; the ReceiptView client component
     // renders the CTA as <a href="/diff/<id>">. Clicking it lands on
     // the diff instructions page (no ?since=).
-    const res = await page.goto(`/bureau/dragnet/runs/${OPENAI_BASE}`);
+    const res = await page.goto(`/programs/dragnet/runs/${OPENAI_BASE}`);
     expect(res?.status()).toBe(200);
     const cta = page.getByTestId("next-compare");
     await expect(cta).toBeVisible();

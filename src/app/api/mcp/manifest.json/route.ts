@@ -5,7 +5,7 @@
 // Serves the Studio MCP discovery document describing Studio's
 // /v1/runs surface as MCP-compatible resources, tools, and prompts.
 // External MCP servers (the upcoming `@sizls/pluck-mcp` bridge) read
-// this document to discover the Pluck Bureau programs an AI agent can
+// this document to discover the Pluck programs an AI agent can
 // list, fetch, or execute. NOTE: this is NOT an MCP-spec conformant
 // manifest — MCP itself is a JSON-RPC runtime protocol; this is a
 // Studio-invented discovery catalogue consumed by the bridge.
@@ -27,7 +27,7 @@
 // Studio sits behind a proxy that rewrites the visible host).
 //
 // The manifest is built by `buildManifest` (pure function over the
-// program registry) — adding a Bureau program auto-extends the
+// program registry) — adding a program auto-extends the
 // resources + tools enum. Snapshot-tested in `lib/mcp/__tests__/`.
 // ---------------------------------------------------------------------------
 

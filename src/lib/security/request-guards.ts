@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
-// Shared request guards across Bureau program POST handlers
+// Shared request guards across program POST handlers
 // ---------------------------------------------------------------------------
 //
-// DRAGNET, OATH, and the rest of the Bureau programs share the same
+// DRAGNET, OATH, and the rest of the programs share the same
 // route-level security posture: CSRF defence, auth check, rate limit.
 // This module is the single source of truth so every program inherits
 // the same hardening (and a regression in one place fails for all).
@@ -61,13 +61,27 @@ export function hasSupabaseSession(req: Request): boolean {
 }
 
 /**
- * Bearer-token branch is allowed only outside production. Today this
- * is a stub for future API-key auth + a test affordance. In production
- * we require a real Supabase session cookie — a literal "Bearer X"
- * header is not a free pass.
+ * Bearer-token branch is allowed in KNOWN dev / test environments only,
+ * OR via explicit positive opt-in (`PLUCK_DEV_BEARER_AUTH=1`).
+ *
+ * Earlier this gated on `NODE_ENV !== "production"`, which silently
+ * flipped on for any preview/staging deploy where `NODE_ENV` was unset
+ * (Vercel preview URLs default to unset) — meaning a leaked preview URL
+ * could be hit with `Authorization: Bearer anything` and pass the auth
+ * gate. The whitelist + positive-opt-in pattern keeps tests + local dev
+ * frictionless while locking unset/staging environments by default.
+ *
+ * Allowed when:
+ *   - NODE_ENV === "test"        — Vitest defaults to this
+ *   - NODE_ENV === "development" — `next dev` defaults to this
+ *   - PLUCK_DEV_BEARER_AUTH === "1" — explicit opt-in for any other env
  */
 export function bearerAllowedInThisEnv(): boolean {
-  return process.env.NODE_ENV !== "production";
+  if (process.env.PLUCK_DEV_BEARER_AUTH === "1") {
+    return true;
+  }
+  const env = process.env.NODE_ENV;
+  return env === "test" || env === "development";
 }
 
 export function hasBearerToken(req: Request): boolean {

@@ -14,7 +14,7 @@
 //      /search?q=<input> so the operator sees the parsed decomposition
 //      + an inline error.
 //   3. Look up in the v1 store via getRun. Hit → record.receiptUrl
-//      (e.g. `/bureau/dragnet/runs/openai-bold-marlin-1188`).
+//      (e.g. `/programs/dragnet/runs/openai-bold-marlin-1188`).
 //   4. Look up in the cross-program search aggregator (vendor-preview
 //      today, real /v1/runs?phraseIdPrefix= when pluck-api lands).
 //      directMatch → directMatch.receiptUrl. Same lookup /search itself

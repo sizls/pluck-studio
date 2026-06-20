@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // Paste any phrase ID in. See every related receipt across all 11
-// Bureau programs out. The keystone search experience — every receipt
+// Pluck programs out. The keystone search experience — every receipt
 // URL becomes a discoverable nexus.
 //
 // Architecture:
@@ -24,8 +24,8 @@
 import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 
-import { PhraseSigil } from "../../components/bureau-ui/PhraseSigil.js";
-import { VerdictBadge } from "../../components/bureau-ui/VerdictBadge.js";
+import { PhraseSigil } from "../../components/programs-ui/PhraseSigil.js";
+import { VerdictBadge } from "../../components/programs-ui/VerdictBadge.js";
 import {
   PHRASE_ID_PREFIX_CONVENTIONS,
   type PhraseIdPrefixConvention,
@@ -41,7 +41,7 @@ import {
 import { VERDICT_COLORS, formatRelative } from "../vendor/_ui.js";
 
 const PAGE_DESCRIPTION =
-  "Phrase-ID Auto-Stitch Search — paste any phrase ID, see every related receipt across all 11 Bureau programs.";
+  "Phrase-ID Auto-Stitch Search — paste any phrase ID, see every related receipt across all the Pluck programs.";
 
 // Force dynamic rendering so Next.js never statically caches /search.
 // Search query strings echo arbitrary user input (emails, secrets pasted
@@ -75,15 +75,15 @@ export const metadata: Metadata = {
 };
 
 const HeaderStyle: CSSProperties = {
-  borderBottom: "1px solid var(--bureau-fg-dim)",
+  borderBottom: "1px solid var(--studio-fg-dim)",
   paddingBottom: 16,
   marginBottom: 24,
 };
 
 const SectionHeadingStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -101,27 +101,27 @@ const InputStyle: CSSProperties = {
   flex: "1 1 320px",
   minWidth: 0,
   padding: "10px 12px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
   background: "rgba(255, 255, 255, 0.03)",
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 4,
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
 };
 
 const ButtonStyle: CSSProperties = {
   padding: "10px 18px",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
-  background: "var(--bureau-fg)",
-  color: "var(--bureau-bg)",
+  background: "var(--studio-fg)",
+  color: "var(--studio-bg)",
   border: "none",
   borderRadius: 4,
   cursor: "pointer",
 };
 
 const CardStyle: CSSProperties = {
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 6,
   padding: 16,
   marginTop: 12,
@@ -136,25 +136,25 @@ const DecompositionGridStyle: CSSProperties = {
 };
 
 const DecompositionCellStyle: CSSProperties = {
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 4,
   padding: "10px 12px",
   background: "rgba(255, 255, 255, 0.02)",
 };
 
 const DecompositionLabelStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 10,
   letterSpacing: "0.08em",
   textTransform: "uppercase",
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
 };
 
 const DecompositionValueStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 16,
   marginTop: 4,
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
   wordBreak: "break-all",
 };
 
@@ -166,7 +166,7 @@ const ResultsGridStyle: CSSProperties = {
 };
 
 const ResultTileStyle: CSSProperties = {
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 6,
   padding: 16,
   background: "rgba(255, 255, 255, 0.02)",
@@ -192,16 +192,16 @@ const ResultDotStyle = (color: string): CSSProperties => ({
 });
 
 const ResultProgramStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
   letterSpacing: "0.08em",
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
 };
 
 const ResultPhraseStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
   marginTop: 4,
   wordBreak: "break-all",
 };
@@ -214,16 +214,16 @@ const ResultSummaryStyle: CSSProperties = {
 
 const ResultMetaStyle: CSSProperties = {
   marginTop: 8,
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 11,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
 };
 
 const ErrorStyle: CSSProperties = {
   ...CardStyle,
   borderLeft: "3px solid #ef4444",
   background: "rgba(239, 68, 68, 0.06)",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
 };
 
@@ -231,7 +231,7 @@ const InfoStyle: CSSProperties = {
   ...CardStyle,
   borderLeft: "3px solid #fbbf24",
   background: "rgba(251, 191, 36, 0.06)",
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 13,
   lineHeight: 1.6,
 };
@@ -340,7 +340,7 @@ function Decomposition({
         style={{
           marginTop: 6,
           fontSize: 12,
-          color: "var(--bureau-fg-dim)",
+          color: "var(--studio-fg-dim)",
           lineHeight: 1.6,
         }}
       >
@@ -400,7 +400,7 @@ function EmptyState({ samples }: { samples: ReadonlyArray<string> }): ReactNode 
             <a
               href={`/search?q=${encodeURIComponent(sample)}`}
               data-testid="search-sample-link"
-              style={{ fontFamily: "var(--bureau-mono)", fontSize: 14 }}
+              style={{ fontFamily: "var(--studio-mono)", fontSize: 14 }}
             >
               {sample}
             </a>
@@ -427,11 +427,11 @@ export default async function SearchPage({
 
   return (
     <div data-testid="search-page">
-      <section className="bureau-hero" style={HeaderStyle}>
-        <h1 className="bureau-hero-title">Phrase-ID Auto-Stitch</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero" style={HeaderStyle}>
+        <h1 className="studio-hero-title">Phrase-ID Auto-Stitch</h1>
+        <p className="studio-hero-tagline">
           Paste any phrase ID. See every related receipt across all 11
-          Bureau programs — same vendor, same partner, same platform,
+          Pluck programs — same vendor, same partner, same platform,
           same scope. Every receipt URL is a discoverable nexus.
         </p>
         <SearchForm q={trimmed} />
@@ -456,7 +456,7 @@ export default async function SearchPage({
           </li>
           <li>
             Auto-stitch fans out from the scope: every receipt that
-            shares it across the 11 programs surfaces in one view.
+            shares it across the 51 programs surfaces in one view.
           </li>
           <li>
             Today the index runs on stub-era preview activity. When{" "}
@@ -535,9 +535,9 @@ function SearchResults({
       <p
         style={{
           marginTop: 12,
-          fontFamily: "var(--bureau-mono)",
+          fontFamily: "var(--studio-mono)",
           fontSize: 12,
-          color: "var(--bureau-fg-dim)",
+          color: "var(--studio-fg-dim)",
         }}
         data-testid="search-total-count"
       >

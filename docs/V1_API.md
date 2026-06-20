@@ -2,7 +2,7 @@
 
 The `/v1/runs` endpoint is the canonical surface for kicking off any
 pipeline run inside Pluck Studio. It consolidates the 11 per-program
-Bureau activation stubs (`/api/bureau/<slug>/run`) into a single
+Pluck activation stubs (`/api/programs/<slug>/run`) into a single
 contract and is the seam where the real backend (Hono + Supabase +
 Kite + Rekor) will swap in when the runner ships.
 
@@ -25,18 +25,18 @@ interface RunSpec {
 }
 
 type RunSpecPipeline =
-  // Bureau programs — shipped in stub form today
-  | "bureau:dragnet"
-  | "bureau:oath"
-  | "bureau:fingerprint"
-  | "bureau:custody"
-  | "bureau:whistle"
-  | "bureau:bounty"
-  | "bureau:sbom-ai"
-  | "bureau:rotate"
-  | "bureau:tripwire"
-  | "bureau:nuclei"
-  | "bureau:mole"
+  // Pluck programs — shipped in stub form today
+  | "program:dragnet"
+  | "program:oath"
+  | "program:fingerprint"
+  | "program:custody"
+  | "program:whistle"
+  | "program:bounty"
+  | "program:sbom-ai"
+  | "program:rotate"
+  | "program:tripwire"
+  | "program:nuclei"
+  | "program:mole"
   // Future surface — accepted by the schema, returns 400 today
   | "extract"
   | "sense"
@@ -44,7 +44,7 @@ type RunSpecPipeline =
   | "fleet";
 ```
 
-`payload` is per-pipeline. For `bureau:<program>`, the payload shape is
+`payload` is per-pipeline. For `program:<program>`, the payload shape is
 the existing per-program request body (see "Per-pipeline payload
 reference" below).
 
@@ -71,12 +71,12 @@ interface RunRecord {
   response: Record<string, unknown> | null;
   createdAt: string; // ISO
   updatedAt: string; // ISO
-  receiptUrl: string; // /bureau/<program>/runs/<runId>
+  receiptUrl: string; // /programs/<program>/runs/<runId>
 }
 ```
 
 The `runId` is a phrase ID, not a UUID — same primitive that anchors
-the receipt URL. Bureau pipelines that target a URL get a vendor-scoped
+the receipt URL. Pluck pipelines that target a URL get a vendor-scoped
 phrase (`openai-swift-falcon-3742`); the rest are slug-prefixed
 (`custody-bright-stag-4012`).
 
@@ -126,7 +126,7 @@ minutes later is a fresh run.
 > arbitrary time window. Clients that need a stronger guarantee
 > should pass an explicit caller-controlled `idempotencyKey`.
 
-The legacy `POST /api/bureau/dragnet/run` route synthesizes the same
+The legacy `POST /api/programs/dragnet/run` route synthesizes the same
 minute-bucketed key before delegating to the v1 store, so a legacy
 double-click and a `/v1/runs` double-click with the same payload
 return the SAME `phraseId`. Without this synthesis, every legacy POST
@@ -146,7 +146,7 @@ curl -sS -X POST http://localhost:3030/api/v1/runs \
   -H 'sec-fetch-site: same-origin' \
   -H 'authorization: Bearer dev-jwt' \
   -d '{
-    "pipeline": "bureau:dragnet",
+    "pipeline": "program:dragnet",
     "payload": {
       "targetUrl": "https://api.openai.com/v1/chat/completions",
       "probePackId": "canon-honesty",
@@ -156,7 +156,7 @@ curl -sS -X POST http://localhost:3030/api/v1/runs \
     "idempotencyKey": "demo-run-2026-05-04"
   }'
 # → { "runId": "openai-swift-falcon-3742",
-#     "receiptUrl": "/bureau/dragnet/runs/openai-swift-falcon-3742",
+#     "receiptUrl": "/programs/dragnet/runs/openai-swift-falcon-3742",
 #     "status": "pending", "reused": false }
 
 # Replay with the SAME body returns the SAME runId — reused:true tells
@@ -198,7 +198,7 @@ vector.
 
 | Param | Type | Notes |
 |---|---|---|
-| `pipeline` | `bureau:<slug>` | Filter to a single bureau pipeline. Must be one of the 11 bureau slugs. Omit to include all pipelines. |
+| `pipeline` | `program:<slug>` | Filter to a single Pluck pipeline. Must be one of the 11 Pluck slugs. Omit to include all pipelines. |
 | `since` | ISO-8601 | Only runs created strictly AFTER this timestamp. Unparseable values return 400. |
 | `limit` | integer | Page size. Clamped to `[1, 100]`; default `20`. |
 | `cursor` | string ≤128 chars | Opaque pagination cursor — pass back the `nextCursor` from a prior response to fetch the next page. |
@@ -235,7 +235,7 @@ curl -sS 'http://localhost:3030/api/v1/runs?limit=20' \
 # → { "runs": [...], "nextCursor": "openai-swift-falcon-3742", "totalCount": 47 }
 
 # Filter to one pipeline + a creation cutoff.
-curl -sS 'http://localhost:3030/api/v1/runs?pipeline=bureau:dragnet&since=2026-05-01T00:00:00Z' \
+curl -sS 'http://localhost:3030/api/v1/runs?pipeline=program:dragnet&since=2026-05-01T00:00:00Z' \
   -H 'sec-fetch-site: same-origin'
 
 # Next page — pass the previous nextCursor.
@@ -247,7 +247,7 @@ curl -sS 'http://localhost:3030/api/v1/runs?status=pending,running' \
   -H 'sec-fetch-site: same-origin'
 
 # Combined filters — DRAGNET cancellations only.
-curl -sS 'http://localhost:3030/api/v1/runs?pipeline=bureau:dragnet&status=cancelled' \
+curl -sS 'http://localhost:3030/api/v1/runs?pipeline=program:dragnet&status=cancelled' \
   -H 'sec-fetch-site: same-origin'
 ```
 
@@ -462,8 +462,8 @@ The /v1/runs surface is published as an auto-generated OpenAPI 3.1
 document at [`/openapi.json`](https://studio.pluck.run/openapi.json).
 The spec is regenerated from `src/lib/v1/run-spec.ts` by the
 `scripts/build-openapi.ts` generator and committed to
-`public/openapi.json`. The `BureauPipeline` and `RunStatus` enums are
-derived directly from `BUREAU_PIPELINES` and `RUN_STATUSES`, so adding
+`public/openapi.json`. The `StudioPipeline` and `RunStatus` enums are
+derived directly from `PROGRAM_PIPELINES` and `RUN_STATUSES`, so adding
 a new pipeline cannot drift the spec without a regeneration step (a
 unit test asserts the invariant).
 
@@ -499,7 +499,7 @@ the per-pipeline validators in `src/lib/v1/pipeline-validators.ts`.
 
 The /v1/runs surface is also published as a **Studio MCP discovery
 document** at [`/api/mcp/manifest.json`](https://studio.pluck.run/api/mcp/manifest.json).
-The document declares the 11 Bureau programs as
+The document declares the the Pluck programs as
 `pluck://program/<slug>` resources, the canonical `pluck.search` /
 `pluck.diff` / `pluck.run` / `pluck.list` / `pluck.get` tools (with
 JSON-Schema input shapes), the cross-cutting `pluck://phrase/<id>`
@@ -512,11 +512,11 @@ its tool catalog to the document's tool list.
 The tool list pairs **resource fetch** (`pluck.get` for one receipt by
 phraseId, `pluck.list` for cursor-paginated enumeration) with
 **execute** (`pluck.run`) and **investigate** (`pluck.search`,
-`pluck.diff`). Splitting fetch from execute keeps Bureau-aware agents
+`pluck.diff`). Splitting fetch from execute keeps Pluck-aware agents
 inside the MCP `tools/call` lane instead of conflating it with
 `resources/read` — most MCP clients trip over that conflation.
 
-The prompt catalog now includes a third Bureau-canonical verb,
+The prompt catalog now includes a third Pluck-canonical verb,
 `pluck.compare-cycles`, which drives the /diff page across two
 cycles of the same vendor.
 
@@ -543,8 +543,8 @@ direct `curl` loop against `/api/mcp/manifest.json` + `/api/v1/runs`
 so operators can experiment today.
 
 The document is built by `src/lib/mcp/build-manifest.ts` — pure
-function over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Adding a new
-Bureau program auto-extends the resources list and the
+function over `ACTIVE_PROGRAMS` + `PROGRAM_PIPELINES`. Adding a new
+program auto-extends the resources list and the
 `pluck.run` tool's pipeline enum; a snapshot test locks the
 deterministic output, and an ajv-backed test compiles every
 inputSchema against a real JSON-Schema validator (catches typos
@@ -580,34 +580,34 @@ openapi.json. External clients use the `@sizls/pluck-mcp` bridge.
 
 ## Per-pipeline payload reference
 
-The canonical payload shape for each Bureau pipeline is defined by
+The canonical payload shape for each Pluck pipeline is defined by
 that program's `lib/<program>/run-form-module.ts` and validated by the
-legacy `/api/bureau/<program>/run` handler. Below is the migration
+legacy `/api/programs/<program>/run` handler. Below is the migration
 status. As each program migrates, its payload reference moves from
 "see legacy route" to "see this section."
 
 | Pipeline | Payload reference | Migrated to /v1/runs |
 |---|---|---|
-| `bureau:dragnet` | `src/lib/dragnet/run-form-module.ts` | **Yes (Phase 3 wedge)** |
-| `bureau:nuclei` | `src/lib/nuclei/run-form-module.ts` | **Yes (Wave 1)** |
-| `bureau:oath` | `src/lib/oath/run-form-module.ts` | **Yes (Wave 1)** |
-| `bureau:fingerprint` | `src/lib/fingerprint/run-form-module.ts` | **Yes (Wave 2)** |
-| `bureau:custody` | `src/lib/custody/run-form-module.ts` | **Yes (Wave 2)** |
-| `bureau:mole` | `src/lib/mole/run-form-module.ts` | **Yes (Wave 2)** |
-| `bureau:bounty` | `src/lib/bounty/run-form-module.ts` | **Yes (Wave 3)** |
-| `bureau:sbom-ai` | `src/lib/sbom-ai/run-form-module.ts` | **Yes (Wave 3)** |
-| `bureau:rotate` | `src/lib/rotate/run-form-module.ts` | **Yes (Wave 3)** |
-| `bureau:tripwire` | `src/lib/tripwire/run-form-module.ts` | **Yes (Wave 3)** |
-| `bureau:whistle` | `src/lib/whistle/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:dragnet` | `src/lib/dragnet/run-form-module.ts` | **Yes (Phase 3 wedge)** |
+| `program:nuclei` | `src/lib/nuclei/run-form-module.ts` | **Yes (Wave 1)** |
+| `program:oath` | `src/lib/oath/run-form-module.ts` | **Yes (Wave 1)** |
+| `program:fingerprint` | `src/lib/fingerprint/run-form-module.ts` | **Yes (Wave 2)** |
+| `program:custody` | `src/lib/custody/run-form-module.ts` | **Yes (Wave 2)** |
+| `program:mole` | `src/lib/mole/run-form-module.ts` | **Yes (Wave 2)** |
+| `program:bounty` | `src/lib/bounty/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:sbom-ai` | `src/lib/sbom-ai/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:rotate` | `src/lib/rotate/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:tripwire` | `src/lib/tripwire/run-form-module.ts` | **Yes (Wave 3)** |
+| `program:whistle` | `src/lib/whistle/run-form-module.ts` | **Yes (Wave 3)** |
 
-**Migration progress:** 11/11 Bureau pipelines now POST to `/v1/runs` —
+**Migration progress:** 11/11 Pluck pipelines now POST to `/v1/runs` —
 the entire alpha-program surface is on the unified contract. Every
-legacy `/api/bureau/<slug>/run` route stays alive as a deprecated alias
+legacy `/api/programs/<slug>/run` route stays alive as a deprecated alias
 that delegates to the same shared validator and dual-writes into the
 v1 store, so legacy and v1 callers converge on the same `phraseId` for
 the same payload.
 
-### `bureau:dragnet` payload
+### `program:dragnet` payload
 
 ```ts
 {
@@ -618,7 +618,7 @@ the same payload.
 }
 ```
 
-### `bureau:nuclei` payload
+### `program:nuclei` payload
 
 ```ts
 {
@@ -639,7 +639,7 @@ the same payload.
 > which becomes an impersonation primitive once the registry goes
 > public. This will be bound to authenticated identity at NUCLEI v1.0
 > GA. See the SECURITY block in
-> `src/app/api/bureau/nuclei/run/route.ts` (AE R1 finding S1).
+> `src/app/api/programs/nuclei/run/route.ts` (AE R1 finding S1).
 
 The runId is **author-scoped** (`alice-swift-falcon-3742`) — receipt URL
 self-discloses the publishing operator. Idempotency key shape used by
@@ -648,7 +648,7 @@ the RunForm + legacy alias:
 
 #### Pre-fill via query params (SBOM-AI cross-publish)
 
-The NUCLEI run form (`/bureau/nuclei/run`) accepts two optional
+The NUCLEI run form (`/programs/nuclei/run`) accepts two optional
 query params for handoff from the SBOM-AI receipt CTA:
 
 | Param | Form field | Notes |
@@ -663,7 +663,7 @@ prefill pattern from `/extract`. The NUCLEI receipt back-links to the
 SBOM-AI source artifact via the rekor UUID code block + cosign verify
 command in the "Source artifact" section.
 
-### `bureau:oath` payload
+### `program:oath` payload
 
 ```ts
 {
@@ -683,7 +683,7 @@ RunForm + legacy alias:
 `effectiveHostingOrigin` is the explicit override or
 `https://<vendorDomain>` when omitted.
 
-### `bureau:fingerprint` payload
+### `program:fingerprint` payload
 
 ```ts
 {
@@ -698,7 +698,7 @@ URL self-discloses the scanned vendor. The vendor must be in the
 hosted-mode allowlist (see `src/lib/fingerprint/run-form-module.ts` for
 the canonical list); unsupported vendors are rejected with a 400 +
 `supportedVendors` array so the client can surface alternatives. Run
-the OSS `pluck bureau fingerprint scan --responder` CLI for vendors
+the OSS `pluck fingerprint scan --responder` CLI for vendors
 outside the allowlist.
 
 Idempotency key shape used by the RunForm + legacy alias:
@@ -709,7 +709,7 @@ The legacy alias additionally echoes `runId === phraseId`, `vendor`,
 `model`, `status: "scan pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
-### `bureau:custody` payload
+### `program:custody` payload
 
 ```ts
 {
@@ -744,7 +744,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 `bundleUrl`, `expectedVendor` (or null), `status: "verification pending"`,
 `deprecated: true`, and `replacement: "/api/v1/runs"`.
 
-### `bureau:mole` payload
+### `program:mole` payload
 
 ```ts
 {
@@ -767,7 +767,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 > the wire. The shared `validateMolePayload` validator enforces this
 > as a defense-in-depth check: any payload carrying `canaryBody` or
 > `canaryContent` is rejected with a 400 — even on the legacy
-> `/api/bureau/mole/run` alias. Receipts schema-drops these fields
+> `/api/programs/mole/run` alias. Receipts schema-drops these fields
 > at render; the validator backstops the wire so a misbuilt client
 > can't accidentally leak the body. See "Sealing comes BEFORE
 > probing" in the MOLE landing for context.
@@ -786,7 +786,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 the canary body), `status: "seal pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
-### `bureau:bounty` payload
+### `program:bounty` payload
 
 ```ts
 {
@@ -824,7 +824,7 @@ The legacy alias additionally echoes `runId === phraseId`, `target`,
 `program`, `vendor`, `model`, `sourceRekorUuid`, `status: "filing pending"`,
 `deprecated: true`, and `replacement: "/api/v1/runs"`.
 
-### `bureau:sbom-ai` payload
+### `program:sbom-ai` payload
 
 ```ts
 {
@@ -858,7 +858,7 @@ anchored, the receipt surfaces a **"Publish to NUCLEI registry →"**
 CTA. The CTA links to:
 
 ```
-/bureau/nuclei/run?sbomRekorUuid=<rekorUuid>
+/programs/nuclei/run?sbomRekorUuid=<rekorUuid>
 ```
 
 The NUCLEI form pre-fills the `sbomRekorUuid` field from the query
@@ -867,7 +867,7 @@ and `mcp-server` artifacts do NOT show the CTA — NUCLEI registry
 only accepts probe-pack artifacts. Mirrors the DRAGNET
 `?vendor=&assertion=` prefill pattern from the `/extract` integration.
 
-### `bureau:rotate` payload
+### `program:rotate` payload
 
 ```ts
 {
@@ -913,7 +913,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 `status: "rotation pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
-### `bureau:tripwire` payload
+### `program:tripwire` payload
 
 ```ts
 {
@@ -948,7 +948,7 @@ The legacy alias additionally echoes `runId === phraseId`,
 `status: "configuration pending"`, `deprecated: true`, and
 `replacement: "/api/v1/runs"`.
 
-### `bureau:whistle` payload
+### `program:whistle` payload
 
 ```ts
 {
@@ -1006,7 +1006,7 @@ intentionally NOT echoed.
 
 ## Migration runway
 
-**Status: 11/11 Bureau pipelines migrated — full alpha surface on the
+**Status: 11/11 Pluck pipelines migrated — full alpha surface on the
 unified contract.**
 
 DRAGNET was the **wedge migration** — the first program to POST to the
@@ -1036,8 +1036,8 @@ validator and dual-write into the v1 store.
      intentionally drops `bundleUrl` from the response (anonymity-
      by-default).
 
-**100% migration complete** — no Bureau pipeline still posts directly
-to its `/api/bureau/<slug>/run` route. New client code should target
+**100% migration complete** — no Pluck pipeline still posts directly
+to its `/api/programs/<slug>/run` route. New client code should target
 `/v1/runs`; existing legacy callers continue to work unchanged
 through the deprecated aliases until the runner GA + RFC 8594
 sunset.
@@ -1048,7 +1048,7 @@ work to graduate `/v1/runs` from stub to GA is the backend swap
 (Supabase + DSSE + Rekor + Realtime — see "Backend swap plan" below);
 the HTTP contract is frozen.
 
-The legacy `POST /api/bureau/<slug>/run` routes stay alive as
+The legacy `POST /api/programs/<slug>/run` routes stay alive as
 deprecated aliases throughout. Internally, the migrated routes
 delegate to `lib/v1/run-store` so old callers and new callers see the
 same record from `GET /api/v1/runs/[id]`.
@@ -1084,7 +1084,7 @@ The HTTP contract above does not change across the swap.
 
 Documented in `RunSpecPipeline` so client SDKs can be generated against
 the union today. The route returns 400 with a `documented but not yet
-implemented` error message. The non-Bureau shelves land per the
+implemented` error message. The non-Pluck shelves land per the
 plan in `~/.claude/plans/mighty-gliding-swan.md`.
 
 ---
@@ -1106,3 +1106,209 @@ The runId / phraseId returned by `POST /v1/runs` remains the share
 credential — bookmark-and-share is still the intended UX for the
 wedge. SSE adds real-time progress on top, without changing the
 share-link primitive.
+
+---
+
+# /v1/watches — periodic semantic monitoring
+
+The `/v1/watches` endpoint is the canonical surface for **periodic** monitoring
+of arbitrary public URLs. Standalone — Watches are NOT Pluck runs. Operators
+describe what to watch in plain language; the agent (Week-2) decides what
+changed. The wedge: **the agent IS the selector** — pages can be rewritten
+and the watch keeps working.
+
+> **Status:** STUB (Week-1). Persistence is an in-memory `Map` in
+> `src/lib/watch/store.ts` mirroring the `run-store.ts` pattern. The
+> public API documented below is what the Week-2 Worker + Supabase swap
+> will implement; clients pay zero migration tax.
+
+## WatchSpec
+
+`POST /api/v1/watches` body:
+
+```ts
+interface WatchSpec {
+  name: string;             // 1..120 chars
+  url: string;              // public http(s) URL, no localhost/private IP
+  cron: string;             // 5-field cron OR @-macro (validated via lib/cron)
+  intent: string;           // 20..2000 chars — natural-language directive
+  fetcherKind: "playwright" | "http" | "browserbase";
+  autonomyMode: "diff-gated" | "full-auto" | "always-agent";
+  alertChannels: AlertChannels;
+  confidenceThreshold?: number;   // 0..1, default 0.75
+  diffThreshold?: number;         // 0..1, default 0.02
+  ignoreSelectors?: string[];     // up to 32 CSS selectors, stripped pre-hash
+  useVisionDefault?: boolean;     // default false
+  dailyBudgetUsd?: number;        // 0..100, default 2.0
+  idempotencyKey?: string;        // 1..256 chars
+}
+
+interface AlertChannels {
+  dashboard: boolean;             // SSE live stream
+  email: string[];                // up to 8 recipients
+  webhook: string[];              // up to 4 public https URLs (HMAC-signed on dispatch)
+  slack: string[];                // up to 4 https incoming-webhook URLs
+  phraseId: boolean;              // mints a Pluck phrase-id receipt per alert
+}
+```
+
+At least ONE channel must be enabled. All operator-supplied URLs (watch
+URL + webhook + slack) pass the SAME hardened public-host guard
+(`src/lib/security/url-guard.ts`) — IPv6 literals + numeric IPv4 +
+trailing-dot + reserved TLDs (`.local`, `.internal`, …) are all rejected
+at POST AND at redirect-follow time.
+
+## Endpoints
+
+| Method | Path | Purpose | Auth | Shape |
+|---|---|---|---|---|
+| `POST` | `/api/v1/watches` | Create | yes | WatchSpec → `{watchId, receiptUrl, status, reused}` (envelope) |
+| `GET` | `/api/v1/watches` | List (paginated) | public-read | `{watches: PublicWatchRecord[], nextCursor, totalCount}` |
+| `GET` | `/api/v1/watches/[id]` | Read single | public-read | `PublicWatchRecord + {observations[], observationCount}` |
+| `PATCH` | `/api/v1/watches/[id]` | Update (subset) | yes | WatchUpdate → `PublicWatchRecord` |
+| `DELETE` | `/api/v1/watches/[id]` | **Archive** (soft delete) | yes | `PublicWatchRecord` |
+| `POST` | `/api/v1/watches/[id]/trigger` | Fire-now (manual) | yes | `ObservationRecord` |
+| `GET` | `/api/v1/watches/[id]/events` | Live SSE stream | public-read | `state` / `observation` / `alert` events |
+
+### Response-shape convention
+
+All Watch endpoints follow envelope-on-create / resource-on-read:
+
+- **POST** returns a small envelope (`{watchId, receiptUrl, status, reused}`).
+  Need the full record? GET it.
+- **GET /watches/[id]**, **PATCH**, **DELETE** return the full
+  `PublicWatchRecord` (DELETE adds `alreadyArchived?: true` on idempotent
+  replay).
+- **GET /watches** (list) wraps `{watches: PublicWatchRecord[], nextCursor, totalCount}`.
+- **GET /watches/[id]/trigger** returns the freshly-minted `ObservationRecord`.
+
+This matches `/v1/runs`'s pattern. SDK authors should de-dupe via
+`watchId` (the canonical identifier), which appears on every shape.
+
+### DELETE semantics
+
+`DELETE /v1/runs/:id` cancels a pending/running run; `DELETE /v1/watches/:id`
+**archives** the watch (soft delete — the record stays for audit).
+
+Why the asymmetry? Runs cannot be paused — they're already-started
+activations, so DELETE = cancel = abort. Watches CAN be paused (via
+`PATCH status=paused`), so DELETE is freed up for "stop forever, keep
+history." A future hard-delete verb lands with the Worker; soft-archive
+lets observation history + receipt URLs survive the operator's "I'm
+done watching this" gesture.
+
+## PublicWatchRecord (GET-side redaction)
+
+The stored `WatchRecord` carries operator-private fields (`alertChannels.email`,
+`.webhook`, `.slack`) that are PII. Public GET routes — and the SSE
+`state` event — project a redacted view via `redactWatchForGet`:
+
+```ts
+interface PublicWatchRecord {
+  watchId: string;
+  name: string;
+  url: string;
+  cron: string;
+  intent: string;
+  fetcherKind: string;
+  autonomyMode: string;
+  status: "active" | "paused" | "running" | "failed" | "archived";
+  alertChannels: {
+    dashboard: boolean;
+    phraseId: boolean;
+    emailCount: number;
+    webhookCount: number;
+    slackCount: number;
+  };
+  confidenceThreshold: number;
+  diffThreshold: number;
+  ignoreSelectors: readonly string[];
+  useVisionDefault: boolean;
+  dailyBudgetUsd: number;
+  agentTokensSpentTotal: number;
+  agentCostUsdTotal: number;
+  lastObservationId: string | null;
+  lastFiredAt: string | null;        // ISO; null until first fire
+  receiptUrl: string;
+  createdAt: string;                  // ISO
+  updatedAt: string;                  // ISO
+}
+```
+
+Address arrays are replaced with counts. Flag-shaped channels
+(`dashboard`, `phraseId`) stay visible — they reveal capability, not
+destinations.
+
+## Observation
+
+Every fire produces an `ObservationRecord`. The Week-1 stub mints a
+`kind: "baseline"` mock; Week-2 ships the real agent-derived
+`Observation` (Zod-typed: extracted fields, status classification,
+confidence, evidence quote, causal explanation, suggested-next-check ms).
+
+```ts
+interface ObservationRecord {
+  observationId: string;             // UUID
+  phraseId: string;                  // pluck:watch:<watchId>:<YYYY-MM-DD>:obs-NN-<r4>
+  watchId: string;
+  kind: "baseline" | "no-change" | "observation" | "error";
+  prevObservationId: string | null;  // null on errors and on first run
+  observation: Observation | null;
+  errorMessage: string | null;
+  agentTokensUsed: number;
+  agentCostUsd: number;
+  modelUsed: string | null;
+  fetchedAt: string;
+  createdAt: string;
+}
+```
+
+## Trigger semantics
+
+`POST /api/v1/watches/[id]/trigger` returns:
+
+- `200 ObservationRecord` on success
+- `404` for unknown watchId
+- `409` when paused / archived
+- `429` (with `Retry-After` header) when fired within the per-watch
+  cooldown window (15s — defeats trigger-amplification)
+
+The Week-1 stub does a one-shot HTTP fetch with manual redirect
+following (every `Location` re-validated against the SSRF guard) +
+1 MiB body cap. Week-2 proxies to the Worker (Playwright + agent).
+
+## Idempotency
+
+`idempotencyHashOf({ownerId, name, url, intent, fetcherKind, idempotencyKey})`.
+`ownerId` is stub `"anonymous"` until pluck-api lands. The form mints
+one `crypto.randomUUID()`-based key per mount so double-clicks always
+collapse to one watch.
+
+## Auth posture
+
+| Endpoint | CSRF | Rate-limit | Auth | Body cap |
+|---|---|---|---|---|
+| POST | yes | yes | required (BEFORE parse) | 64 KiB |
+| GET (list / single) | yes | yes | public-read | — |
+| PATCH | yes | yes | required | 64 KiB |
+| DELETE | yes | yes | required | — |
+| trigger | yes | yes | required | — |
+| events (SSE) | yes | yes | public-read | — |
+
+Bearer-token affordance gated on `NODE_ENV ∈ {"test","development"}`
+OR `PLUCK_DEV_BEARER_AUTH=1`. Preview/staging with unset NODE_ENV is
+now auth-locked by default.
+
+## SSE event schema
+
+`GET /api/v1/watches/[id]/events` emits:
+
+- `state` (redacted `PublicWatchRecord`) — every CRUD transition + on connect
+- `observation` (full `ObservationRecord`) — when a new observation is recorded
+- `alert` (`{observationId, channel, status}`) — per-channel dispatch (Week-2+)
+- `heartbeat` (`{ts}`) — every 30s
+- `error` (`{code: "subscriber-cap-reached"}`) — caps hit (100 per watch / 5000 global)
+
+Connection cap 5 minutes; `Last-Event-ID` honored (strict `/^\d{1,8}$/` parse +
+clamp to `[0, 1_000_000]` so a malformed header cannot push the local counter
+past `MAX_SAFE_INTEGER`).

@@ -19,9 +19,9 @@ export const metadata = {
 };
 
 const SectionHeadingStyle = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -30,9 +30,9 @@ const SectionHeadingStyle = {
 export default function PrivacyPage(): ReactNode {
   return (
     <>
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Privacy posture</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">Privacy posture</h1>
+        <p className="studio-hero-tagline">
           Public-by-default for the artifact, private-by-default for the
           operator. Read this before submitting your first DRAGNET cycle.
         </p>

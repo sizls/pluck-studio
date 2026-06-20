@@ -29,7 +29,7 @@ export type ArtifactKind = "probe-pack" | "model-card" | "mcp-server";
 export const ARTIFACT_KIND_LABELS: Readonly<
   Record<ArtifactKind, string>
 > = Object.freeze({
-  "probe-pack": "Probe-pack (DRAGNET / Bureau probe bundle)",
+  "probe-pack": "Probe-pack (DRAGNET / Pluck probe bundle)",
   "model-card": "Model card (Hugging Face / OpenAI ModelCard JSON)",
   "mcp-server": "MCP server (release tarball, sha256 of raw bytes)",
 });

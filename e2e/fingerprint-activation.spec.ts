@@ -15,7 +15,7 @@ test.describe("FINGERPRINT activation flow", () => {
   test("unauthenticated user is shown a sign-in prompt, not a redirect", async ({
     page,
   }) => {
-    await page.goto("/bureau/fingerprint/run");
+    await page.goto("/programs/fingerprint/run");
     await expect(page.getByTestId("fingerprint-run-form")).toBeVisible();
 
     await page.getByTestId("vendor").fill("openai");
@@ -42,14 +42,14 @@ test.describe("FINGERPRINT activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/fingerprint/run");
+    await page.goto("/programs/fingerprint/run");
     await page.getByTestId("vendor").fill("openai");
     await page.getByTestId("model").fill("gpt-4o");
     await page.getByTestId("auth-ack").check();
     await page.getByTestId("run-submit").click();
 
     await page.waitForURL(
-      /\/bureau\/fingerprint\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/,
+      /\/programs\/fingerprint\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/,
     );
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("run-status")).toContainText(/pending/);
@@ -64,7 +64,7 @@ test.describe("FINGERPRINT activation flow", () => {
   test("submit blocked until vendor + model + auth-ack all present", async ({
     page,
   }) => {
-    await page.goto("/bureau/fingerprint/run");
+    await page.goto("/programs/fingerprint/run");
     await expect(page.getByTestId("run-submit")).toBeDisabled();
 
     await page.getByTestId("vendor").fill("openai");
@@ -91,7 +91,7 @@ test.describe("FINGERPRINT activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/fingerprint/run");
+    await page.goto("/programs/fingerprint/run");
     // Common mistake: pasting a domain instead of a vendor slug.
     await page.getByTestId("vendor").fill("openai.com");
     await page.getByTestId("model").fill("gpt-4o");
@@ -102,14 +102,14 @@ test.describe("FINGERPRINT activation flow", () => {
   });
 
   test("FINGERPRINT landing exposes the Run CTA", async ({ page }) => {
-    await page.goto("/bureau/fingerprint");
+    await page.goto("/programs/fingerprint");
     await expect(page.getByTestId("run-cta")).toBeVisible();
     await page.getByTestId("run-cta").click();
-    await page.waitForURL(/\/bureau\/fingerprint\/run$/);
+    await page.waitForURL(/\/programs\/fingerprint\/run$/);
   });
 
   test("target-slug-preview updates live as user types", async ({ page }) => {
-    await page.goto("/bureau/fingerprint/run");
+    await page.goto("/programs/fingerprint/run");
     await expect(page.getByTestId("target-slug-preview")).toBeHidden();
 
     await page.getByTestId("vendor").fill("openai");

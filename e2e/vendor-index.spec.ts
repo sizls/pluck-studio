@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // The Vendor Honesty Index is the keystone game-changer: a permanent
-// URL per vendor that aggregates every Bureau receipt naming that
+// URL per vendor that aggregates every Pluck receipt naming that
 // vendor. This suite locks the contract:
 //
 //   1. /vendor renders the curated allowlist (≥ 5 cards)

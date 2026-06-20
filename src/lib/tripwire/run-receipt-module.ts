@@ -6,7 +6,7 @@
 //   - signed TripwirePolicy/v1 envelope
 //   - JS install snippet operators paste into their dev machine
 //   - ingestion endpoint URL where attestations land
-//   - per-machine timeline link (existing /bureau/tripwire/me route)
+//   - per-machine timeline link (existing /programs/tripwire/me route)
 //
 // Verdicts:
 //   - configured              — policy signed, machineId issued,
@@ -124,11 +124,11 @@ export const tripwireRunReceiptModule = createModule(
         if (facts.machineId === null) {
           return null;
         }
-        // Per the landing — per-machine timeline lives at /bureau/
+        // Per the landing — per-machine timeline lives at /programs/
         // tripwire/me. For the multi-machine future we'd need a
         // per-machine route; today we link to /me as the canonical
         // operator's-view route.
-        return `/bureau/tripwire/me`;
+        return `/programs/tripwire/me`;
       },
     },
   },

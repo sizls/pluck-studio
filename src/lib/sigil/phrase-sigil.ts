@@ -58,7 +58,7 @@ const SHAPES: ReadonlyArray<SigilShape> = [
 ];
 
 // Default border accent when the caller doesn't supply one. Mid-gray —
-// blends with the Bureau monochrome chrome so a sigil without a program
+// blends with the Pluck monochrome chrome so a sigil without a program
 // context still looks at-home in the page.
 const DEFAULT_ACCENT = "#6b7280";
 
@@ -95,7 +95,7 @@ export function phraseSigilData(
   const noun = parsed.noun;
   const serial = parsed.serial;
 
-  // Adjective hue: muted Bureau aesthetic — saturation 38%, lightness 42%.
+  // Adjective hue: muted Pluck aesthetic — saturation 38%, lightness 42%.
   // The hue covers the full 0..359 wheel so two different adjectives
   // are visually distinct, but neon territory is excluded by capping S/L.
   const adjHash = fnv1a(adjective || "_");

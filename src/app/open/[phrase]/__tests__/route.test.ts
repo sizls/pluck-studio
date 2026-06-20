@@ -17,7 +17,7 @@ import type { RunSpec } from "../../../../lib/v1/run-spec.js";
 import { sampleSearchablePhraseIds } from "../../../../lib/search/phrase-stitch.js";
 
 const dragnetSpec: RunSpec = {
-  pipeline: "bureau:dragnet",
+  pipeline: "program:dragnet",
   payload: {
     targetUrl: "https://api.openai.com/v1/chat/completions",
     probePackId: "canon-honesty",
@@ -160,7 +160,7 @@ describe.each([
     // Sample IDs round-trip through searchPhraseId — directMatch
     // resolves to the program's receipt URL, not /search.
     expect(locationOf(res)).not.toContain("/search?q=");
-    expect(locationOf(res)).toContain("/bureau/");
+    expect(locationOf(res)).toContain("/programs/");
   });
 
   it(`(${label}) emits cache-busting headers — no CDN caching of redirects`, async () => {

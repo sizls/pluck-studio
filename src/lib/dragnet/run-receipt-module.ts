@@ -4,7 +4,7 @@
 //
 // Holds the live state of a single DRAGNET run's receipt as the page is
 // open. Today the facts are populated from a stub source (`fetch
-// /api/bureau/dragnet/runs/[id]`); when pluck-api ships /v1/runs and
+// /api/programs/dragnet/runs/[id]`); when pluck-api ships /v1/runs and
 // Supabase Realtime, the same facts get re-populated from a Realtime
 // channel via @directive-run/query — the page render code is unchanged.
 //

@@ -13,7 +13,7 @@
 //   - URL-fetched bundle only; pasted JSON = follow-on
 //   - Single optional manual-redact phrase
 //
-// The CLI's full surface (`pluck bureau whistle submit ./bundle.json
+// The CLI's full surface (`pluck whistle submit ./bundle.json
 // --routing "propublica,bellingcat" --manual-redact "phrase"`) shrinks
 // to a one-target activation here. Operators with multi-target needs
 // run the CLI; Studio's job is the 60-second hosted submit.
@@ -33,7 +33,7 @@ export interface SubmitResult {
 }
 
 /**
- * Submission categories — anchored on the /bureau/whistle landing's
+ * Submission categories — anchored on the /programs/whistle landing's
  * CLI examples (`--category training-data | policy-violation |
  * safety-incident`).
  */
@@ -48,7 +48,7 @@ export const CATEGORY_LABELS: Readonly<Record<Category, string>> = Object.freeze
 );
 
 /**
- * Newsroom routing partners. Anchored on the /bureau/whistle landing's
+ * Newsroom routing partners. Anchored on the /programs/whistle landing's
  * "ProPublica / Bellingcat / 404Media / EFF Press" list. EFF Press is
  * the legal-aid + amplification path for non-newsroom-routable tips.
  */

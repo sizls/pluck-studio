@@ -9,13 +9,13 @@
 //   - Determinism: same opts → byte-identical manifest (snapshot).
 //   - Coverage: every ACTIVE_PROGRAMS entry has a matching resource.
 //   - Tools: pluck.search, pluck.diff, pluck.run all present.
-//   - Tools: the pluck.run pipeline enum tracks BUREAU_PIPELINES.
+//   - Tools: the pluck.run pipeline enum tracks PROGRAM_PIPELINES.
 //   - Tools: every inputSchema compiles under a real JSON-Schema
 //     validator (ajv) and accepts the SHAPES it's meant to. Catches
 //     typos that would otherwise slip past visual review.
 //   - Auth: non-empty (operators MUST know how to authenticate).
 //
-// Adding a new Bureau program means the snapshot rebases; the
+// Adding a new program means the snapshot rebases; the
 // per-slug invariant catches drift even if you forget to rebase.
 // ---------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
 
 import { ACTIVE_PROGRAMS } from "../../programs/registry";
-import { BUREAU_PIPELINES, RUN_STATUSES } from "../../v1/run-spec";
+import { PROGRAM_PIPELINES, RUN_STATUSES } from "../../v1/run-spec";
 import { buildManifest } from "../build-manifest";
 
 const OPTS = {
@@ -145,7 +145,7 @@ describe("buildManifest — tools", () => {
     expect(names).toContain("pluck.get");
   });
 
-  it("pluck.run input-schema enum matches BUREAU_PIPELINES exactly", () => {
+  it("pluck.run input-schema enum matches PROGRAM_PIPELINES exactly", () => {
     const m = buildManifest(OPTS);
     const run = m.tools.find((t) => t.name === "pluck.run");
     const props = run?.inputSchema.properties as
@@ -154,7 +154,7 @@ describe("buildManifest — tools", () => {
     const pipelineEnum = props?.pipeline?.enum;
 
     expect(Array.isArray(pipelineEnum)).toBe(true);
-    expect(pipelineEnum).toEqual([...BUREAU_PIPELINES]);
+    expect(pipelineEnum).toEqual([...PROGRAM_PIPELINES]);
   });
 
   it("pluck.list input-schema status enum matches RUN_STATUSES exactly", () => {
@@ -164,7 +164,7 @@ describe("buildManifest — tools", () => {
       | Record<string, { enum?: unknown[] }>
       | undefined;
 
-    expect(props?.pipeline?.enum).toEqual([...BUREAU_PIPELINES]);
+    expect(props?.pipeline?.enum).toEqual([...PROGRAM_PIPELINES]);
     expect(props?.status?.enum).toEqual([...RUN_STATUSES]);
   });
 
@@ -234,27 +234,27 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
     expect(validate({})).toBe(false);
   });
 
-  it("pluck.run enum matches BUREAU_PIPELINES and accepts every pipeline", () => {
+  it("pluck.run enum matches PROGRAM_PIPELINES and accepts every pipeline", () => {
     const m = buildManifest(OPTS);
     const run = m.tools.find((t) => t.name === "pluck.run");
     expect(run).toBeDefined();
     const validate = ajv.compile(run!.inputSchema);
 
-    // Every BUREAU_PIPELINES value MUST be acceptable to the schema —
+    // Every PROGRAM_PIPELINES value MUST be acceptable to the schema —
     // proves the enum literal in the manifest matches the runtime
     // taxonomy used by the pipeline validators.
-    for (const pipeline of BUREAU_PIPELINES) {
+    for (const pipeline of PROGRAM_PIPELINES) {
       expect(validate({ pipeline, payload: {} })).toBe(true);
     }
 
-    expect(validate({ pipeline: "bureau:not-a-real-program", payload: {} })).toBe(
+    expect(validate({ pipeline: "program:not-a-real-program", payload: {} })).toBe(
       false,
     );
-    expect(validate({ pipeline: "bureau:dragnet" })).toBe(false); // missing payload
+    expect(validate({ pipeline: "program:dragnet" })).toBe(false); // missing payload
     expect(validate({ payload: {} })).toBe(false); // missing pipeline
     expect(
       validate({
-        pipeline: "bureau:dragnet",
+        pipeline: "program:dragnet",
         payload: {},
         idempotencyKey: "abc",
       }),
@@ -271,7 +271,7 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
     expect(validate({})).toBe(true);
 
     // Each filter independently.
-    expect(validate({ pipeline: "bureau:dragnet" })).toBe(true);
+    expect(validate({ pipeline: "program:dragnet" })).toBe(true);
     expect(validate({ since: "2026-05-04T00:00:00Z" })).toBe(true);
     expect(validate({ limit: 25 })).toBe(true);
     expect(validate({ cursor: "opaque-cursor-abc" })).toBe(true);
@@ -280,7 +280,7 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
     // All filters at once.
     expect(
       validate({
-        pipeline: "bureau:oath",
+        pipeline: "program:oath",
         since: "2026-01-01T00:00:00Z",
         limit: 10,
         cursor: "abc",
@@ -293,14 +293,14 @@ describe("buildManifest — tools/inputSchema (ajv compile + accept)", () => {
       expect(validate({ status })).toBe(true);
     }
 
-    // Every BUREAU_PIPELINES value MUST be acceptable.
-    for (const pipeline of BUREAU_PIPELINES) {
+    // Every PROGRAM_PIPELINES value MUST be acceptable.
+    for (const pipeline of PROGRAM_PIPELINES) {
       expect(validate({ pipeline })).toBe(true);
     }
 
     // Reject bogus inputs.
     expect(validate({ unknownField: 1 })).toBe(false);
-    expect(validate({ pipeline: "bureau:not-a-real-program" })).toBe(false);
+    expect(validate({ pipeline: "program:not-a-real-program" })).toBe(false);
     expect(validate({ status: "not-a-status" })).toBe(false);
     expect(validate({ limit: 0 })).toBe(false); // < minimum
     expect(validate({ limit: 1000 })).toBe(false); // > maximum

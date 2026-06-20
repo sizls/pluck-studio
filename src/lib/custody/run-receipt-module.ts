@@ -10,7 +10,7 @@
 //     individually auditable)
 //   - WebAuthn attestation summary (the keystone for Daubert)
 //
-// Verdicts (canonical, anchored on the /bureau/custody landing):
+// Verdicts (canonical, anchored on the /programs/custody landing):
 //   - compliant         — bundle passes all FRE 902(13) checks
 //   - webauthn-missing  — Daubert fails: signer key isn't bound to
 //                          a WebAuthn-registered passkey
@@ -72,14 +72,14 @@ export interface WebAuthnAttestation {
 /** CUSTODY spec predicateType (canonical, surfaced in the receipt UI). */
 export const CUSTODY_PREDICATE_URI = "https://pluck.run/CustodyBundle/v1";
 
-/** Bureau R1 convention: 64-char hex SPKI fingerprint. */
+/** Pluck R1 convention: 64-char hex SPKI fingerprint. */
 export const SPKI_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/;
 
-/** Bureau cassette wire prefix (shared with FINGERPRINT). */
+/** Pluck cassette wire prefix (shared with FINGERPRINT). */
 export const CASSETTE_HASH_PREFIX = "local:";
 
 /**
- * Canonicalize a raw 64-hex-char SHA-256 into the Bureau wire form
+ * Canonicalize a raw 64-hex-char SHA-256 into the Pluck wire form
  * `local:<sha256>`. Idempotent on already-prefixed input. Returns
  * input unchanged on malformed hashes so the receipt UI doesn't
  * silently drop debug data.

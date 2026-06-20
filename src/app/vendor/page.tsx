@@ -2,13 +2,13 @@
 // /vendor — Vendor Honesty Index
 // ---------------------------------------------------------------------------
 //
-// Per-vendor live profile across all 11 Bureau programs. Every receipt
+// Per-vendor live profile across all the Pluck programs. Every receipt
 // that names a vendor (DRAGNET / OATH / FINGERPRINT / CUSTODY phrase-ID
 // prefix; NUCLEI vendorScope tag; MOLE canaryUrl host) enriches that
 // vendor's permanent URL.
 //
 // The keystone-game-changer: a permanent URL per vendor that the press,
-// reg agencies, and Bureau practitioners can bookmark + cite. URLs do
+// reg agencies, and Pluck practitioners can bookmark + cite. URLs do
 // not move. New receipts append. Old receipts never disappear.
 //
 // Static-rendered against the curated allowlist in vendor-registry.ts.
@@ -34,13 +34,13 @@ import {
 export const metadata = {
   title: "Vendor Honesty Index — Pluck Studio",
   description:
-    "Per-vendor live profile across all 11 Bureau programs. Every receipt that names a vendor enriches that vendor's permanent URL.",
+    "Per-vendor live profile across all the Pluck programs. Every receipt that names a vendor enriches that vendor's permanent URL.",
 };
 
 const SectionHeadingStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase",
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -56,7 +56,7 @@ const GridStyle: CSSProperties = {
 };
 
 const CardStyle: CSSProperties = {
-  border: "1px solid var(--bureau-fg-dim)",
+  border: "1px solid var(--studio-fg-dim)",
   borderRadius: 6,
   padding: 20,
   background: "rgba(255, 255, 255, 0.02)",
@@ -72,44 +72,44 @@ const CardLinkStyle: CSSProperties = {
 };
 
 const VendorNameStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 18,
   letterSpacing: "0.04em",
-  color: "var(--bureau-fg)",
+  color: "var(--studio-fg)",
 };
 
 const SlugStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
 };
 
 const DescriptionStyle: CSSProperties = {
   fontSize: 13,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   lineHeight: 1.5,
   marginTop: 4,
 };
 
 const StatLineStyle: CSSProperties = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 12,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   marginTop: 8,
 };
 
 export default function VendorIndexPage(): ReactNode {
   return (
     <>
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Vendor Honesty Index</h1>
-        <p className="bureau-hero-tagline">{VENDOR_PAGE_DESCRIPTION}</p>
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">Vendor Honesty Index</h1>
+        <p className="studio-hero-tagline">{VENDOR_PAGE_DESCRIPTION}</p>
         <p
           style={{
             marginTop: 12,
-            fontFamily: "var(--bureau-mono)",
+            fontFamily: "var(--studio-mono)",
             fontSize: 13,
-            color: "var(--bureau-fg-dim)",
+            color: "var(--studio-fg-dim)",
           }}
           data-testid="vendor-runs-cross-link"
         >
@@ -124,7 +124,7 @@ export default function VendorIndexPage(): ReactNode {
           Vendors ({VENDOR_REGISTRY.length})
         </h2>
         <p style={{ marginTop: 8 }}>
-          Every Bureau program receipt that names one of these vendors
+          Every program receipt that names one of these vendors
           flows into its permanent URL. Click through for the full
           per-program activity timeline.
         </p>

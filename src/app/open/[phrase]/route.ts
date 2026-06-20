@@ -5,7 +5,7 @@
 // URL-bar shortcut: paste any phrase ID, get redirected to whichever
 // program owns the receipt. PhraseIds become a global namespace —
 // `studio.pluck.run/open/openai-bold-marlin-1188` resolves to the
-// canonical receipt page no matter which Bureau program the run came
+// canonical receipt page no matter which program the run came
 // from.
 //
 // Pure server-side redirect. No client JS, no auth gate (phrase IDs

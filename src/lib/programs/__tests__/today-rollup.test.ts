@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // Locks the daily roll-up contract:
-//   1. Returns 11 programs in stable registry order.
+//   1. Returns 51 programs in stable registry order.
 //   2. Every program has verdictCounts + totalReceipts.
 //   3. DailyRollup.verdictBreakdown sums equal the per-program sums.
 //   4. Deterministic under a fixed `now`.

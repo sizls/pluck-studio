@@ -149,8 +149,8 @@ export const sbomAiRunReceiptModule = createModule("sbom-ai-run-receipt", {
       if (facts.computedSha256 === null) {
         return null;
       }
-      // Per landing: studio.pluck.run/bureau/sbom-ai/<sha256>
-      return `/bureau/sbom-ai/${facts.computedSha256.toLowerCase()}`;
+      // Per landing: studio.pluck.run/programs/sbom-ai/<sha256>
+      return `/programs/sbom-ai/${facts.computedSha256.toLowerCase()}`;
     },
   },
 });

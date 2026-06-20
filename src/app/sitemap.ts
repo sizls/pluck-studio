@@ -21,9 +21,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: `${BASE_URL}/`, lastModified: now, changeFrequency: "weekly", priority: 1.0 },
-    { url: `${BASE_URL}/bureau`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
+    { url: `${BASE_URL}/programs`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     {
-      url: `${BASE_URL}/bureau/leaderboard`,
+      url: `${BASE_URL}/programs/leaderboard`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.8,

@@ -17,8 +17,8 @@
 // We deliberately don't take a full URL here — FINGERPRINT targets a
 // vendor's *model* by slug and Studio's hosted-mode runner wires the
 // transport (OpenAI / Anthropic / etc) per the responder shape from
-// the `pluck bureau fingerprint scan` CLI. The vendor+model pair is
-// the canonical key used by /bureau/fingerprint/[vendor]/[model] for
+// the `pluck fingerprint scan` CLI. The vendor+model pair is
+// the canonical key used by /programs/fingerprint/[vendor]/[model] for
 // the timeline view of historical scans.
 // ---------------------------------------------------------------------------
 

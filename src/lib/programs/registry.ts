@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
-// Bureau program activation registry
+// program activation registry
 // ---------------------------------------------------------------------------
 //
-// Single source of truth for "which Bureau programs are wired through
+// Single source of truth for "which Pluck programs are wired through
 // the Studio activation pattern, and what's the CTA + summary for each."
 // Consumed by:
 //   - /runs (the cross-program hub)
-//   - /bureau (the program library)
+//   - /programs (the program library)
 //   - any future program-pickers / search surfaces
 //
 // New programs land here when their `/run` route ships. Programs that
@@ -59,8 +59,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "classification counts (contradict / mirror / shadow / snare) + per-cycle TimelineDot color",
     predicateUri: "https://pluck.run/DragnetCycle/v1",
-    runPath: "/bureau/dragnet/run",
-    landingPath: "/bureau/dragnet",
+    runPath: "/programs/dragnet/run",
+    landingPath: "/programs/dragnet",
     accent: "#a3201d",
     vendorBearing: true,
   },
@@ -73,8 +73,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "verdict (verified / oath-expired / did-not-commit / signature-failed / origin-mismatch / not-found / fetch-failed) + per-claim list",
     predicateUri: "https://pluck.run/PluckOath/v1",
-    runPath: "/bureau/oath/run",
-    landingPath: "/bureau/oath",
+    runPath: "/programs/oath/run",
+    landingPath: "/programs/oath",
     accent: "#a78a1f",
     vendorBearing: true,
   },
@@ -87,8 +87,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "drift classification (stable / minor / major / swap) + drift score + per-probe responses + cassette `local:<sha256>`",
     predicateUri: "https://pluck.run/ModelFingerprint/v1",
-    runPath: "/bureau/fingerprint/run",
-    landingPath: "/bureau/fingerprint",
+    runPath: "/programs/fingerprint/run",
+    landingPath: "/programs/fingerprint",
     accent: "#a3208a",
     vendorBearing: true,
   },
@@ -101,8 +101,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "binary verdict (compliant / 7 named failure modes) + per-check breakdown + WebAuthn attestation summary",
     predicateUri: "https://pluck.run/CustodyBundle/v1",
-    runPath: "/bureau/custody/run",
-    landingPath: "/bureau/custody",
+    runPath: "/programs/custody/run",
+    landingPath: "/programs/custody",
     accent: "#1f7a3a",
     vendorBearing: true,
   },
@@ -115,8 +115,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "binary verdict (accepted / 5 named failure modes) + per-layer redaction summary + per-partner delivery status",
     predicateUri: "https://pluck.run/WhistleSubmission/v1",
-    runPath: "/bureau/whistle/run",
-    landingPath: "/bureau/whistle",
+    runPath: "/programs/whistle/run",
+    landingPath: "/programs/whistle",
     accent: "#a3201d",
     vendorBearing: false,
   },
@@ -129,8 +129,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "verdict (filed / rate-limited / platform-rejected / source-not-found / source-malformed / dispatch-failed) + platform submission ID + bounty amount when claimed",
     predicateUri: "https://pluck.run/BountySubmission/v1",
-    runPath: "/bureau/bounty/run",
-    landingPath: "/bureau/bounty",
+    runPath: "/programs/bounty/run",
+    landingPath: "/programs/bounty",
     accent: "#1f7a3a",
     vendorBearing: false,
   },
@@ -143,8 +143,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "binary verdict (published / 5 named failure modes) + canonical sha256 digest + per-kind predicate URI",
     predicateUri: "https://pluck.run/SbomAi/ProbePack/v1",
-    runPath: "/bureau/sbom-ai/run",
-    landingPath: "/bureau/sbom-ai",
+    runPath: "/programs/sbom-ai/run",
+    landingPath: "/programs/sbom-ai",
     accent: "#3a7aa3",
     vendorBearing: false,
   },
@@ -157,8 +157,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "verdict (rotated / old-key-already-revoked / 4 named failure modes) + count of re-witnessed prior cassettes",
     predicateUri: "https://pluck.run/KeyRevocation/v1",
-    runPath: "/bureau/rotate/run",
-    landingPath: "/bureau/rotate",
+    runPath: "/programs/rotate/run",
+    landingPath: "/programs/rotate",
     accent: "#a78a1f",
     vendorBearing: false,
   },
@@ -171,8 +171,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "configuration verdict (configured / machine-already-active / 3 named failure modes) + signed policy + install snippet",
     predicateUri: "https://pluck.run/TripwirePolicy/v1",
-    runPath: "/bureau/tripwire/run",
-    landingPath: "/bureau/tripwire",
+    runPath: "/programs/tripwire/run",
+    landingPath: "/programs/tripwire",
     accent: "#a3201d",
     vendorBearing: false,
   },
@@ -185,8 +185,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "verdict (published / 5 named failure modes) + trustTier (verified vs ingested) + canonical pack-entry URL",
     predicateUri: "https://pluck.run/NucleiPackEntry/v1",
-    runPath: "/bureau/nuclei/run",
-    landingPath: "/bureau/nuclei",
+    runPath: "/programs/nuclei/run",
+    landingPath: "/programs/nuclei",
     accent: "#9b59b6",
     vendorBearing: true,
   },
@@ -199,8 +199,8 @@ export const ACTIVE_PROGRAMS: ReadonlyArray<ActiveProgram> = [
     outputShape:
       "binary verdict (sealed / 4 named failure modes) + sha256 + fingerprint phrases (canary body NEVER published)",
     predicateUri: "https://pluck.run/CanaryDocument/v1",
-    runPath: "/bureau/mole/run",
-    landingPath: "/bureau/mole",
+    runPath: "/programs/mole/run",
+    landingPath: "/programs/mole",
     accent: "#b8941f",
     vendorBearing: true,
   },

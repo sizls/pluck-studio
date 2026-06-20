@@ -137,10 +137,10 @@ export const nucleiRunReceiptModule = createModule("nuclei-run-receipt", {
         return null;
       }
       // packName is "<slug>@<version>"; the existing dossier route at
-      // /bureau/nuclei/[author]/[pack] takes the bare slug, NOT the
+      // /programs/nuclei/[author]/[pack] takes the bare slug, NOT the
       // versioned form, so strip the @<version>.
       const bareSlug = facts.packName.split("@")[0];
-      return `/bureau/nuclei/${facts.author}/${bareSlug}`;
+      return `/programs/nuclei/${facts.author}/${bareSlug}`;
     },
   },
 });

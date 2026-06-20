@@ -235,7 +235,7 @@ export function generatePhraseId(): string {
  * The vendor prefix is derived from the URL's hostname (registered domain
  * label), so a probe against `https://api.openai.com/v1/...` yields
  * `openai-swift-falcon-3742`. Self-discloses the target inside the URL
- * — a Bureau practitioner can read the receipt URL alone and know who
+ * — a Pluck practitioner can read the receipt URL alone and know who
  * was probed without opening the page.
  *
  * Falls back to `unknown-...` when the URL is unparseable or the host
@@ -330,7 +330,7 @@ function randomBytes(n: number): Uint8Array {
   // Edge runtime, browser, and Node 20+ all expose
   // `globalThis.crypto.getRandomValues`. We deliberately avoid
   // `require("node:crypto")` so the module stays edge-safe (the OG
-  // image route at /bureau/dragnet/runs/[id]/opengraph-image.tsx runs
+  // image route at /programs/dragnet/runs/[id]/opengraph-image.tsx runs
   // under `runtime = "edge"` and webpack rejects node:crypto there).
   if (typeof globalThis.crypto?.getRandomValues === "function") {
     globalThis.crypto.getRandomValues(out);
@@ -350,7 +350,7 @@ export const PHRASE_ID_VOCAB_SIZE = ADJECTIVES.length * ANIMALS.length * 10_000;
 // ---------------------------------------------------------------------------
 //
 // Used by /search to fan out from one phrase ID to every related receipt
-// across all 11 programs. The 4-part scoped form
+// across all 51 programs. The 4-part scoped form
 // (`<scope>-<adj>-<noun>-<NNNN>`) is the canonical decomposable shape.
 // The 3-part bare form (`<adj>-<noun>-<NNNN>`) is grandfathered: still
 // parseable but yields an empty scope (search treats those as
@@ -384,7 +384,7 @@ export interface ParsedPhraseId {
  * Decompose a phrase ID into its (scope, adjective, noun, serial) parts.
  *
  * Accepts only the 4-part scoped form as `valid` — that's the
- * canonical shape every shipped Bureau program emits. The 3-part bare
+ * canonical shape every shipped program emits. The 3-part bare
  * form is parsed (callers can still display the parts) but flagged
  * invalid so search refuses to fan out on a scope-less phrase.
  *

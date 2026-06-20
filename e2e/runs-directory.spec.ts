@@ -2,7 +2,7 @@
 // e2e/runs-directory.spec.ts — golden test for the /runs activations hub
 // ---------------------------------------------------------------------------
 //
-// /runs is the cross-program directory: every Bureau program wired
+// /runs is the cross-program directory: every program wired
 // through the v2 activation pattern is listed with a CTA to the run
 // route. Validates that the hub stays in sync with the program
 // registry — broken Run-CTA = broken activation funnel.
@@ -38,67 +38,67 @@ test.describe("/runs activations directory", () => {
   test("DRAGNET CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-dragnet").click();
-    await page.waitForURL(/\/bureau\/dragnet\/run$/);
+    await page.waitForURL(/\/programs\/dragnet\/run$/);
   });
 
   test("OATH CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-oath").click();
-    await page.waitForURL(/\/bureau\/oath\/run$/);
+    await page.waitForURL(/\/programs\/oath\/run$/);
   });
 
   test("FINGERPRINT CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-fingerprint").click();
-    await page.waitForURL(/\/bureau\/fingerprint\/run$/);
+    await page.waitForURL(/\/programs\/fingerprint\/run$/);
   });
 
   test("CUSTODY CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-custody").click();
-    await page.waitForURL(/\/bureau\/custody\/run$/);
+    await page.waitForURL(/\/programs\/custody\/run$/);
   });
 
   test("WHISTLE CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-whistle").click();
-    await page.waitForURL(/\/bureau\/whistle\/run$/);
+    await page.waitForURL(/\/programs\/whistle\/run$/);
   });
 
   test("BOUNTY CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-bounty").click();
-    await page.waitForURL(/\/bureau\/bounty\/run$/);
+    await page.waitForURL(/\/programs\/bounty\/run$/);
   });
 
   test("SBOM-AI CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-sbom-ai").click();
-    await page.waitForURL(/\/bureau\/sbom-ai\/run$/);
+    await page.waitForURL(/\/programs\/sbom-ai\/run$/);
   });
 
   test("ROTATE CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-rotate").click();
-    await page.waitForURL(/\/bureau\/rotate\/run$/);
+    await page.waitForURL(/\/programs\/rotate\/run$/);
   });
 
   test("TRIPWIRE CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-tripwire").click();
-    await page.waitForURL(/\/bureau\/tripwire\/run$/);
+    await page.waitForURL(/\/programs\/tripwire\/run$/);
   });
 
   test("NUCLEI CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-nuclei").click();
-    await page.waitForURL(/\/bureau\/nuclei\/run$/);
+    await page.waitForURL(/\/programs\/nuclei\/run$/);
   });
 
   test("MOLE CTA navigates to the run route", async ({ page }) => {
     await page.goto("/runs");
     await page.getByTestId("run-cta-mole").click();
-    await page.waitForURL(/\/bureau\/mole\/run$/);
+    await page.waitForURL(/\/programs\/mole\/run$/);
   });
 
   test("/runs surfaces the all-active callout (no coming-soon section)", async ({ page }) => {

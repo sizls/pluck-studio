@@ -3,9 +3,9 @@
 // ---------------------------------------------------------------------------
 //
 // The /v1/runs API is the canonical surface for kicking off ANY pipeline
-// run inside Pluck Studio. Today it consolidates the 11 per-program Bureau
-// activation stubs at /api/bureau/<slug>/run; tomorrow it unifies the
-// non-Bureau shelves (extract, sense, act, fleet) under the same shape.
+// run inside Pluck Studio. Today it consolidates the 11 per-program Pluck
+// activation stubs at /api/programs/<slug>/run; tomorrow it unifies the
+// non-Pluck shelves (extract, sense, act, fleet) under the same shape.
 //
 // Why one endpoint instead of N:
 //   - One auth, rate-limit, idempotency story.
@@ -15,7 +15,7 @@
 //   - One RunSpec contract that an AI agent (Priya's archetype) writes
 //     against, regardless of which shelf it's hitting.
 //
-// The 11 bureau slugs map 1:1 to the legacy `/api/bureau/<slug>/run`
+// The 11 Pluck slugs map 1:1 to the legacy `/api/programs/<slug>/run`
 // routes. Their `payload` shape is the existing per-program request body
 // — see `docs/V1_API.md` for the per-pipeline payload reference.
 //
@@ -24,36 +24,36 @@
 // not yet implemented" error so callers get a clean signal.
 // ---------------------------------------------------------------------------
 
-export const BUREAU_PIPELINES = [
-  "bureau:dragnet",
-  "bureau:oath",
-  "bureau:fingerprint",
-  "bureau:custody",
-  "bureau:whistle",
-  "bureau:bounty",
-  "bureau:sbom-ai",
-  "bureau:rotate",
-  "bureau:tripwire",
-  "bureau:nuclei",
-  "bureau:mole",
+export const PROGRAM_PIPELINES = [
+  "program:dragnet",
+  "program:oath",
+  "program:fingerprint",
+  "program:custody",
+  "program:whistle",
+  "program:bounty",
+  "program:sbom-ai",
+  "program:rotate",
+  "program:tripwire",
+  "program:nuclei",
+  "program:mole",
 ] as const;
 
 export const FUTURE_PIPELINES = ["extract", "sense", "act", "fleet"] as const;
 
 export const ALL_PIPELINES = [
-  ...BUREAU_PIPELINES,
+  ...PROGRAM_PIPELINES,
   ...FUTURE_PIPELINES,
 ] as const;
 
-export type BureauPipeline = (typeof BUREAU_PIPELINES)[number];
+export type StudioPipeline = (typeof PROGRAM_PIPELINES)[number];
 export type FuturePipeline = (typeof FUTURE_PIPELINES)[number];
-export type RunSpecPipeline = BureauPipeline | FuturePipeline;
+export type RunSpecPipeline = StudioPipeline | FuturePipeline;
 
-const BUREAU_SET: ReadonlySet<string> = new Set(BUREAU_PIPELINES);
+const PROGRAM_SET: ReadonlySet<string> = new Set(PROGRAM_PIPELINES);
 const FUTURE_SET: ReadonlySet<string> = new Set(FUTURE_PIPELINES);
 
-export function isBureauPipeline(s: string): s is BureauPipeline {
-  return BUREAU_SET.has(s);
+export function isProgramPipeline(s: string): s is StudioPipeline {
+  return PROGRAM_SET.has(s);
 }
 
 export function isFuturePipeline(s: string): s is FuturePipeline {
@@ -61,18 +61,18 @@ export function isFuturePipeline(s: string): s is FuturePipeline {
 }
 
 export function isKnownPipeline(s: string): s is RunSpecPipeline {
-  return BUREAU_SET.has(s) || FUTURE_SET.has(s);
+  return PROGRAM_SET.has(s) || FUTURE_SET.has(s);
 }
 
-/** Strip the `bureau:` prefix from a bureau pipeline (`bureau:dragnet` → `dragnet`). */
-export function bureauSlugOf(p: BureauPipeline): string {
-  return p.slice("bureau:".length);
+/** Strip the `program:` prefix from a Pluck pipeline (`program:dragnet` → `dragnet`). */
+export function programSlugOf(p: StudioPipeline): string {
+  return p.slice("program:".length);
 }
 
 export interface RunSpec {
   pipeline: RunSpecPipeline;
   /**
-   * Per-pipeline payload. For `bureau:<program>`, this matches the
+   * Per-pipeline payload. For `program:<program>`, this matches the
    * existing per-program request body shape.
    */
   payload: Record<string, unknown>;
@@ -115,7 +115,7 @@ export interface RunRecord {
   response: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
-  /** Path to the receipt page, e.g. `/bureau/dragnet/runs/<runId>`. */
+  /** Path to the receipt page, e.g. `/programs/dragnet/runs/<runId>`. */
   receiptUrl: string;
 }
 

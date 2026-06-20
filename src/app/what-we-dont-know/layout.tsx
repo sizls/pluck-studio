@@ -1,4 +1,4 @@
-import { BureauChrome } from "@/components/bureau-ui";
+import { StudioChrome } from "@/components/programs-ui";
 import type { ReactNode } from "react";
 
 export default function WhatWeDontKnowLayout({
@@ -6,5 +6,5 @@ export default function WhatWeDontKnowLayout({
 }: {
   children: ReactNode;
 }): ReactNode {
-  return <BureauChrome active="what-we-dont-know">{children}</BureauChrome>;
+  return <StudioChrome active="what-we-dont-know">{children}</StudioChrome>;
 }

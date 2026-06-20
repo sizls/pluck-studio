@@ -1,6 +1,6 @@
 # Pluck Studio
 
-Operator UI for [Pluck Bureau](https://github.com/sizls/pluck) — the public web surface at `studio.pluck.run` hosting the hacking & security programs (DRAGNET, NUCLEI, CUSTODY, etc.).
+Operator UI for [Pluck](https://github.com/sizls/pluck) — the public web surface at `studio.pluck.run` hosting the hacking & security programs (DRAGNET, NUCLEI, CUSTODY, etc.).
 
 ## Tech
 
@@ -42,6 +42,6 @@ See [DEPLOY.md](./DEPLOY.md). Vercel project: `pluck-studio` in the `directives`
 - [`/openapi.json`](https://studio.pluck.run/openapi.json) — read when generating SDKs against `/v1/runs` (auto-generated OpenAPI 3.1; re-run `pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators / redactor change).
 - [`/api/mcp/manifest.json`](https://studio.pluck.run/api/mcp/manifest.json) — read when writing MCP bridges (auto-generated discovery document parallel to OpenAPI; drives `@sizls/pluck-mcp`).
 
-## Source for the Bureau programs
+## Source for the programs
 
 [github.com/sizls/pluck](https://github.com/sizls/pluck)

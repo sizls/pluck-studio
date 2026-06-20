@@ -109,7 +109,7 @@ function parseEvent(raw: string): SseEvent | null {
 }
 
 const dragnetSpec = {
-  pipeline: "bureau:dragnet" as const,
+  pipeline: "program:dragnet" as const,
   payload: {
     targetUrl: "https://api.openai.com/v1/chat/completions",
     probePackId: "canon-honesty",
@@ -180,7 +180,7 @@ describe("GET /api/v1/runs/[id]/events — initial state event", () => {
       payload: { targetUrl: string };
     };
     expect(data.runId).toBe(record.runId);
-    expect(data.pipeline).toBe("bureau:dragnet");
+    expect(data.pipeline).toBe("program:dragnet");
     expect(data.status).toBe("pending");
     expect(data.payload.targetUrl).toBe(dragnetSpec.payload.targetUrl);
   });
@@ -282,7 +282,7 @@ describe("GET /api/v1/runs/[id]/events — privacy redaction (defense-in-depth)"
       routingPartner: "propublica",
     };
     const { record } = createRun({
-      pipeline: "bureau:whistle",
+      pipeline: "program:whistle",
       payload: whistlePayload,
       idempotencyKey: "wh1",
     });
@@ -306,7 +306,7 @@ describe("GET /api/v1/runs/[id]/events — privacy redaction (defense-in-depth)"
 
   it("WHISTLE: bundleUrl stays redacted on the cancel transition event too", async () => {
     const { record } = createRun({
-      pipeline: "bureau:whistle",
+      pipeline: "program:whistle",
       payload: {
         bundleUrl: "https://leak-source.example/bundle.zip",
         routingPartner: "propublica",

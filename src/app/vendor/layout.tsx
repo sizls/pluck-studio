@@ -1,4 +1,4 @@
-import { BureauChrome } from "@/components/bureau-ui";
+import { StudioChrome } from "@/components/programs-ui";
 import type { ReactNode } from "react";
 
 export default function VendorLayout({
@@ -6,5 +6,5 @@ export default function VendorLayout({
 }: {
   children: ReactNode;
 }): ReactNode {
-  return <BureauChrome active="vendor">{children}</BureauChrome>;
+  return <StudioChrome active="vendor">{children}</StudioChrome>;
 }

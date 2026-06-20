@@ -16,7 +16,7 @@
 // case for two programs.
 // ---------------------------------------------------------------------------
 
-import type { VerdictBadgeVariant } from "../../components/bureau-ui/VerdictBadge";
+import type { VerdictBadgeVariant } from "../../components/programs-ui/VerdictBadge";
 
 /**
  * Coarse verdict-color used by /vendor + /search aggregate views.

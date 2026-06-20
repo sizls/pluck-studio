@@ -35,8 +35,8 @@ import {
 } from "../run-store.js";
 import type { RunRecord, RunSpec } from "../run-spec.js";
 
-const validBureauSpec: RunSpec = {
-  pipeline: "bureau:dragnet",
+const validProgramSpec: RunSpec = {
+  pipeline: "program:dragnet",
   payload: {
     targetUrl: "https://api.openai.com/v1/chat/completions",
     probePackId: "canon-honesty",
@@ -50,38 +50,38 @@ beforeEach(() => {
 });
 
 describe("run-store — runId generation", () => {
-  it("creates a vendor-scoped phrase ID for bureau pipelines with a targetUrl", () => {
-    const { record } = createRun(validBureauSpec);
+  it("creates a vendor-scoped phrase ID for Pluck pipelines with a targetUrl", () => {
+    const { record } = createRun(validProgramSpec);
     expect(record.runId).toMatch(/^openai-[a-z]+-[a-z]+-\d{4}$/);
-    expect(record.pipeline).toBe("bureau:dragnet");
+    expect(record.pipeline).toBe("program:dragnet");
     expect(record.status).toBe("pending");
     expect(record.verdictColor).toBe("gray");
-    expect(record.receiptUrl).toBe(`/bureau/dragnet/runs/${record.runId}`);
+    expect(record.receiptUrl).toBe(`/programs/dragnet/runs/${record.runId}`);
   });
 
-  it("creates a slug-prefixed runId for bureau pipelines without a targetUrl", () => {
+  it("creates a slug-prefixed runId for Pluck pipelines without a targetUrl", () => {
     const { record } = createRun({
-      pipeline: "bureau:custody",
+      pipeline: "program:custody",
       payload: { incidentTitle: "phishing-investigation" },
     });
     expect(record.runId).toMatch(/^custody-[a-z]+-[a-z]+-\d{4}$/);
-    expect(record.receiptUrl).toBe(`/bureau/custody/runs/${record.runId}`);
+    expect(record.receiptUrl).toBe(`/programs/custody/runs/${record.runId}`);
   });
 
   it("echoes the payload verbatim for audit", () => {
-    const { record } = createRun(validBureauSpec);
-    expect(record.payload).toEqual(validBureauSpec.payload);
+    const { record } = createRun(validProgramSpec);
+    expect(record.payload).toEqual(validProgramSpec.payload);
   });
 
   it("returns reused=false on a fresh create", () => {
-    const { reused } = createRun(validBureauSpec);
+    const { reused } = createRun(validProgramSpec);
     expect(reused).toBe(false);
   });
 });
 
 describe("run-store — idempotency", () => {
   it("returns the same runId for the same idempotency key + payload", () => {
-    const spec: RunSpec = { ...validBureauSpec, idempotencyKey: "abc-123" };
+    const spec: RunSpec = { ...validProgramSpec, idempotencyKey: "abc-123" };
     const first = createRun(spec);
     const second = createRun(spec);
     expect(second.record.runId).toBe(first.record.runId);
@@ -89,24 +89,24 @@ describe("run-store — idempotency", () => {
   });
 
   it("treats different idempotency keys as different runs", () => {
-    const a = createRun({ ...validBureauSpec, idempotencyKey: "k-a" });
-    const b = createRun({ ...validBureauSpec, idempotencyKey: "k-b" });
+    const a = createRun({ ...validProgramSpec, idempotencyKey: "k-a" });
+    const b = createRun({ ...validProgramSpec, idempotencyKey: "k-b" });
     expect(a.record.runId).not.toBe(b.record.runId);
   });
 
   it("treats same key + different payload as a different run", () => {
-    const a = createRun({ ...validBureauSpec, idempotencyKey: "shared" });
+    const a = createRun({ ...validProgramSpec, idempotencyKey: "shared" });
     const b = createRun({
-      ...validBureauSpec,
+      ...validProgramSpec,
       idempotencyKey: "shared",
-      payload: { ...validBureauSpec.payload, probePackId: "alice/h@1.0.0" },
+      payload: { ...validProgramSpec.payload, probePackId: "alice/h@1.0.0" },
     });
     expect(a.record.runId).not.toBe(b.record.runId);
   });
 
   it("creates fresh runs when no idempotency key is supplied", () => {
-    const a = createRun(validBureauSpec);
-    const b = createRun(validBureauSpec);
+    const a = createRun(validProgramSpec);
+    const b = createRun(validProgramSpec);
     expect(a.record.runId).not.toBe(b.record.runId);
     expect(a.reused).toBe(false);
     expect(b.reused).toBe(false);
@@ -114,12 +114,12 @@ describe("run-store — idempotency", () => {
 
   it("computes a stable canonical hash regardless of payload key order", () => {
     const a: RunSpec = {
-      pipeline: "bureau:dragnet",
+      pipeline: "program:dragnet",
       payload: { a: 1, b: 2, nested: { z: 9, x: 1 } },
       idempotencyKey: "k",
     };
     const b: RunSpec = {
-      pipeline: "bureau:dragnet",
+      pipeline: "program:dragnet",
       payload: { nested: { x: 1, z: 9 }, b: 2, a: 1 },
       idempotencyKey: "k",
     };
@@ -127,13 +127,13 @@ describe("run-store — idempotency", () => {
   });
 
   it("returns null hash when idempotencyKey is absent", () => {
-    expect(idempotencyHashOf(validBureauSpec)).toBeNull();
+    expect(idempotencyHashOf(validProgramSpec)).toBeNull();
   });
 });
 
 describe("run-store — getRun + TTL", () => {
   it("returns the stored record by runId", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     const fetched = getRun(record.runId);
     expect(fetched).not.toBeNull();
     expect(fetched?.runId).toBe(record.runId);
@@ -149,7 +149,7 @@ describe("run-store — getRun + TTL", () => {
   describe.skipIf(!STUB_ONLY)("STUB-only — in-memory TTL eviction", () => {
     it("evicts records older than 24h on read", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const { record } = createRun(validBureauSpec, t0);
+      const { record } = createRun(validProgramSpec, t0);
       expect(getRun(record.runId, t0 + 1000)).not.toBeNull();
       // 24h + 1s after creation → evicted.
       expect(getRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000)).toBeNull();
@@ -163,7 +163,7 @@ describe("run-store — getRun + TTL", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
       // Five runs, each with a distinct idempotency key.
       for (let i = 0; i < 5; i++) {
-        createRun({ ...validBureauSpec, idempotencyKey: `k-${i}` }, t0);
+        createRun({ ...validProgramSpec, idempotencyKey: `k-${i}` }, t0);
       }
       expect(__runCount()).toBe(5);
       expect(__idempotencyCount()).toBe(5);
@@ -172,7 +172,7 @@ describe("run-store — getRun + TTL", () => {
       // calls evictExpired() at the top of its body. The 5 prior runs
       // (and their idempotency rows) should be swept.
       createRun(
-        { ...validBureauSpec, idempotencyKey: "fresh" },
+        { ...validProgramSpec, idempotencyKey: "fresh" },
         t0 + __INTERNAL_TTL_MS + 1000,
       );
       // Only the fresh row remains.
@@ -190,8 +190,8 @@ describe.skipIf(!STUB_ONLY)("run-store — STUB-only FIFO cap (smoke)", () => {
     // 10K iterations in a unit test. We assert the invariant rather
     // than the exact MAX_ENTRIES boundary — that's covered by the
     // implementation's loop guard.
-    const a = createRun({ ...validBureauSpec, idempotencyKey: "ka" });
-    const b = createRun({ ...validBureauSpec, idempotencyKey: "kb" });
+    const a = createRun({ ...validProgramSpec, idempotencyKey: "ka" });
+    const b = createRun({ ...validProgramSpec, idempotencyKey: "kb" });
     expect(__runCount()).toBe(2);
     expect(__idempotencyCount()).toBe(2);
     expect(a.record.runId).not.toBe(b.record.runId);
@@ -230,13 +230,13 @@ describe("run-store — canonicalJson", () => {
 
   it("idempotency hash collides for {a: undefined} vs {} payloads", () => {
     const withUndef = idempotencyHashOf({
-      pipeline: "bureau:dragnet",
-      payload: { ...validBureauSpec.payload, optionalField: undefined },
+      pipeline: "program:dragnet",
+      payload: { ...validProgramSpec.payload, optionalField: undefined },
       idempotencyKey: "k",
     });
     const without = idempotencyHashOf({
-      pipeline: "bureau:dragnet",
-      payload: { ...validBureauSpec.payload },
+      pipeline: "program:dragnet",
+      payload: { ...validProgramSpec.payload },
       idempotencyKey: "k",
     });
     expect(withUndef).toBe(without);
@@ -244,9 +244,9 @@ describe("run-store — canonicalJson", () => {
 });
 
 describe("run-store — listRuns", () => {
-  const dragnetSpec: RunSpec = validBureauSpec;
+  const dragnetSpec: RunSpec = validProgramSpec;
   const oathSpec: RunSpec = {
-    pipeline: "bureau:oath",
+    pipeline: "program:oath",
     payload: { vendorDomain: "openai.com", authorizationAcknowledged: true },
   };
 
@@ -280,7 +280,7 @@ describe("run-store — listRuns", () => {
     const o = createRun({ ...oathSpec, idempotencyKey: "o1" }, t0 + 1000);
     createRun({ ...dragnetSpec, idempotencyKey: "d2" }, t0 + 2000);
 
-    const result = listRuns({ pipeline: "bureau:oath" }, t0 + 3000);
+    const result = listRuns({ pipeline: "program:oath" }, t0 + 3000);
     expect(result.runs.map((r) => r.runId)).toEqual([o.record.runId]);
     expect(result.totalCount).toBe(1);
   });
@@ -441,7 +441,7 @@ describe("run-store — listRuns", () => {
       expect(ids.has(c.record.runId)).toBe(false);
     });
 
-    it("composes with `pipeline` filter (status=cancelled + pipeline=bureau:oath)", () => {
+    it("composes with `pipeline` filter (status=cancelled + pipeline=program:oath)", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
       const dnet = createRun({ ...dragnetSpec, idempotencyKey: "dn" }, t0);
       const oath = createRun({ ...oathSpec, idempotencyKey: "o1" }, t0 + 1000);
@@ -449,7 +449,7 @@ describe("run-store — listRuns", () => {
       cancelRun(oath.record.runId, t0 + 2500);
 
       const result = listRuns(
-        { pipeline: "bureau:oath", status: "cancelled" },
+        { pipeline: "program:oath", status: "cancelled" },
         t0 + 3000,
       );
       expect(result.runs.map((r) => r.runId)).toEqual([oath.record.runId]);
@@ -499,7 +499,7 @@ describe("run-store — listRuns", () => {
 
 describe("run-store — cancelRun", () => {
   it("cancels a pending run → ok kind with the updated record (status='cancelled')", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     expect(record.status).toBe("pending");
 
     const result = cancelRun(record.runId);
@@ -530,7 +530,7 @@ describe("run-store — cancelRun", () => {
     // status field on the returned record is not frozen — Object.assign
     // through the Map reference works for the stub. We do the minimum
     // poke needed to exercise the running-state branch.
-    const { record } = createRun({ ...validBureauSpec, idempotencyKey: "run" });
+    const { record } = createRun({ ...validProgramSpec, idempotencyKey: "run" });
     // Reach into the live Map via getRun — the returned reference IS
     // the stored record (the stub does not deep-clone on read), so
     // mutating its status in place puts the store into a 'running'
@@ -548,7 +548,7 @@ describe("run-store — cancelRun", () => {
   });
 
   it("is idempotent — cancelling an already-cancelled run returns alreadyCancelled=true", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     const first = cancelRun(record.runId);
     if (first.kind !== "ok") {
       throw new Error("expected first cancel to succeed");
@@ -568,7 +568,7 @@ describe("run-store — cancelRun", () => {
   });
 
   it("returns kind='final-state' with status='anchored' when the run has anchored", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     const live = getRun(record.runId) as RunRecord;
     (live as { status: RunRecord["status"] }).status = "anchored";
 
@@ -584,7 +584,7 @@ describe("run-store — cancelRun", () => {
   });
 
   it("returns kind='final-state' with status='failed' when the run has failed", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     const live = getRun(record.runId) as RunRecord;
     (live as { status: RunRecord["status"] }).status = "failed";
 
@@ -605,7 +605,7 @@ describe("run-store — cancelRun", () => {
   describe.skipIf(!STUB_ONLY)("STUB-only — TTL-evicted run is not-found", () => {
     it("returns kind='not-found' when the run has been TTL-evicted", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const { record } = createRun(validBureauSpec, t0);
+      const { record } = createRun(validProgramSpec, t0);
       // Past TTL → evictExpired sweeps it; cancelRun returns not-found.
       const result = cancelRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000);
       expect(result.kind).toBe("not-found");
@@ -618,7 +618,7 @@ describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
     const received: RunRecord[] = [];
     // Pre-create the run so we can subscribe BEFORE the next mutation.
     const { record } = createRun({
-      ...validBureauSpec,
+      ...validProgramSpec,
       idempotencyKey: "pre",
     });
     const unsub = subscribeToRun(record.runId, (r) => received.push(r));
@@ -650,7 +650,7 @@ describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
     // publish — that's the contract. Use cancelRun afterward to
     // observe a real transition.
     const { record } = createRun({
-      ...validBureauSpec,
+      ...validProgramSpec,
       idempotencyKey: "k-pub",
     });
     const seen: RunRecord[] = [];
@@ -658,7 +658,7 @@ describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
 
     // Idempotent replay does not publish.
     const replay = createRun({
-      ...validBureauSpec,
+      ...validProgramSpec,
       idempotencyKey: "k-pub",
     });
     expect(replay.reused).toBe(true);
@@ -670,7 +670,7 @@ describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
   });
 
   it("multi-subscriber broadcast — every subscriber sees the same event", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     const a: RunRecord[] = [];
     const b: RunRecord[] = [];
     const c: RunRecord[] = [];
@@ -688,7 +688,7 @@ describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
   });
 
   it("unsubscribing the last subscriber removes the runId from the map", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     const unsub = subscribeToRun(record.runId, () => {});
     expect(__subscriberCount(record.runId)).toBe(1);
     unsub();
@@ -699,7 +699,7 @@ describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
   });
 
   it("subscriber-count cap is enforced (throws past the per-run cap)", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     const unsubs: Array<() => void> = [];
     for (let i = 0; i < __INTERNAL_SUBSCRIBERS_PER_RUN_CAP; i++) {
       unsubs.push(subscribeToRun(record.runId, () => {}));
@@ -718,7 +718,7 @@ describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
   });
 
   it("cancelRun does NOT publish on the idempotent already-cancelled branch", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     cancelRun(record.runId);
     const seen: RunRecord[] = [];
     subscribeToRun(record.runId, (r) => seen.push(r));
@@ -735,7 +735,7 @@ describe("run-store — subscribeToRun (pub/sub for SSE)", () => {
   });
 
   it("a throwing subscriber is dropped and does not impact siblings", () => {
-    const { record } = createRun(validBureauSpec);
+    const { record } = createRun(validProgramSpec);
     const sibling: RunRecord[] = [];
     subscribeToRun(record.runId, () => {
       throw new Error("boom");
@@ -756,7 +756,7 @@ describe("run-store — pipeline rejection (input layer)", () => {
     // arbitrary strings in and you get arbitrary records out. Don't.
     const { record } = createRun({
       // biome-ignore lint/suspicious/noExplicitAny: testing the store's permissive seam
-      pipeline: "bureau:dragnet" as any,
+      pipeline: "program:dragnet" as any,
       payload: {},
     });
     expect(record.runId).toMatch(/^dragnet-[a-z]+-[a-z]+-\d{4}$/);

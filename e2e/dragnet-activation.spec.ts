@@ -5,7 +5,7 @@
 // Per the plan's testing strategy: this is one of the 5 golden E2E tests
 // that block release if broken. It validates the central v1 hypothesis:
 //
-//   "Can a logged-in user click Run on a Bureau program and get a
+//   "Can a logged-in user click Run on a program and get a
 //    receipt URL back?"
 //
 // Setup: requires Playwright (`@playwright/test`) and a running dev server
@@ -25,7 +25,7 @@ test.describe("DRAGNET activation flow", () => {
   test("unauthenticated user is shown a sign-in prompt, not a redirect", async ({
     page,
   }) => {
-    await page.goto("/bureau/dragnet/run");
+    await page.goto("/programs/dragnet/run");
     await expect(page.getByTestId("dragnet-run-form")).toBeVisible();
 
     await page
@@ -65,7 +65,7 @@ test.describe("DRAGNET activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/dragnet/run");
+    await page.goto("/programs/dragnet/run");
     await page
       .getByTestId("target-url")
       .fill("https://api.openai.com/v1/chat/completions");
@@ -73,10 +73,10 @@ test.describe("DRAGNET activation flow", () => {
     await page.getByTestId("auth-ack").check();
     await page.getByTestId("run-submit").click();
 
-    // Redirected to /bureau/dragnet/runs/{phrase-id}.
+    // Redirected to /programs/dragnet/runs/{phrase-id}.
     // Vendor-scoped phrase IDs: e.g. /runs/openai-swift-falcon-3742
     // (R2 introduced the vendor prefix; bare adj-noun-NNNN was R1.)
-    await page.waitForURL(/\/bureau\/dragnet\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
+    await page.waitForURL(/\/programs\/dragnet\/runs\/[a-z0-9]+-[a-z]+-[a-z]+-\d{4}$/);
     await expect(page.getByTestId("run-id")).toBeVisible();
     await expect(page.getByTestId("run-status")).toContainText(/pending/);
     await expect(page.getByTestId("probe-count")).toContainText("Probes run:");
@@ -88,7 +88,7 @@ test.describe("DRAGNET activation flow", () => {
   test("submit blocked until target + probe-pack + auth-ack are all present", async ({
     page,
   }) => {
-    await page.goto("/bureau/dragnet/run");
+    await page.goto("/programs/dragnet/run");
     await expect(page.getByTestId("run-submit")).toBeDisabled();
 
     await page
@@ -114,7 +114,7 @@ test.describe("DRAGNET activation flow", () => {
       },
     ]);
 
-    await page.goto("/bureau/dragnet/run");
+    await page.goto("/programs/dragnet/run");
     await page.getByTestId("target-url").fill("http://localhost:8080/");
     await page.getByTestId("probe-pack-id").fill("canon-honesty");
     await page.getByTestId("auth-ack").check();
@@ -124,9 +124,9 @@ test.describe("DRAGNET activation flow", () => {
   });
 
   test("DRAGNET landing exposes the Run CTA", async ({ page }) => {
-    await page.goto("/bureau/dragnet");
+    await page.goto("/programs/dragnet");
     await expect(page.getByTestId("run-cta")).toBeVisible();
     await page.getByTestId("run-cta").click();
-    await page.waitForURL(/\/bureau\/dragnet\/run$/);
+    await page.waitForURL(/\/programs\/dragnet\/run$/);
   });
 });

@@ -16,9 +16,9 @@ interface PageProps {
 }
 
 const SectionHeadingStyle = {
-  fontFamily: "var(--bureau-mono)",
+  fontFamily: "var(--studio-mono)",
   fontSize: 14,
-  color: "var(--bureau-fg-dim)",
+  color: "var(--studio-fg-dim)",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
   marginTop: 32,
@@ -44,9 +44,9 @@ export default async function SignInPage({
 
   return (
     <>
-      <section className="bureau-hero">
-        <h1 className="bureau-hero-title">Sign in</h1>
-        <p className="bureau-hero-tagline">
+      <section className="studio-hero">
+        <h1 className="studio-hero-title">Sign in</h1>
+        <p className="studio-hero-tagline">
           Pluck Studio sign-in is part of the v1 alpha rollout. Until the
           managed sign-in UI lands, request an invite or sign in via the
           Pluck CLI to issue the same Supabase session cookie Studio
