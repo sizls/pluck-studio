@@ -27,13 +27,13 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
   ],
   "resources": [
     {
-      "description": "DSSE-signed in-toto envelope for one Pluck program run. The {id} is the phrase ID (e.g. \`openai-swift-falcon-3742\`) returned by /v1/runs POST. Anchored in the Sigstore Rekor transparency log; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
+      "description": "DSSE-signed in-toto envelope for one program run. The {id} is the phrase ID (e.g. \`openai-swift-falcon-3742\`) returned by /v1/runs POST. Anchored in the Sigstore Rekor transparency log; verify offline with cosign verify-blob against /.well-known/pluck-keys.json.",
       "mimeType": "application/vnd.in-toto+dsse+json",
       "name": "A single signed run receipt",
       "uri": "pluck://run/{id}",
     },
     {
-      "description": "Cursor-paginated list of recent runs across all Pluck programs. Mirrors GET /api/v1/runs. Filters: pipeline, since (ISO timestamp), status. Payloads are GET-redacted per program.",
+      "description": "Cursor-paginated list of recent runs across all the Pluck programs. Mirrors GET /api/v1/runs. Filters: pipeline, since (ISO timestamp), status. Payloads are GET-redacted per program.",
       "mimeType": "application/json",
       "name": "Recent runs across all programs",
       "uri": "pluck://runs/recent",
@@ -132,7 +132,7 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
   "specReference": "https://modelcontextprotocol.io",
   "tools": [
     {
-      "description": "Search by phrase ID — decompose the slug into vendor + adjective + noun + serial, fan out across all 11 programs and return every receipt that shares any component.",
+      "description": "Search by phrase ID — decompose the slug into vendor + adjective + noun + serial, fan out across all 51 programs and return every receipt that shares any component.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -183,7 +183,7 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
       "name": "pluck.diff",
     },
     {
-      "description": "Execute a Pluck program through /v1/runs. Returns the runId / phrase ID and the receipt URL. Mirrors POST /api/v1/runs — same idempotency, auth, and per-pipeline payload contract.",
+      "description": "Execute a program through /v1/runs. Returns the runId / phrase ID and the receipt URL. Mirrors POST /api/v1/runs — same idempotency, auth, and per-pipeline payload contract.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -201,17 +201,17 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
           "pipeline": {
             "description": "Pluck pipeline slug. Adding a new program auto-extends this enum.",
             "enum": [
-              "bureau:dragnet",
-              "bureau:oath",
-              "bureau:fingerprint",
-              "bureau:custody",
-              "bureau:whistle",
-              "bureau:bounty",
-              "bureau:sbom-ai",
-              "bureau:rotate",
-              "bureau:tripwire",
-              "bureau:nuclei",
-              "bureau:mole",
+              "program:dragnet",
+              "program:oath",
+              "program:fingerprint",
+              "program:custody",
+              "program:whistle",
+              "program:bounty",
+              "program:sbom-ai",
+              "program:rotate",
+              "program:tripwire",
+              "program:nuclei",
+              "program:mole",
             ],
             "type": "string",
           },
@@ -243,17 +243,17 @@ exports[`buildManifest > matches the manifest snapshot 1`] = `
           "pipeline": {
             "description": "Filter by Pluck pipeline slug. Adding a new program auto-extends this enum.",
             "enum": [
-              "bureau:dragnet",
-              "bureau:oath",
-              "bureau:fingerprint",
-              "bureau:custody",
-              "bureau:whistle",
-              "bureau:bounty",
-              "bureau:sbom-ai",
-              "bureau:rotate",
-              "bureau:tripwire",
-              "bureau:nuclei",
-              "bureau:mole",
+              "program:dragnet",
+              "program:oath",
+              "program:fingerprint",
+              "program:custody",
+              "program:whistle",
+              "program:bounty",
+              "program:sbom-ai",
+              "program:rotate",
+              "program:tripwire",
+              "program:nuclei",
+              "program:mole",
             ],
             "type": "string",
           },

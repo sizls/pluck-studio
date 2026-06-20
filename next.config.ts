@@ -138,6 +138,36 @@ const nextConfig: NextConfig = {
       destination: `/programs/${p}/:path*`,
     }));
   },
+
+  // Permanent redirects from the previous `/bureau/*` route to the new
+  // `/programs/*` route. Press coverage, prior screenshots, Slack and
+  // email links accumulated under the old path; a permanent 308
+  // preserves SEO + sends search engines the canonical destination
+  // without breaking any pasted URL.
+  //
+  // Covers both the user-facing pages (`/bureau/<program>/...`) and the
+  // JSON API surface (`/api/bureau/<program>/run`) so machine clients
+  // that still POST to the old URL receive a 308 with the new Location
+  // header and the request body re-sent unmodified.
+  async redirects() {
+    return [
+      {
+        source: "/bureau",
+        destination: "/programs",
+        permanent: true,
+      },
+      {
+        source: "/bureau/:path*",
+        destination: "/programs/:path*",
+        permanent: true,
+      },
+      {
+        source: "/api/bureau/:path*",
+        destination: "/api/programs/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
