@@ -40,7 +40,7 @@
 //   - THIS MODULE (GET): output-layer gate. Defense-in-depth.
 // ---------------------------------------------------------------------------
 
-import { type StudioPipeline, BUREAU_PIPELINES } from "./run-spec";
+import { type StudioPipeline, PROGRAM_PIPELINES } from "./run-spec";
 
 export type PayloadRedactor = (
   payload: Record<string, unknown>,
@@ -93,11 +93,11 @@ export const PAYLOAD_REDACTORS: Record<StudioPipeline, PayloadRedactor> = {
   "program:mole": PASS_THROUGH,
 };
 
-// Belt-and-suspenders runtime check — if BUREAU_PIPELINES grows and someone
+// Belt-and-suspenders runtime check — if PROGRAM_PIPELINES grows and someone
 // forgets to add an entry to PAYLOAD_REDACTORS, this throws at import time
 // in dev. The `Record<StudioPipeline, …>` already enforces this at the type
 // level; this catches the (rare) case where the union and the array drift.
-for (const p of BUREAU_PIPELINES) {
+for (const p of PROGRAM_PIPELINES) {
   if (!(p in PAYLOAD_REDACTORS)) {
     throw new Error(
       `[redact] missing redactor for Pluck pipeline: ${p}`,

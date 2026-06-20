@@ -27,7 +27,7 @@ import {
   validateTripwirePayload,
   validateWhistlePayload,
 } from "../pipeline-validators.js";
-import { BUREAU_PIPELINES } from "../run-spec.js";
+import { PROGRAM_PIPELINES } from "../run-spec.js";
 
 const validDragnet = {
   targetUrl: "https://api.openai.com/v1/chat/completions",
@@ -163,7 +163,7 @@ describe("validateDragnetPayload", () => {
 
 describe("PIPELINE_VALIDATORS registry", () => {
   it("has a validator for every StudioPipeline", () => {
-    for (const p of BUREAU_PIPELINES) {
+    for (const p of PROGRAM_PIPELINES) {
       expect(PIPELINE_VALIDATORS[p]).toBeTypeOf("function");
     }
   });
@@ -176,7 +176,7 @@ describe("PIPELINE_VALIDATORS registry", () => {
     // After Wave 3, ALL Pluck validators are real — none are stubs.
     // Every validator MUST reject non-object payloads as the first
     // gate. Loop through the registry to lock the contract.
-    for (const p of BUREAU_PIPELINES) {
+    for (const p of PROGRAM_PIPELINES) {
       expect(PIPELINE_VALIDATORS[p]([]).ok).toBe(false);
       expect(PIPELINE_VALIDATORS[p]("hi").ok).toBe(false);
       expect(PIPELINE_VALIDATORS[p](null).ok).toBe(false);

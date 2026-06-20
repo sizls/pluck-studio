@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  BUREAU_PIPELINES,
+  PROGRAM_PIPELINES,
   FUTURE_PIPELINES,
   RUN_STATUSES,
 } from "../../src/lib/v1/run-spec.js";
@@ -171,12 +171,12 @@ describe("OpenAPI document — schemas + components", () => {
 });
 
 describe("OpenAPI document — drift invariants (taxonomy ↔ enum)", () => {
-  it("StudioPipeline enum matches BUREAU_PIPELINES exactly", () => {
-    expect(doc().components.schemas.StudioPipeline?.enum).toEqual([...BUREAU_PIPELINES]);
+  it("StudioPipeline enum matches PROGRAM_PIPELINES exactly", () => {
+    expect(doc().components.schemas.StudioPipeline?.enum).toEqual([...PROGRAM_PIPELINES]);
   });
-  it("RunSpecPipeline enum = BUREAU_PIPELINES + FUTURE_PIPELINES", () => {
+  it("RunSpecPipeline enum = PROGRAM_PIPELINES + FUTURE_PIPELINES", () => {
     expect(doc().components.schemas.RunSpecPipeline?.enum).toEqual([
-      ...BUREAU_PIPELINES,
+      ...PROGRAM_PIPELINES,
       ...FUTURE_PIPELINES,
     ]);
   });

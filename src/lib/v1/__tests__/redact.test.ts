@@ -19,7 +19,7 @@
 import { describe, expect, it } from "vitest";
 
 import { PAYLOAD_REDACTORS, redactPayloadForGet } from "../redact";
-import { BUREAU_PIPELINES } from "../run-spec";
+import { PROGRAM_PIPELINES } from "../run-spec";
 
 describe("redact — WHISTLE", () => {
   it("strips bundleUrl from the GET-side payload", () => {
@@ -222,14 +222,14 @@ describe("redact — pass-through programs", () => {
 
 describe("redact — registry exhaustiveness", () => {
   it("every Pluck pipeline has a redactor entry", () => {
-    for (const p of BUREAU_PIPELINES) {
+    for (const p of PROGRAM_PIPELINES) {
       expect(PAYLOAD_REDACTORS[p]).toBeTypeOf("function");
     }
   });
 
   it("redactPayloadForGet runs for every Pluck pipeline without throwing", () => {
     const sample = { foo: "bar", nested: { x: 1 }, arr: [1, 2, 3] };
-    for (const p of BUREAU_PIPELINES) {
+    for (const p of PROGRAM_PIPELINES) {
       expect(() => redactPayloadForGet(p, sample)).not.toThrow();
     }
   });

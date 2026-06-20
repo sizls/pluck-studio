@@ -20,14 +20,14 @@
 // This builder is pure: same registry input → same discovery output.
 // No `Math.random`, no `Date.now`, no clock dependence — every resource
 // URI and tool input-schema is derived from the static program registry
-// and the BUREAU_PIPELINES enum. That determinism is what lets the
+// and the PROGRAM_PIPELINES enum. That determinism is what lets the
 // /api/mcp/manifest.json route serve a cacheable response without ever
 // drifting from the runtime taxonomy.
 //
 // Auto-generation invariant — like the OpenAPI generator:
 //   - Resources for each ACTIVE_PROGRAMS entry (`pluck://program/<slug>`).
 //   - Tool input schemas reference the same `program:*` pipeline values
-//     as `BUREAU_PIPELINES`. Adding a new program is a one-line registry
+//     as `PROGRAM_PIPELINES`. Adding a new program is a one-line registry
 //     change; the manifest auto-includes it.
 //
 // Related contracts:
@@ -46,7 +46,7 @@
 // ---------------------------------------------------------------------------
 
 import { ACTIVE_PROGRAMS } from "../programs/registry";
-import { BUREAU_PIPELINES, RUN_STATUSES } from "../v1/run-spec";
+import { PROGRAM_PIPELINES, RUN_STATUSES } from "../v1/run-spec";
 
 /**
  * Manifest-shape root — Studio-invented discovery document.
@@ -174,7 +174,7 @@ export function buildManifest(opts: BuildManifestOpts): McpManifest {
     },
   ];
 
-  const programPipelineEnum = [...BUREAU_PIPELINES];
+  const programPipelineEnum = [...PROGRAM_PIPELINES];
   const runStatusEnum = [...RUN_STATUSES];
 
   const tools: McpTool[] = [

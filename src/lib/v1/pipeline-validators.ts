@@ -71,7 +71,7 @@ import { isValidSha256 } from "../sbom-ai/run-form-module";
 import { isPrivateOrLocalHost } from "../security/request-guards";
 import { isValidMachineId } from "../tripwire/run-form-module";
 
-import { type StudioPipeline, BUREAU_PIPELINES } from "./run-spec";
+import { type StudioPipeline, PROGRAM_PIPELINES } from "./run-spec";
 
 export type ValidatorResult = { ok: true } | { ok: false; error: string };
 export type PipelineValidator = (payload: unknown) => ValidatorResult;
@@ -1275,11 +1275,11 @@ export const PIPELINE_VALIDATORS: Record<StudioPipeline, PipelineValidator> = {
   "program:mole": validateMolePayload,
 };
 
-// Belt-and-suspenders runtime check — if BUREAU_PIPELINES grows and someone
+// Belt-and-suspenders runtime check — if PROGRAM_PIPELINES grows and someone
 // forgets to add an entry to PIPELINE_VALIDATORS, this throws at import time
 // in dev. The `Record<StudioPipeline, …>` already enforces this at the type
 // level; this catches the (rare) case where the union and the array drift.
-for (const p of BUREAU_PIPELINES) {
+for (const p of PROGRAM_PIPELINES) {
   if (!(p in PIPELINE_VALIDATORS)) {
     throw new Error(
       `[pipeline-validators] missing validator for Pluck pipeline: ${p}`,

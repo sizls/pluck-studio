@@ -244,13 +244,13 @@ src/lib/v1/run-store.ts → createRun(spec)
 
 | File | Responsibility |
 |---|---|
-| `src/lib/v1/run-spec.ts` | TypeScript types (`RunSpec`, `RunRecord`, `RunStatus`, `StudioPipeline`), the `BUREAU_PIPELINES` array, and `validateRunSpec` (envelope shape — rejects unknown top-level keys, `idempotencyKey` length cap, etc.). Persistence-agnostic. |
-| `src/lib/v1/pipeline-validators.ts` | Per-pipeline payload contracts. One function per program (`validateDragnetPayload`, `validateNucleiPayload`, …) and a `PIPELINE_VALIDATORS` map keyed by `StudioPipeline`. **Single source of truth** between `/v1/runs` and the legacy aliases. Belt-and-suspenders runtime check at module load throws if `BUREAU_PIPELINES` ever drifts from the map. |
+| `src/lib/v1/run-spec.ts` | TypeScript types (`RunSpec`, `RunRecord`, `RunStatus`, `StudioPipeline`), the `PROGRAM_PIPELINES` array, and `validateRunSpec` (envelope shape — rejects unknown top-level keys, `idempotencyKey` length cap, etc.). Persistence-agnostic. |
+| `src/lib/v1/pipeline-validators.ts` | Per-pipeline payload contracts. One function per program (`validateDragnetPayload`, `validateNucleiPayload`, …) and a `PIPELINE_VALIDATORS` map keyed by `StudioPipeline`. **Single source of truth** between `/v1/runs` and the legacy aliases. Belt-and-suspenders runtime check at module load throws if `PROGRAM_PIPELINES` ever drifts from the map. |
 | `src/lib/v1/run-store.ts` | In-memory stub with idempotency cache, 24h TTL eviction, 10K-entry FIFO cap, cursor pagination, status filtering, per-program `runIdForProgram` scoping, and an in-memory pub/sub layer that feeds the SSE route. **Public API**: `createRun`, `getRun`, `listRuns`, `cancelRun`, `subscribeToRun`. **Internal**: `idempotencyHashOf`, `canonicalJson`, `__INTERNAL_TTL_MS`, `__INTERNAL_MAX_ENTRIES`, `__INTERNAL_SUBSCRIBERS_PER_RUN_CAP` (gated behind `PLUCK_REAL_BACKEND` env in tests). |
 | `src/lib/v1/redact.ts` | Per-pipeline GET-side payload redaction. `PAYLOAD_REDACTORS` map keyed by `StudioPipeline`. WHISTLE strips `bundleUrl`+`manualRedactPhrase`; ROTATE strips `operatorNote`; the other 9 pass through. The store record is untouched (idempotency must remain stable); redaction happens at the GET / SSE boundary only. |
 | `src/app/api/v1/runs/route.ts` + `[id]/route.ts` + `[id]/events/route.ts` | Security gates (CSRF / rate-limit / auth) + delegation. Zero business logic — they call `validateRunSpec`, `PIPELINE_VALIDATORS[…]`, `createRun`/`getRun`/`listRuns`/`cancelRun`/`subscribeToRun`, and `redactPayloadForGet`. The events route additionally manages the SSE stream lifecycle (heartbeat, terminal-state close, 5min cap). Replaceable as a unit when pluck-api lands. |
 | `src/lib/security/request-guards.ts` | `isAuthed`, `isSameSiteRequest`, `rateLimitOk`, `isPrivateOrLocalHost`. Shared by `/v1/runs` and the 11 legacy aliases. |
-| `src/lib/mcp/build-manifest.ts` | **Auto-generator — parallel to OpenAPI.** Pure function `buildManifest({ baseUrl, version })` over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Emits a Studio-invented MCP **discovery document** (NOT an MCP-spec conformant manifest — MCP is a JSON-RPC runtime protocol, not a static schema): `pluck://program/<slug>` resources, `pluck.search` / `pluck.diff` / `pluck.run` tools with JSON-Schema input shapes, prompts, auth. Top-level fields: `specReference` (protocol homepage), `description` (framing), `name`, `version`, `homepage`, `openapi`, `resources`, `tools`, `prompts`, `auth` — deliberately no `$schema`. Deterministic; snapshot-tested; ajv-tested (every inputSchema compiles + accepts the shapes it's meant to). Adding a program auto-extends the document. The route at `src/app/api/mcp/manifest.json/route.ts` serves it under the same public-read posture as `/openapi.json` (5-min cache, same-site CSRF + rate-limit, no auth) and derives `baseUrl` from `req.nextUrl.origin` so local dev / preview deploys advertise their own host. The `/mcp` operator page reads `STUDIO_BASE_URL` from the environment (defaulting to `https://studio.pluck.run`) for the same reason. |
+| `src/lib/mcp/build-manifest.ts` | **Auto-generator — parallel to OpenAPI.** Pure function `buildManifest({ baseUrl, version })` over `ACTIVE_PROGRAMS` + `PROGRAM_PIPELINES`. Emits a Studio-invented MCP **discovery document** (NOT an MCP-spec conformant manifest — MCP is a JSON-RPC runtime protocol, not a static schema): `pluck://program/<slug>` resources, `pluck.search` / `pluck.diff` / `pluck.run` tools with JSON-Schema input shapes, prompts, auth. Top-level fields: `specReference` (protocol homepage), `description` (framing), `name`, `version`, `homepage`, `openapi`, `resources`, `tools`, `prompts`, `auth` — deliberately no `$schema`. Deterministic; snapshot-tested; ajv-tested (every inputSchema compiles + accepts the shapes it's meant to). Adding a program auto-extends the document. The route at `src/app/api/mcp/manifest.json/route.ts` serves it under the same public-read posture as `/openapi.json` (5-min cache, same-site CSRF + rate-limit, no auth) and derives `baseUrl` from `req.nextUrl.origin` so local dev / preview deploys advertise their own host. The `/mcp` operator page reads `STUDIO_BASE_URL` from the environment (defaulting to `https://studio.pluck.run`) for the same reason. |
 | `src/lib/diff/receipt-diff.ts` | **Pure aggregator behind `/diff/<base>?since=<target>`.** `diffReceipts(basePhraseId, targetPhraseId)` returns a `DiffResult` discriminated union (`ok` \| `invalid-phrase` \| `not-found` \| `different-vendors`); cross-program same-vendor diffs flag `sameProgram: false` for cross-program corroboration copy. The internal `resolveSide()` helper is the **single seam to swap** when /v1/runs Realtime lands — today it falls through `getRun` (v1 store) → `searchPhraseId` directMatch (vendor-preview), tomorrow it queries `/v1/runs?phraseIdPrefix=<scope>`. The public `diffReceipts()` signature stays stable across the swap. Persistence-agnostic; no coupling to the v1 route handlers. |
 
 **Environment** — `STUDIO_BASE_URL` (optional). Production default
@@ -660,7 +660,7 @@ auto-generated by `scripts/build-openapi.ts` and committed at
 `public/openapi.json`. The spec covers the full /v1/runs surface
 (POST + GET-list + GET-by-id + DELETE) and is the canonical contract
 external SDKs and consumers bind against. The pipeline + status enums
-are derived from `BUREAU_PIPELINES` / `RUN_STATUSES` so the spec
+are derived from `PROGRAM_PIPELINES` / `RUN_STATUSES` so the spec
 cannot drift from the runtime taxonomy without failing the
 `scripts/__tests__/build-openapi.test.ts` invariant. Re-run
 `pnpm openapi:build` after any RunSpec / RunRecord / pipeline-validators
@@ -675,7 +675,7 @@ shape to `/openapi.json` but oriented at MCP clients.
 
 - **Generator** — `src/lib/mcp/build-manifest.ts`. Pure function
   `buildManifest({ baseUrl, version })` over `ACTIVE_PROGRAMS` +
-  `BUREAU_PIPELINES`. Auto-extends when a program is added —
+  `PROGRAM_PIPELINES`. Auto-extends when a program is added —
   no hand-edits, no per-program scaffolding. Deterministic;
   snapshot-tested; ajv-tested (every `inputSchema` compiles + accepts
   the shapes it advertises).
@@ -725,7 +725,7 @@ Step-by-step for a hypothetical "TENTH" program (slug `tenth`, predicate
    `src/lib/dragnet/run-receipt-module.ts`.
 
 3. **Register the pipeline in the v1 type system.**
-   Add `"program:tenth"` to `BUREAU_PIPELINES` in
+   Add `"program:tenth"` to `PROGRAM_PIPELINES` in
    `src/lib/v1/run-spec.ts`. The `StudioPipeline` union and
    `program:tenth` runtime guards auto-derive.
 

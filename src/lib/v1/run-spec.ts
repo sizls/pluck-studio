@@ -24,7 +24,7 @@
 // not yet implemented" error so callers get a clean signal.
 // ---------------------------------------------------------------------------
 
-export const BUREAU_PIPELINES = [
+export const PROGRAM_PIPELINES = [
   "program:dragnet",
   "program:oath",
   "program:fingerprint",
@@ -41,19 +41,19 @@ export const BUREAU_PIPELINES = [
 export const FUTURE_PIPELINES = ["extract", "sense", "act", "fleet"] as const;
 
 export const ALL_PIPELINES = [
-  ...BUREAU_PIPELINES,
+  ...PROGRAM_PIPELINES,
   ...FUTURE_PIPELINES,
 ] as const;
 
-export type StudioPipeline = (typeof BUREAU_PIPELINES)[number];
+export type StudioPipeline = (typeof PROGRAM_PIPELINES)[number];
 export type FuturePipeline = (typeof FUTURE_PIPELINES)[number];
 export type RunSpecPipeline = StudioPipeline | FuturePipeline;
 
-const BUREAU_SET: ReadonlySet<string> = new Set(BUREAU_PIPELINES);
+const PROGRAM_SET: ReadonlySet<string> = new Set(PROGRAM_PIPELINES);
 const FUTURE_SET: ReadonlySet<string> = new Set(FUTURE_PIPELINES);
 
 export function isProgramPipeline(s: string): s is StudioPipeline {
-  return BUREAU_SET.has(s);
+  return PROGRAM_SET.has(s);
 }
 
 export function isFuturePipeline(s: string): s is FuturePipeline {
@@ -61,7 +61,7 @@ export function isFuturePipeline(s: string): s is FuturePipeline {
 }
 
 export function isKnownPipeline(s: string): s is RunSpecPipeline {
-  return BUREAU_SET.has(s) || FUTURE_SET.has(s);
+  return PROGRAM_SET.has(s) || FUTURE_SET.has(s);
 }
 
 /** Strip the `program:` prefix from a Pluck pipeline (`program:dragnet` → `dragnet`). */

@@ -463,7 +463,7 @@ document at [`/openapi.json`](https://studio.pluck.run/openapi.json).
 The spec is regenerated from `src/lib/v1/run-spec.ts` by the
 `scripts/build-openapi.ts` generator and committed to
 `public/openapi.json`. The `StudioPipeline` and `RunStatus` enums are
-derived directly from `BUREAU_PIPELINES` and `RUN_STATUSES`, so adding
+derived directly from `PROGRAM_PIPELINES` and `RUN_STATUSES`, so adding
 a new pipeline cannot drift the spec without a regeneration step (a
 unit test asserts the invariant).
 
@@ -543,7 +543,7 @@ direct `curl` loop against `/api/mcp/manifest.json` + `/api/v1/runs`
 so operators can experiment today.
 
 The document is built by `src/lib/mcp/build-manifest.ts` — pure
-function over `ACTIVE_PROGRAMS` + `BUREAU_PIPELINES`. Adding a new
+function over `ACTIVE_PROGRAMS` + `PROGRAM_PIPELINES`. Adding a new
 program auto-extends the resources list and the
 `pluck.run` tool's pipeline enum; a snapshot test locks the
 deterministic output, and an ajv-backed test compiles every

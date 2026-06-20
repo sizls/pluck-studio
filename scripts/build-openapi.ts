@@ -2,7 +2,7 @@
 // scripts/build-openapi.ts — auto-generate OpenAPI 3.1 spec for /v1/runs
 // ---------------------------------------------------------------------------
 //
-// Reads the canonical taxonomy (BUREAU_PIPELINES, FUTURE_PIPELINES,
+// Reads the canonical taxonomy (PROGRAM_PIPELINES, FUTURE_PIPELINES,
 // RUN_STATUSES) from `src/lib/v1/run-spec.ts` and emits a deterministic
 // OpenAPI 3.1.0 JSON document at `public/openapi.json`. Served at
 // runtime via `src/app/openapi.json/route.ts` (5-min public cache).
@@ -22,7 +22,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  BUREAU_PIPELINES,
+  PROGRAM_PIPELINES,
   FUTURE_PIPELINES,
   RUN_STATUSES,
 } from "../src/lib/v1/run-spec.ts";
@@ -76,13 +76,13 @@ const exampleRunRecord = {
 const schemas = {
   StudioPipeline: {
     type: "string",
-    enum: [...BUREAU_PIPELINES],
+    enum: [...PROGRAM_PIPELINES],
     description:
       "One of the 11 program slugs. Each maps 1:1 to the legacy `/api/programs/<slug>/run` route.",
   },
   RunSpecPipeline: {
     type: "string",
-    enum: [...BUREAU_PIPELINES, ...FUTURE_PIPELINES],
+    enum: [...PROGRAM_PIPELINES, ...FUTURE_PIPELINES],
     description:
       "All known pipelines — 11 Pluck slugs (shipped) + 4 future surface slugs (extract/sense/act/fleet, return 400 today).",
   },
@@ -875,7 +875,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       summary:
         "Unified pipeline activation (Pluck /v1/runs) + periodic semantic monitoring (/v1/watches).",
       description:
-        "Auto-generated from `src/lib/v1/run-spec.ts` and `src/lib/v1/watch-spec.ts`. Pipeline + status enums are derived from the TypeScript taxonomy (`BUREAU_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`, `AUTONOMY_MODES` / `FETCHER_KINDS` / `WATCH_STATUSES` / `OBSERVATION_KINDS` / `OBSERVATION_CLASSIFICATIONS`). Per-pipeline run payload schemas live in `docs/V1_API.md`. Re-run `pnpm openapi:build` after any spec / validator / redactor change.",
+        "Auto-generated from `src/lib/v1/run-spec.ts` and `src/lib/v1/watch-spec.ts`. Pipeline + status enums are derived from the TypeScript taxonomy (`PROGRAM_PIPELINES` / `FUTURE_PIPELINES` / `RUN_STATUSES`, `AUTONOMY_MODES` / `FETCHER_KINDS` / `WATCH_STATUSES` / `OBSERVATION_KINDS` / `OBSERVATION_CLASSIFICATIONS`). Per-pipeline run payload schemas live in `docs/V1_API.md`. Re-run `pnpm openapi:build` after any spec / validator / redactor change.",
       license: { name: "Proprietary", identifier: "LicenseRef-Sizls-Internal" },
       contact: { name: "Pluck Studio", url: "https://studio.pluck.run" },
     },
