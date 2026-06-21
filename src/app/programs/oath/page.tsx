@@ -67,12 +67,12 @@ export default function OathIndexPage(): ReactNode {
 
       <section style={CalloutStyle}>
         <h2 style={{ ...SectionHeadingStyle, marginTop: 0 }}>
-          Phase 4 alpha
+          What ships today
         </h2>
         <p>
-          The signing + verification + contradict layers are alpha;
-          the vendor-management UI at <code>/programs/oath/manage</code>{" "}
-          ships as a placeholder until Kite Event Log lands in Phase 4+.
+          The signing, verification, and contradict layers are live.
+          The vendor-management UI at <code>/programs/oath/manage</code>{" "}
+          ships as a placeholder until the Kite Event Log lands.
         </p>
       </section>
 

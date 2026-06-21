@@ -42,7 +42,8 @@
 
 import {
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../../../lib/security/request-guards";
 import { redactPayloadForGet } from "../../../../../../lib/v1/redact";
 import {
@@ -81,10 +82,14 @@ const SSE_HEADERS: HeadersInit = {
   "X-Accel-Buffering": "no",
 };
 
-function jsonError(message: string, status: number): Response {
+function jsonError(
+  message: string,
+  status: number,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
@@ -102,11 +107,15 @@ export async function GET(
   if (!isSameSiteRequest(req)) {
     return jsonError("cross-site request rejected", 403);
   }
-  if (!rateLimitOk(req)) {
-    return jsonError(
-      "too many requests — slow down and try again in a minute",
-      429,
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return jsonError(
+        "too many requests — slow down and try again in a minute",
+        429,
+        rateLimitHeaders(rl),
+      );
+    }
   }
 
   const { id } = await context.params;

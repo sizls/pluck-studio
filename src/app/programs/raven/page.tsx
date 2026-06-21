@@ -56,9 +56,9 @@ export default function RavenIndexPage(): ReactNode {
       <section className="studio-hero">
         <h1 className="studio-hero-title">RAVEN</h1>
         <p className="studio-hero-tagline">
-          Passive RF spectrum chain-of-custody. The substrate every Phase 7+
-          RF program rides on. Without it, each wireless program
-          reinvents IQ → canonicalization → Merkle → Rekor.
+          Passive RF spectrum chain-of-custody. The substrate every
+          downstream RF program rides on. Without it, each wireless
+          program reinvents IQ → canonicalization → Merkle → Rekor.
         </p>
       </section>
 
@@ -133,11 +133,11 @@ export default function RavenIndexPage(): ReactNode {
       </section>
 
       <section>
-        <h2 style={SectionHeadingStyle}>Phase 7 alpha vs 7.5</h2>
+        <h2 style={SectionHeadingStyle}>What ships today</h2>
         <p>
-          Alpha ships file-input only (cu8 / cf32 IQ files). Live SDR
-          streaming (<code>rtl_tcp</code>, librtlsdr, USRP) defers to
-          Phase 7.5 — same JS-layer-first pattern as TRIPWIRE Phase 2.
+          File-input only (cu8 / cf32 IQ files). Live SDR streaming
+          (<code>rtl_tcp</code>, librtlsdr, USRP) lands later —
+          file-input first, live capture once the interface stabilises.
         </p>
       </section>
     </>

@@ -323,7 +323,7 @@ describe("POST /api/programs/whistle/run — success path", () => {
   });
 });
 
-describe("POST /api/programs/whistle/run — RFC 8594 deprecation signaling", () => {
+describe("POST /api/programs/whistle/run — RFC 9745 deprecation signaling", () => {
   it("emits Deprecation/Sunset/Link headers + body flags", async () => {
     const res = await POST(
       buildRequest({
@@ -332,7 +332,7 @@ describe("POST /api/programs/whistle/run — RFC 8594 deprecation signaling", ()
       }),
     );
     expect(res.status).toBe(200);
-    expect(res.headers.get("Deprecation")).toBe("true");
+    expect(res.headers.get("Deprecation")).toBe("Mon, 04 May 2026 00:00:00 GMT");
     expect(res.headers.get("Link")).toMatch(
       /<\/api\/v1\/runs>;\s*rel="successor-version"/,
     );

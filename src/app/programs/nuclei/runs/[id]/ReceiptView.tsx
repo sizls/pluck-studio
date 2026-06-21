@@ -14,6 +14,7 @@ import {
   nucleiRunReceiptModule,
 } from "../../../../../lib/nuclei/run-receipt-module";
 import { V1RunStatusBanner } from "../../../../../components/programs-ui/V1RunStatusBanner.js";
+import { AlphaReceiptBanner } from "../../../../../components/programs-ui/AlphaReceiptBanner.js";
 import { PhraseSigil } from "../../../../../components/programs-ui/PhraseSigil.js";
 import { VerdictBadge } from "../../../../../components/programs-ui/VerdictBadge.js";
 import { isPhraseId } from "../../../../../lib/phrase-id";
@@ -167,6 +168,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   return (
     <>
       <V1RunStatusBanner id={id} />
+      <AlphaReceiptBanner />
       <section className="studio-hero">
         <h1 className="studio-hero-title">NUCLEI registry entry</h1>
         <p className="studio-hero-tagline">

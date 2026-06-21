@@ -60,8 +60,8 @@ export default function SbomAiIndexPage(): ReactNode {
           NUCLEI's community probe-pack ecosystem opens once SBOM-AI is
           operational. Without a public supply-chain ledger, the first
           poisoned community pack would compromise every DRAGNET
-          consumer downstream. Phase 1.5 lands SBOM-AI + ROTATE
-          together — these are the existential foundations.
+          consumer downstream. SBOM-AI and ROTATE ship together —
+          these are the existential foundations.
         </p>
       </section>
 
@@ -88,9 +88,9 @@ export default function SbomAiIndexPage(): ReactNode {
       <section>
         <h2 style={SectionHeadingStyle}>Lookup an artifact</h2>
         <p>
-          Phase 1.5 ships local-only. Phase 2 wires the Kite Event Log
-          so this search resolves against ingested entries. For now,
-          paste a sha256 to see the URL pattern:
+          Today's release ships local-only. A future cut wires the
+          Kite Event Log so this search resolves against ingested
+          entries. For now, paste a sha256 to see the URL pattern:
         </p>
         <pre>
           <code>
@@ -109,7 +109,7 @@ pluck sbom-ai publish probe-pack ./pack.json --keys ./keys --accept-public
 # verify
 pluck sbom-ai verify <rekor-uuid>
 
-# lookup (Phase 1.5 — Phase 2+ wires Kite)
+# lookup (local registry today; Kite Event Log later)
 pluck sbom-ai lookup <sha256> --seed <uuid>`}
           </code>
         </pre>

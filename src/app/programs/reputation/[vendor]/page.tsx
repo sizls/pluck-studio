@@ -144,7 +144,7 @@ export default async function ReputationVendorPage({
           </code>
         </pre>
         <p>
-          Phase 7+ ships the SVG API route. Today the badge above is
+          The SVG API route ships later. Today the badge above is
           rendered inline by the same React component the API will use
           — embedders see the same shape.
         </p>

@@ -13,7 +13,8 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
 import { redactWatchForGet } from "../../../../../lib/v1/redact";
 import {
@@ -23,25 +24,7 @@ import {
   updateWatch,
 } from "../../../../../lib/watch/store";
 import { validateWatchUpdate } from "../../../../../lib/v1/watch-validators";
-
-const MAX_REQUEST_BODY_BYTES = 64 * 1024;
-
-async function readBoundedJson(
-  req: Request,
-): Promise<{ ok: true; value: unknown } | { ok: false; error: string; status: number }> {
-  const lenHeader = req.headers.get("content-length");
-  if (lenHeader !== null) {
-    const len = Number.parseInt(lenHeader, 10);
-    if (Number.isFinite(len) && len > MAX_REQUEST_BODY_BYTES) {
-      return { ok: false, error: "request body too large", status: 413 };
-    }
-  }
-  try {
-    return { ok: true, value: await req.json() };
-  } catch {
-    return { ok: false, error: "invalid JSON body", status: 400 };
-  }
-}
+import { readBoundedJson } from "../../../../../lib/api/bounded-json";
 
 interface RouteContext {
   readonly params: Promise<{ id: string }>;
@@ -65,11 +48,14 @@ export async function GET(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
 
   const { id } = await context.params;
@@ -110,11 +96,14 @@ export async function PATCH(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
@@ -166,11 +155,14 @@ export async function DELETE(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(

@@ -47,8 +47,8 @@ export default async function NucleiPackPage({ params }: PageProps): Promise<Rea
       <section>
         <h2 style={SectionHeadingStyle}>Metadata</h2>
         <p>
-          Phase 3 alpha — registry hydration lands once Kite Event Log
-          wires. Ingest a NUCLEI Rekor uuid via{" "}
+          Registry hydration lands once the Kite Event Log wires.
+          Ingest a NUCLEI Rekor uuid via{" "}
           <code>pluck nuclei lookup &lt;author&gt;/{pack} --seed &lt;uuid&gt;</code>{" "}
           to inspect locally.
         </p>

@@ -20,6 +20,7 @@ import {
   formatCassetteHash,
 } from "../../../../../lib/fingerprint/run-receipt-module";
 import { V1RunStatusBanner } from "../../../../../components/programs-ui/V1RunStatusBanner.js";
+import { AlphaReceiptBanner } from "../../../../../components/programs-ui/AlphaReceiptBanner.js";
 import { PhraseSigil } from "../../../../../components/programs-ui/PhraseSigil.js";
 import { isPhraseId } from "../../../../../lib/phrase-id";
 
@@ -173,6 +174,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
   return (
     <>
       <V1RunStatusBanner id={id} />
+      <AlphaReceiptBanner />
       <section className="studio-hero">
         <h1 className="studio-hero-title">FINGERPRINT scan</h1>
         <p className="studio-hero-tagline">
@@ -297,7 +299,7 @@ export function ReceiptView({ id }: ReceiptViewProps): ReactNode {
             <strong data-testid="swap-callout">
               SWAP — vendor's model changed entirely. Public silent-swap
               alert fires when this scan anchors (RSS at{" "}
-              <code>/programs/fingerprint/swaps.rss</code> + @pluckbureau
+              <code>/programs/fingerprint/swaps.rss</code> + @pluckrun
               social bot).
             </strong>
           </p>

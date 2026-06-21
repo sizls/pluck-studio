@@ -67,13 +67,13 @@ export default function FingerprintIndexPage(): ReactNode {
 
       <section style={CalloutStyle}>
         <h2 style={{ ...SectionHeadingStyle, marginTop: 0 }}>
-          Phase 4 alpha
+          What ships today
         </h2>
         <p>
-          Calibration probe-set + scan + delta + MCP tool-surface
-          enumeration ship in Phase 4. Public-vendor fingerprint
-          history dashboards land in Phase 4+ once the studio reads
-          fingerprint cassettes back out of the Kite Event Log.
+          Calibration probe-set, scan, delta, and MCP tool-surface
+          enumeration are live. Public-vendor fingerprint history
+          dashboards land once Studio reads fingerprint cassettes
+          back out of the Kite Event Log.
         </p>
       </section>
 

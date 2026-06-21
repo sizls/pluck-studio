@@ -21,7 +21,7 @@
 //   5. Per-IP rate limit.
 //   6. ToS / probe-authorization assertion.
 //   7. On success: { runId, phraseId, cadence, status: "cycle pending",
-//      deprecated: true, replacement: "/api/v1/runs" } + RFC 8594
+//      deprecated: true, replacement: "/api/v1/runs" } + RFC 9745
 //      Deprecation/Sunset/Link headers.
 //      M5 fix: `runId` is now the SAME phrase-id as `phraseId` — single
 //      primitive, identical on idempotent retries. The legacy randomUUID
@@ -41,29 +41,14 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
 import { validateDragnetPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
 
-/**
- * Deprecation/Sunset HTTP signaling for the legacy alias. Per RFC 8594:
- *   - `Deprecation: true` — literal token (NOT a date) signaling that
- *     this resource is deprecated. Clients can detect it programmatically.
- *   - `Sunset` — IMF-fixdate when the resource will stop responding. We
- *     pick a date 6+ months out so the next migration window is plain.
- *   - `Link rel="successor-version"` — points clients at the canonical
- *     /v1/runs surface so tooling can auto-migrate.
- *
- * M5 fix: previously this was advertised in the JSON body only, which
- * intermediaries and SDK retry layers don't see. RFC 8594 makes it a
- * machine-readable HTTP-level concern.
- */
-const DEPRECATION_HEADERS: Record<string, string> = {
-  Deprecation: "true",
-  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
-  Link: '</api/v1/runs>; rel="successor-version"',
-};
+import { DEPRECATION_HEADERS } from "../../../../../lib/api/deprecation-headers";
+import { readBoundedJson } from "../../../../../lib/api/bounded-json";
 
 interface RunRequestBody {
   targetUrl?: string;
@@ -106,11 +91,14 @@ export async function POST(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
@@ -121,15 +109,14 @@ export async function POST(req: Request): Promise<Response> {
       { status: 401 },
     );
   }
-  let body: RunRequestBody;
-  try {
-    body = (await req.json()) as RunRequestBody;
-  } catch {
+  const parsed = await readBoundedJson(req);
+  if (!parsed.ok) {
     return NextResponse.json(
-      { error: "invalid JSON body" },
-      { status: 400 },
+      { error: parsed.error },
+      { status: parsed.status },
     );
   }
+  const body = parsed.value as RunRequestBody;
 
   // Single source of truth — the same validator /v1/runs uses. Keeps the
   // two surfaces from drifting (M1 fix).

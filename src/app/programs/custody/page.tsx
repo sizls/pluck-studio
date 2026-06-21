@@ -174,13 +174,13 @@ export default function CustodyIndexPage(): ReactNode {
       </section>
 
       <section>
-        <h2 style={SectionHeadingStyle}>Phase 6.5 deferral</h2>
+        <h2 style={SectionHeadingStyle}>What ships today</h2>
         <p>
-          Phase 6 alpha ships the library + verifier. The full
-          Chrome / Firefox MV3 extension build pipeline (WebAuthn
-          flow, content-script bundle, signing, web-store publish,
-          headless-Chrome integration tests) lands{" "}
-          <strong>Phase 6.5</strong>. The journalist verify flow at{" "}
+          The library and verifier are live. The full Chrome /
+          Firefox MV3 extension build pipeline (WebAuthn flow,
+          content-script bundle, signing, web-store publish,
+          headless-Chrome integration tests) lands later. The
+          journalist verify flow at{" "}
           <code>/programs/custody/verify</code> works today against
           bundles produced by hand or by an out-of-tree capture
           tool.

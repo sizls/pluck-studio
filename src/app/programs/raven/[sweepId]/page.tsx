@@ -32,8 +32,8 @@ export default async function RavenSweepPage({ params }: PageProps): Promise<Rea
       <section className="studio-hero">
         <h1 className="studio-hero-title">Sweep {sweepId.slice(0, 8)}…</h1>
         <p className="studio-hero-tagline">
-          Phase 7 alpha placeholder. Per-sweep timeline + tile grid +
-          Kite Event Log integration land in Phase 7.5.
+          Placeholder. Per-sweep timeline, tile grid, and Kite Event
+          Log integration land later.
         </p>
       </section>
 

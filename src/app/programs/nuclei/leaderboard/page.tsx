@@ -73,10 +73,10 @@ export default function NucleiLeaderboardPage(): ReactNode {
       <section>
         <h2 style={SectionHeadingStyle}>Hydration</h2>
         <p>
-          Phase 3 alpha — pull a snapshot from the Pluck{" "}
+          Pull a snapshot from the Pluck CLI:{" "}
           <code>pluck nuclei leaderboard --input counts.json</code>.
-          Phase 3+ wires Kite Event Log so this page hydrates from the
-          public ledger.
+          A future cut wires the Kite Event Log so this page hydrates
+          from the public ledger.
         </p>
       </section>
     </>

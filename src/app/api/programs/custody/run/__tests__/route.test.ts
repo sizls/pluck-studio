@@ -6,7 +6,7 @@
 // `validateCustodyPayload` and dual-writes into the v1 store. These
 // tests lock the new contract:
 //   - runId === phraseId (single primitive, mirrors DRAGNET M5)
-//   - RFC 8594 Deprecation/Sunset/Link headers
+//   - RFC 9745 Deprecation/Sunset/Link headers
 //   - Idempotency dedupe within the minute bucket
 //   - Cross-route convergence with /v1/runs
 // ---------------------------------------------------------------------------
@@ -252,7 +252,7 @@ describe("POST /api/programs/custody/run — success path", () => {
   });
 });
 
-describe("POST /api/programs/custody/run — RFC 8594 deprecation signaling", () => {
+describe("POST /api/programs/custody/run — RFC 9745 deprecation signaling", () => {
   it("emits Deprecation, Sunset, and Link successor-version headers", async () => {
     const res = await POST(
       buildRequest({
@@ -261,7 +261,7 @@ describe("POST /api/programs/custody/run — RFC 8594 deprecation signaling", ()
       }),
     );
     expect(res.status).toBe(200);
-    expect(res.headers.get("Deprecation")).toBe("true");
+    expect(res.headers.get("Deprecation")).toBe("Mon, 04 May 2026 00:00:00 GMT");
     const sunset = res.headers.get("Sunset");
     expect(sunset).not.toBeNull();
     expect(Number.isFinite(Date.parse(sunset ?? ""))).toBe(true);

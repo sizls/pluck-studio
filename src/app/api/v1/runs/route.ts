@@ -33,8 +33,10 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../lib/security/request-guards";
+import { readBoundedJson } from "../../../../lib/api/bounded-json";
 import { PIPELINE_VALIDATORS } from "../../../../lib/v1/pipeline-validators";
 import { redactPayloadForGet } from "../../../../lib/v1/redact";
 import { createRun, listRuns } from "../../../../lib/v1/run-store";
@@ -76,25 +78,28 @@ export async function POST(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   // Parse body BEFORE the auth check so the 401 can carry a pipeline-aware
-  // sign-in redirect (e.g. `/sign-in?redirect=/programs/dragnet/run`). Body
-  // parsing is cheap and the same-site + rate-limit gates above already
-  // mitigate body-payload abuse.
-  let raw: unknown;
-  try {
-    raw = await req.json();
-  } catch {
+  // sign-in redirect (e.g. `/sign-in?redirect=/programs/dragnet/run`). The
+  // bounded reader caps the request body before parse so a 100MB payload
+  // is rejected via Content-Length inspection rather than burning JSON-parse
+  // cycles.
+  const parsed = await readBoundedJson(req);
+  if (!parsed.ok) {
     return NextResponse.json(
-      { error: "invalid JSON body" },
-      { status: 400 },
+      { error: parsed.error },
+      { status: parsed.status },
     );
   }
+  const raw = parsed.value;
 
   if (!isAuthed(req)) {
     const slug = peekProgramSlug(req, raw);
@@ -300,11 +305,14 @@ export async function GET(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
 
   const parsed = parseListQuery(new URL(req.url));

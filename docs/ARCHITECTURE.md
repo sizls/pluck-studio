@@ -142,7 +142,7 @@ field schemas, validators, and redactors.
 3. **Run API** — Two endpoints:
    - `/api/v1/runs` (canonical) — accepts
      `{ pipeline: "program:<slug>", payload, idempotencyKey }`.
-   - `/api/programs/<slug>/run` (deprecated alias, RFC 8594 signaled) —
+   - `/api/programs/<slug>/run` (deprecated alias, RFC 9745 signaled) —
      accepts the legacy per-program body shape, runs the same shared
      validator, dual-writes into the same v1 store. Both surfaces
      return the SAME `phraseId` for the same payload.
@@ -362,10 +362,12 @@ Each legacy alias does the same five things:
    `pipeline: "program:<slug>"` — so the receipt page reads a canonical
    record from `GET /api/v1/runs/[id]` regardless of which surface the
    client used to write.
-5. **Emit RFC 8594 signals.** Every response carries:
-   - `Deprecation: true` — literal token, machine-readable.
-   - `Sunset: Wed, 31 Dec 2026 23:59:59 GMT` — IMF-fixdate, six+
-     months from migration.
+5. **Emit RFC 9745 signals.** Every response carries:
+   - `Deprecation: Mon, 04 May 2026 00:00:00 GMT` — IMF-fixdate of
+     the date the route was marked deprecated. RFC 9745 (2024)
+     replaced the abandoned RFC 8594 draft's literal `true` token.
+   - `Sunset: Wed, 31 Dec 2026 23:59:59 GMT` — IMF-fixdate, the
+     date the route stops responding.
    - `Link: </api/v1/runs>; rel="successor-version"` — points clients
      at the canonical surface for auto-migration.
 

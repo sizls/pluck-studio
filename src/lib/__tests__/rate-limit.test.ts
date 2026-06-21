@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   __rateLimitBucketCount,
   checkRateLimit,
+  checkRateLimitState,
   resetRateLimit,
 } from "../rate-limit.js";
 
@@ -48,6 +49,31 @@ describe("checkRateLimit", () => {
     expect(checkRateLimit("k", config)).toBe(true);
     expect(checkRateLimit("k", config)).toBe(true);
     expect(checkRateLimit("k", config)).toBe(false);
+  });
+});
+
+describe("checkRateLimitState", () => {
+  it("reports remaining + resetAt on success", () => {
+    const now = 1_000_000;
+    const first = checkRateLimitState("k", undefined, now);
+    expect(first.allowed).toBe(true);
+    expect(first.remaining).toBe(9);
+    expect(first.resetAt).toBe(now + 60_000);
+
+    const second = checkRateLimitState("k", undefined, now);
+    expect(second.remaining).toBe(8);
+    expect(second.resetAt).toBe(now + 60_000);
+  });
+
+  it("reports allowed=false + remaining=0 + resetAt when the bucket is full", () => {
+    const now = 1_000_000;
+    for (let i = 0; i < 10; i++) {
+      checkRateLimitState("k", undefined, now);
+    }
+    const blocked = checkRateLimitState("k", undefined, now + 100);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.remaining).toBe(0);
+    expect(blocked.resetAt).toBe(now + 60_000);
   });
 });
 

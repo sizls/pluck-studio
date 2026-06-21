@@ -28,9 +28,9 @@ export default function OathManagePage(): ReactNode {
       <section className="studio-hero">
         <h1 className="studio-hero-title">OATH — Manage</h1>
         <p className="studio-hero-tagline">
-          Vendor-side oath management. Phase 4 ships the CLI surface;
-          this page becomes the in-browser editor once Kite Event Log
-          persistence lands in Phase 4+.
+          Vendor-side oath management. Today's release ships the CLI
+          surface; this page becomes the in-browser editor once Kite
+          Event Log persistence lands.
         </p>
       </section>
 

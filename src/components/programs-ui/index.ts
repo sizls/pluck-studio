@@ -41,6 +41,8 @@ export type { CalendarStripProps } from "./CalendarStrip.js";
 
 export { V1RunStatusBanner } from "./V1RunStatusBanner.js";
 
+export { AlphaReceiptBanner } from "./AlphaReceiptBanner.js";
+
 export { PhraseSigil } from "./PhraseSigil.js";
 export type { PhraseSigilProps } from "./PhraseSigil.js";
 

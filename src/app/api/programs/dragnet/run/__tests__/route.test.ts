@@ -415,7 +415,7 @@ describe("POST /api/programs/dragnet/run — output shape", () => {
   });
 });
 
-describe("POST /api/programs/dragnet/run — RFC 8594 deprecation signaling (M5 fix)", () => {
+describe("POST /api/programs/dragnet/run — RFC 9745 deprecation signaling", () => {
   it("emits Deprecation, Sunset, and Link successor-version headers", async () => {
     const res = await POST(
       buildRequest({
@@ -424,8 +424,8 @@ describe("POST /api/programs/dragnet/run — RFC 8594 deprecation signaling (M5 
       }),
     );
     expect(res.status).toBe(200);
-    // Deprecation must be the literal token "true" per RFC 8594.
-    expect(res.headers.get("Deprecation")).toBe("true");
+    // Deprecation carries the IMF-fixdate the route was marked deprecated, per RFC 9745.
+    expect(res.headers.get("Deprecation")).toBe("Mon, 04 May 2026 00:00:00 GMT");
     // Sunset is an IMF-fixdate; we just sanity-check it's present and parses.
     const sunset = res.headers.get("Sunset");
     expect(sunset).not.toBeNull();

@@ -20,7 +20,7 @@
 //   5. On success: { runId, phraseId, author, packName, sbomRekorUuid,
 //      vendorScope[], license, recommendedInterval, status:"publish
 //      pending", pendingVerdict, pendingTrustTier, deprecated: true,
-//      replacement: "/api/v1/runs" } + RFC 8594 Deprecation/Sunset/Link
+//      replacement: "/api/v1/runs" } + RFC 9745 Deprecation/Sunset/Link
 //      headers. runId === phraseId — single primitive (mirrors DRAGNET M5).
 //
 // Idempotency contract: legacy NUCLEI callers double-clicking within ~60s
@@ -37,16 +37,14 @@ import {
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
 import { validateNucleiPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
 
-const DEPRECATION_HEADERS: Record<string, string> = {
-  Deprecation: "true",
-  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
-  Link: '</api/v1/runs>; rel="successor-version"',
-};
+import { DEPRECATION_HEADERS } from "../../../../../lib/api/deprecation-headers";
+import { readBoundedJson } from "../../../../../lib/api/bounded-json";
 
 interface NucleiRequestBody {
   author?: string;
@@ -89,11 +87,14 @@ export async function POST(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
@@ -104,15 +105,14 @@ export async function POST(req: Request): Promise<Response> {
       { status: 401 },
     );
   }
-  let body: NucleiRequestBody;
-  try {
-    body = (await req.json()) as NucleiRequestBody;
-  } catch {
+  const parsed = await readBoundedJson(req);
+  if (!parsed.ok) {
     return NextResponse.json(
-      { error: "invalid JSON body" },
-      { status: 400 },
+      { error: parsed.error },
+      { status: parsed.status },
     );
   }
+  const body = parsed.value as NucleiRequestBody;
 
   // Single source of truth — the same validator /v1/runs uses. Keeps the
   // two surfaces from drifting (M1 fix).

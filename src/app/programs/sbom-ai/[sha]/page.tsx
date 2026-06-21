@@ -53,10 +53,11 @@ export default async function SbomAiArtifactPage({
           <em>No SbomEntry/v1 attestations observed yet.</em>
         </p>
         <p>
-          Phase 1.5 ships the SBOM-AI charter + sign + verify primitives.
-          The public Studio app reads from a local registry only — Phase
-          2 wires the Kite Event Log so any entry posted to
-          <code> rekor.sigstore.dev</code> with predicate type{" "}
+          Today's release ships the SBOM-AI charter, sign, and verify
+          primitives. The public Studio app reads from a local
+          registry only — a future cut wires the Kite Event Log so
+          any entry posted to <code>rekor.sigstore.dev</code> with
+          predicate type{" "}
           <code>https://pluck.run/SbomEntry/v1</code> and matching
           digest appears here within minutes.
         </p>
