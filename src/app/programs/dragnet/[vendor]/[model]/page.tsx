@@ -14,8 +14,8 @@ import {
   appendDot,
   buildDossier,
   computeDotId,
-} from "@sizls/pluck-bureau-core";
-import type { Dossier, TimelineDot } from "@sizls/pluck-bureau-core";
+} from "@sizls/pluck-core";
+import type { Dossier, TimelineDot } from "@sizls/pluck-core";
 import { DossierViewer } from "@/components/programs-ui";
 
 interface PageProps {

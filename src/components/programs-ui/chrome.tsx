@@ -11,7 +11,7 @@
 // destination so no page is more than one click from any other.
 // ---------------------------------------------------------------------------
 
-import type { BureauProgramId } from "@sizls/pluck-bureau-core";
+import type { BureauProgramId } from "@sizls/pluck-core";
 import type { ReactNode } from "react";
 
 /**

@@ -70,7 +70,7 @@ export default function SbomAiIndexPage(): ReactNode {
         <ul style={{ lineHeight: 1.7 }}>
           <li>
             <strong>probe-pack</strong> — every signed
-            <code> @sizls/pluck-bureau-core ProbePack</code> body. The
+            <code> @sizls/pluck-core ProbePack</code> body. The
             packHash IS the artifact digest.
           </li>
           <li>

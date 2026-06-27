@@ -2,7 +2,7 @@
 // Pluck UI – QuorumBadge
 // ---------------------------------------------------------------------------
 
-import type { QuorumVote } from "@sizls/pluck-bureau-core";
+import type { QuorumVote } from "@sizls/pluck-core";
 import type { ReactNode } from "react";
 
 export interface QuorumBadgeProps {
