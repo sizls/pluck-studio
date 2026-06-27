@@ -11,7 +11,7 @@
 // destination so no page is more than one click from any other.
 // ---------------------------------------------------------------------------
 
-import type { BureauProgramId } from "@sizls/pluck-bureau-core";
+import type { BureauProgramId } from "@sizls/pluck-core";
 import type { ReactNode } from "react";
 
 /**
@@ -64,7 +64,10 @@ const CROSS_CUTTING_LINKS: ReadonlyArray<{
   { id: "runs", label: "Runs", href: "/runs" },
   { id: "vendor", label: "Vendors", href: "/vendor" },
   { id: "watch", label: "Watch", href: "/watch" },
-  { id: "monitors", label: "Monitors", href: "/monitors" },
+  // `monitors` is intentionally NOT linked from the primary nav until the
+  // Kite Event Log is wired and the page renders real quorum-node data.
+  // The page itself still exists (deep links + the placeholder banner
+  // still work) but a cold visitor doesn't get steered into the stub.
   {
     id: "what-we-dont-know",
     label: "What we don't know",
@@ -133,7 +136,9 @@ export function StudioChrome({
         </nav>
         <div className="studio-auth-slot">{authSlot}</div>
       </header>
-      <main className="studio-main">{children}</main>
+      <main id="studio-main" className="studio-main" tabIndex={-1}>
+        {children}
+      </main>
       <footer className="studio-footer">
         <div className="studio-footer-grid">
           <div className="studio-footer-col">

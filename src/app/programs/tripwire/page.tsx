@@ -66,7 +66,7 @@ export default function TripwireIndexPage(): ReactNode {
 
       <section style={CalloutStyle}>
         <h2 style={{ ...SectionHeadingStyle, marginTop: 0 }}>
-          Phase 2 alpha — JS-layer only
+          JS-layer only — for now
         </h2>
         <p>
           This release ships the <strong>in-process</strong>{" "}
@@ -74,11 +74,11 @@ export default function TripwireIndexPage(): ReactNode {
           uses standard HTTP — which is essentially all of them.
         </p>
         <p>
-          Native macOS Network Extension and Linux eBPF paths are
-          deferred to <strong>Phase 2.5</strong>: they require
-          entitlements + libbpf bindings that aren't trivial to ship
-          inside a published npm package. JS-layer first, kernel hooks
-          when the demand justifies the entitlement application.
+          Native macOS Network Extension and Linux eBPF paths land
+          later: they require entitlements + libbpf bindings that
+          aren't trivial to ship inside a published npm package.
+          JS-layer first, kernel hooks when the demand justifies the
+          entitlement application.
         </p>
       </section>
 

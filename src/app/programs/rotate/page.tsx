@@ -88,10 +88,10 @@ export default function RotateIndexPage(): ReactNode {
       <section>
         <h2 style={SectionHeadingStyle}>Has this fingerprint been revoked?</h2>
         <p>
-          Phase 1.5 ships local-only. Phase 2 wires the Kite Event Log
-          so a fingerprint search resolves against ingested
-          <code> KeyRevocation/v1</code> entries. For now, run the
-          verifier against a Rekor uuid:
+          Today's release ships local-only. A future cut wires the
+          Kite Event Log so a fingerprint search resolves against
+          ingested <code>KeyRevocation/v1</code> entries. For now,
+          run the verifier against a Rekor uuid:
         </p>
         <pre>
           <code>

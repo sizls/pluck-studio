@@ -15,7 +15,9 @@
 //   - Rate-limit bucket lives in lib/rate-limit.ts.
 // ---------------------------------------------------------------------------
 
-import { checkRateLimit } from "../rate-limit";
+import { createHash } from "node:crypto";
+
+import { checkRateLimitState } from "../rate-limit";
 
 const SUPABASE_AUTH_COOKIE_PATTERN = /^sb-[^-]+-auth-token(\.\d+)?$/;
 const ALLOWED_ORIGIN_HOSTNAMES = new Set([
@@ -100,6 +102,71 @@ export function isAuthed(req: Request): boolean {
   return false;
 }
 
+/**
+ * Extract a stable per-session identifier so the v1 stores can pin
+ * each run / watch to its creator and the DELETE/PATCH/POST-trigger
+ * endpoints can reject cross-account access.
+ *
+ * The current STUB auth (cookie + bearer) does NOT verify a JWT
+ * signature, so this can't return the canonical Supabase user UUID.
+ * Instead it derives an opaque, deterministic hash of whatever
+ * authenticates the request — the Supabase auth cookie value or the
+ * bearer-token string. Same browser session → same ownerId; a
+ * different browser (or anonymized cookie) → different ownerId.
+ *
+ * That's enough to close the IDOR: User A's cookie can't claim a
+ * record User B's cookie created, because the two hashes don't
+ * match. Hashes are SHA-256 truncated to 24 hex chars — short enough
+ * to fit in a log line, long enough to avoid practical collisions in
+ * a stub deployment.
+ *
+ * When the real `/v1/runs` runner ships with verified JWT auth, this
+ * helper swaps the derivation to `jwt.sub` and every record
+ * automatically pins to the verified user UUID. The store API stays
+ * unchanged.
+ *
+ * Returns `null` when the request has no auth surface — callers
+ * should treat that as a 401 (the `isAuthed` gate should already
+ * catch it; this is defensive).
+ */
+export function ownerIdFromRequest(req: Request): string | null {
+  const cookieHeader = req.headers.get("cookie");
+  if (cookieHeader !== null) {
+    const cookies = cookieHeader.split(";").map((c) => c.trim());
+    const sbCookie = cookies.find((c) => {
+      const name = c.split("=")[0];
+      return name !== undefined && SUPABASE_AUTH_COOKIE_PATTERN.test(name);
+    });
+    if (sbCookie !== undefined) {
+      const value = sbCookie.split("=").slice(1).join("=");
+      if (value.length > 0) {
+        return hashOwnerSeed(`sb:${value}`);
+      }
+    }
+  }
+  const authz = req.headers.get("authorization");
+  if (
+    authz !== null &&
+    authz.toLowerCase().startsWith("bearer ") &&
+    bearerAllowedInThisEnv()
+  ) {
+    const token = authz.slice("bearer ".length).trim();
+    if (token.length > 0) {
+      return hashOwnerSeed(`bearer:${token}`);
+    }
+  }
+  return null;
+}
+
+/**
+ * SHA-256 of the raw seed, hex-truncated to 24 chars. Plenty of entropy
+ * for ownership equality, short enough to render in log lines without
+ * scrolling the terminal off-screen.
+ */
+function hashOwnerSeed(seed: string): string {
+  return createHash("sha256").update(seed).digest("hex").slice(0, 24);
+}
+
 function clientKey(req: Request): string {
   // NB: in production behind Vercel/Cloudflare, X-Forwarded-For is
   // normalised by the upstream proxy. In dev, an attacker can spoof
@@ -113,11 +180,63 @@ function clientKey(req: Request): string {
   return `${ip}::${cookieMark}`;
 }
 
-export function rateLimitOk(req: Request): boolean {
-  return checkRateLimit(clientKey(req), {
+export interface RateLimitVerdict {
+  /** True when the request fit within the bucket. */
+  ok: boolean;
+  /** Configured limit (requests per window). */
+  limit: number;
+  /** Tokens left in the current window AFTER this check. */
+  remaining: number;
+  /** Unix epoch SECONDS when the bucket resets (per IETF
+   *  draft-ietf-httpapi-ratelimit-headers convention). */
+  resetAtSeconds: number;
+  /** Seconds the client should wait before retrying (0 when ok). */
+  retryAfterSeconds: number;
+}
+
+export function rateLimit(req: Request): RateLimitVerdict {
+  const state = checkRateLimitState(clientKey(req), {
     max: RATE_LIMIT_MAX,
     windowMs: RATE_LIMIT_WINDOW_MS,
   });
+  const nowMs = Date.now();
+  const retryAfterSeconds = state.allowed
+    ? 0
+    : Math.max(1, Math.ceil((state.resetAt - nowMs) / 1000));
+
+  return {
+    ok: state.allowed,
+    limit: RATE_LIMIT_MAX,
+    remaining: state.remaining,
+    resetAtSeconds: Math.ceil(state.resetAt / 1000),
+    retryAfterSeconds,
+  };
+}
+
+export function rateLimitOk(req: Request): boolean {
+  return rateLimit(req).ok;
+}
+
+/**
+ * Build the rate-limit response headers per IETF
+ * draft-ietf-httpapi-ratelimit-headers + RFC 7231 `Retry-After`.
+ *
+ * Emit on every response (success and 429) so clients can
+ * predict throttling — RFC behaviour. `Retry-After` is only set
+ * when the request was rejected.
+ */
+export function rateLimitHeaders(
+  v: RateLimitVerdict,
+): Record<string, string> {
+  const h: Record<string, string> = {
+    "X-RateLimit-Limit": String(v.limit),
+    "X-RateLimit-Remaining": String(v.remaining),
+    "X-RateLimit-Reset": String(v.resetAtSeconds),
+  };
+  if (!v.ok) {
+    h["Retry-After"] = String(v.retryAfterSeconds);
+  }
+  return h;
 }
 
 const LOCAL_HOSTNAMES = new Set([

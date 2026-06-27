@@ -1039,7 +1039,7 @@ validator and dual-write into the v1 store.
 **100% migration complete** — no Pluck pipeline still posts directly
 to its `/api/programs/<slug>/run` route. New client code should target
 `/v1/runs`; existing legacy callers continue to work unchanged
-through the deprecated aliases until the runner GA + RFC 8594
+through the deprecated aliases until the runner GA + RFC 9745
 sunset.
 
 **v1 read+streaming surface is structurally complete:** POST creates

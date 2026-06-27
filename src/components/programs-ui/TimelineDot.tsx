@@ -10,7 +10,7 @@
 //
 // Component is named `TimelineDotMark` (not `TimelineDot`) so it does
 // not collide with the `TimelineDot` data type exported by
-// `@sizls/pluck-bureau-core`. This separation is locked at Phase 0
+// `@sizls/pluck-core`. This separation is locked at Phase 0
 // because 11 future Pluck programs will import both.
 //
 // Click → navigates to the dot's deep-dive page where the operator
@@ -18,7 +18,7 @@
 // cosign verification command.
 // ---------------------------------------------------------------------------
 
-import type { TimelineDot } from "@sizls/pluck-bureau-core";
+import type { TimelineDot } from "@sizls/pluck-core";
 import type { ReactNode } from "react";
 
 export interface TimelineDotMarkProps {

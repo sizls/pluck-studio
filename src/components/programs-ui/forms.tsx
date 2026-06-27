@@ -69,6 +69,10 @@ interface StudioInputProps {
   value: string;
   onChange: (v: string) => void;
   testId?: string;
+  /** Id of the StudioHelpText that describes this input (a11y). */
+  describedBy?: string;
+  /** True when this input is in an error state (a11y). */
+  invalid?: boolean;
 }
 
 export function StudioInput({
@@ -80,6 +84,8 @@ export function StudioInput({
   value,
   onChange,
   testId,
+  describedBy,
+  invalid,
 }: StudioInputProps): ReactNode {
   return (
     <input
@@ -92,6 +98,8 @@ export function StudioInput({
       onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
       style={InputStyle}
       data-testid={testId}
+      aria-describedby={describedBy}
+      aria-invalid={invalid || undefined}
     />
   );
 }
@@ -118,6 +126,10 @@ interface StudioTextareaProps {
   onChange: (v: string) => void;
   rows?: number;
   testId?: string;
+  /** Id of the StudioHelpText that describes this textarea (a11y). */
+  describedBy?: string;
+  /** True when this textarea is in an error state (a11y). */
+  invalid?: boolean;
 }
 
 export function StudioTextarea({
@@ -128,6 +140,8 @@ export function StudioTextarea({
   onChange,
   rows = 3,
   testId,
+  describedBy,
+  invalid,
 }: StudioTextareaProps): ReactNode {
   return (
     <textarea
@@ -139,6 +153,8 @@ export function StudioTextarea({
       rows={rows}
       style={TextareaStyle}
       data-testid={testId}
+      aria-describedby={describedBy}
+      aria-invalid={invalid || undefined}
     />
   );
 }
@@ -165,22 +181,34 @@ interface StudioHelpTextProps {
   /**
    * When true, the help text takes on the form's error color — used
    * for inline field-level validation feedback (e.g. malformed cron).
+   *
+   * Also sets `role="alert"` so screen readers announce the message
+   * the moment it appears, instead of waiting for the next focus move.
    */
   error?: boolean;
   testId?: string;
+  /** Stable id so `<StudioInput describedBy={...}>` can target this node. */
+  id?: string;
 }
 
 export function StudioHelpText({
   children,
   error = false,
   testId,
+  id,
 }: StudioHelpTextProps): ReactNode {
   const style = error
     ? { ...HelpTextStyle, color: "#ff8888" }
     : HelpTextStyle;
 
   return (
-    <p style={style} data-testid={testId}>
+    <p
+      id={id}
+      style={style}
+      data-testid={testId}
+      role={error ? "alert" : undefined}
+      aria-live={error ? "polite" : undefined}
+    >
       {children}
     </p>
   );

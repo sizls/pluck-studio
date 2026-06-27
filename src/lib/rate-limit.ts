@@ -35,6 +35,14 @@ export interface RateLimitConfig {
   windowMs: number;
 }
 
+export interface RateLimitState {
+  allowed: boolean;
+  /** Remaining tokens in the current window AFTER this check. */
+  remaining: number;
+  /** Unix epoch milliseconds when the bucket resets. */
+  resetAt: number;
+}
+
 interface Bucket {
   count: number;
   resetAt: number;
@@ -49,27 +57,44 @@ const MAX_BUCKETS = 10_000;
 
 const buckets = new Map<string, Bucket>();
 
-export function checkRateLimit(
+export function checkRateLimitState(
   key: string,
   config: RateLimitConfig = DEFAULT_CONFIG,
   now: number = Date.now(),
-): boolean {
+): RateLimitState {
   const bucket = buckets.get(key);
 
   if (bucket === undefined || bucket.resetAt <= now) {
     enforceCap();
     // Re-insert (or insert) to mark as the most recently active key.
     buckets.delete(key);
-    buckets.set(key, { count: 1, resetAt: now + config.windowMs });
+    const fresh: Bucket = { count: 1, resetAt: now + config.windowMs };
+    buckets.set(key, fresh);
 
-    return true;
+    return {
+      allowed: true,
+      remaining: config.max - 1,
+      resetAt: fresh.resetAt,
+    };
   }
   if (bucket.count >= config.max) {
-    return false;
+    return { allowed: false, remaining: 0, resetAt: bucket.resetAt };
   }
   bucket.count += 1;
 
-  return true;
+  return {
+    allowed: true,
+    remaining: config.max - bucket.count,
+    resetAt: bucket.resetAt,
+  };
+}
+
+export function checkRateLimit(
+  key: string,
+  config: RateLimitConfig = DEFAULT_CONFIG,
+  now: number = Date.now(),
+): boolean {
+  return checkRateLimitState(key, config, now).allowed;
 }
 
 function enforceCap(): void {

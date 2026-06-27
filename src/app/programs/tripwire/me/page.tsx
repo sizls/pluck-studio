@@ -34,8 +34,8 @@ export default function TripwireMePage(): ReactNode {
           Per-machine outbound LLM timeline. The dossier lives on YOUR
           machine — Pluck never sees the bodies. This page is a
           placeholder that explains how to read your local dossier;
-          Phase 2.5 wires the Kite Event Log so opted-in operators can
-          publish their dossier hash here.
+          a future cut wires the Kite Event Log so opted-in operators
+          can publish their dossier hash here.
         </p>
       </section>
 

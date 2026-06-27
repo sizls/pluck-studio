@@ -33,8 +33,12 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../lib/security/csrf";
+import { readBoundedJson } from "../../../../lib/api/bounded-json";
 import { PIPELINE_VALIDATORS } from "../../../../lib/v1/pipeline-validators";
 import { redactPayloadForGet } from "../../../../lib/v1/redact";
 import { createRun, listRuns } from "../../../../lib/v1/run-store";
@@ -47,6 +51,25 @@ import {
   type RunStatus,
   validateRunSpec,
 } from "../../../../lib/v1/run-spec";
+
+/**
+ * Build the same minute-bucketed, ownerId-salted WHISTLE idempotency
+ * key the deprecated alias route synthesizes server-side. Keeps
+ * `/v1/runs` and the alias path converging on the same runId for a
+ * legitimate re-POST from the same session while making the
+ * cross-session existence oracle impossible to probe.
+ */
+function synthesizeWhistleIdempotencyKey(
+  ownerId: string,
+  payload: Record<string, unknown>,
+): string {
+  const routingPartner = String((payload.routingPartner ?? "")).trim();
+  const category = String((payload.category ?? "")).trim();
+  const bundleUrl = String((payload.bundleUrl ?? "")).trim();
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `whistle:${ownerId}:${routingPartner}:${category}:${bundleUrl}:${minuteBucket}`;
+}
 
 /**
  * Best-effort peek at the pipeline before full validation, used only to
@@ -76,25 +99,28 @@ export async function POST(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   // Parse body BEFORE the auth check so the 401 can carry a pipeline-aware
-  // sign-in redirect (e.g. `/sign-in?redirect=/programs/dragnet/run`). Body
-  // parsing is cheap and the same-site + rate-limit gates above already
-  // mitigate body-payload abuse.
-  let raw: unknown;
-  try {
-    raw = await req.json();
-  } catch {
+  // sign-in redirect (e.g. `/sign-in?redirect=/programs/dragnet/run`). The
+  // bounded reader caps the request body before parse so a 100MB payload
+  // is rejected via Content-Length inspection rather than burning JSON-parse
+  // cycles.
+  const parsed = await readBoundedJson(req);
+  if (!parsed.ok) {
     return NextResponse.json(
-      { error: "invalid JSON body" },
-      { status: 400 },
+      { error: parsed.error },
+      { status: parsed.status },
     );
   }
+  const raw = parsed.value;
 
   if (!isAuthed(req)) {
     const slug = peekProgramSlug(req, raw);
@@ -105,6 +131,12 @@ export async function POST(req: Request): Promise<Response> {
         signInUrl: `/sign-in?redirect=${redirect}`,
       },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 
@@ -141,7 +173,34 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: payloadResult.error }, { status: 400 });
   }
 
-  const { record, reused } = createRun(spec);
+  const ownerId = ownerIdFromRequest(req);
+
+  // WHISTLE existence-oracle fix: override the client-supplied
+  // idempotency key with an ownerId-salted one server-side. Without
+  // the salt, any authenticated caller could probe `reused: true` for
+  // a given (routingPartner, category, bundleUrl) triple and learn
+  // whether SOMEONE (possibly another operator) had submitted that
+  // exact tuple in the current minute. With the salt, dedupe is
+  // per-caller: a re-POST of the same body from the same session
+  // returns the prior phraseId; a re-POST from any other session
+  // always creates a fresh record.
+  //
+  // The override applies ONLY to WHISTLE — the other 10 program
+  // pipelines do not carry the same source-anonymity contract, so
+  // their idempotency keys stay deterministic across sessions
+  // (allowing dedupe across multiple sign-in flows etc).
+  const effectiveSpec =
+    spec.pipeline === "program:whistle"
+      ? {
+          ...spec,
+          idempotencyKey: synthesizeWhistleIdempotencyKey(
+            ownerId ?? "anon",
+            spec.payload,
+          ),
+        }
+      : spec;
+
+  const { record, reused } = createRun(effectiveSpec, { ownerId });
 
   return NextResponse.json(
     {
@@ -300,11 +359,14 @@ export async function GET(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
 
   const parsed = parseListQuery(new URL(req.url));

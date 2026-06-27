@@ -50,8 +50,8 @@ export default async function OathVendorPage({
       <section>
         <h2 style={SectionHeadingStyle}>Live fetch</h2>
         <p>
-          Phase 4 alpha — the public viewer ships next pass. To inspect
-          this vendor today, run:
+          The public viewer ships next pass. To inspect this vendor
+          today, run:
         </p>
         <pre>
           <code>

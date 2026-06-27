@@ -38,6 +38,87 @@ a:hover {
   text-decoration: underline;
 }
 
+/* ---------------------------------------------------------------------------
+ * Focus rings — keyboard-only via :focus-visible.
+ *
+ * Every link, button, input, textarea, summary disclosure, and the
+ * generic interactive surfaces ([role="button"], [tabindex="0"]) get a
+ * 2px accent-colored ring with a small offset. Mouse focus stays
+ * unringed (the browser's :focus-visible heuristic suppresses the ring
+ * for pointer events). Pairs with prefers-reduced-motion below so the
+ * ring is consistent across motion preferences.
+ *
+ * Inputs already had a green border on :focus (see .studio-rekor-search-input
+ * and the inline InputStyle/TextareaStyle in forms.tsx); the outline here is
+ * additive so screen-magnifier users get a high-contrast ring even when the
+ * input already shows its focus border. WCAG 2.4.7 + 2.4.11.
+ * ------------------------------------------------------------------------- */
+:focus {
+  outline: none;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex="0"]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--studio-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Skip link — keyboard users tab to it first, press Enter, land at main.
+ * Off-screen until focused so it doesn't disrupt the visual header.
+ * WCAG 2.4.1 (bypass blocks).
+ * ------------------------------------------------------------------------- */
+.studio-skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 16px;
+  background: var(--studio-accent);
+  color: #000;
+  font-family: var(--studio-mono);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: top 0.15s ease-in-out;
+}
+
+.studio-skip-link:focus,
+.studio-skip-link:focus-visible {
+  top: 8px;
+  outline: 2px solid var(--studio-fg);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * prefers-reduced-motion — disable the skip-link slide and any other
+ * non-essential motion. Studio doesn't have animations today, but the
+ * skip link transition above + any future animations should respect this.
+ * WCAG 2.3.3.
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .studio-skip-link {
+    transition: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .studio-chrome {
   display: flex;
   flex-direction: column;

@@ -37,7 +37,8 @@ import packageJson from "../../../../../package.json";
 import { buildManifest } from "../../../../lib/mcp/build-manifest";
 import {
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../lib/security/request-guards";
 
 export async function GET(req: NextRequest): Promise<Response> {
@@ -47,11 +48,14 @@ export async function GET(req: NextRequest): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
 
   const baseUrl = process.env.STUDIO_BASE_URL ?? req.nextUrl.origin;

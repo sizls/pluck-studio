@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 //
 // Per the SBOM-AI landing's "three artifact kinds":
-//   - probe-pack  — @sizls/pluck-bureau-core ProbePack body; packHash
+//   - probe-pack  — @sizls/pluck-core ProbePack body; packHash
 //                    IS the artifact digest
 //   - model-card  — Hugging Face / OpenAI ModelCard JSON, canonical-
 //                    JSON-hashed

@@ -13,7 +13,7 @@
 // than vaporware.
 // ---------------------------------------------------------------------------
 
-import type { BureauProgramId } from "@sizls/pluck-bureau-core";
+import type { BureauProgramId } from "@sizls/pluck-core";
 
 export interface ProgramTile {
   id: BureauProgramId;

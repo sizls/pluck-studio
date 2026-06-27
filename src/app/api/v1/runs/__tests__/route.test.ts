@@ -1666,3 +1666,45 @@ describe("DELETE /api/v1/runs/[id] — interaction with GET", () => {
     expect(body.status).toBe("cancelled");
   });
 });
+
+describe("POST /api/v1/runs — WHISTLE existence oracle is closed", () => {
+  const whistleBody = (overrides: Record<string, unknown> = {}) => ({
+    pipeline: "program:whistle",
+    payload: {
+      bundleUrl: "https://anonymous.host/bundle.json",
+      category: "policy-violation",
+      routingPartner: "propublica",
+      anonymityCaveatAcknowledged: true,
+      authorizationAcknowledged: true,
+    },
+    // Whatever the client sends is OVERRIDDEN server-side for WHISTLE.
+    idempotencyKey: "whistle:client-controlled-key",
+    ...overrides,
+  });
+
+  const headersForSession = (token: string) => ({
+    ...SAME_SITE,
+    authorization: `Bearer ${token}`,
+  });
+
+  it("same session double-click converges on the same runId", async () => {
+    const headers = headersForSession("alice-token");
+    const a = await POST(postReq(whistleBody(), headers));
+    const b = await POST(postReq(whistleBody(), headers));
+    const ba = (await a.json()) as { runId: string; reused: boolean };
+    const bb = (await b.json()) as { runId: string; reused: boolean };
+    expect(ba.runId).toBe(bb.runId);
+    expect(bb.reused).toBe(true);
+  });
+
+  it("different sessions submitting identical bodies get different runIds (oracle closed)", async () => {
+    const alice = await POST(postReq(whistleBody(), headersForSession("alice-token")));
+    const bob = await POST(postReq(whistleBody(), headersForSession("bob-token")));
+    const a = (await alice.json()) as { runId: string; reused: boolean };
+    const b = (await bob.json()) as { runId: string; reused: boolean };
+    expect(a.runId).not.toBe(b.runId);
+    // Critical: Bob's POST must NEVER see `reused: true` even though
+    // Alice posted the exact same triple seconds earlier.
+    expect(b.reused).toBe(false);
+  });
+});

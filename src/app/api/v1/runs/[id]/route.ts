@@ -29,8 +29,11 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  ownerIdFromRequest,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../../lib/security/csrf";
 import { redactPayloadForGet } from "../../../../../lib/v1/redact";
 import { cancelRun, getRun } from "../../../../../lib/v1/run-store";
 
@@ -48,11 +51,14 @@ export async function GET(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
 
   const { id } = await context.params;
@@ -145,16 +151,25 @@ export async function DELETE(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
       { error: "authentication required" },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 
@@ -166,9 +181,40 @@ export async function DELETE(
     );
   }
 
+  // IDOR fix: only the run's creator can cancel it. Look up the record
+  // BEFORE invoking `cancelRun` so the ownership check fires whether
+  // the record exists yet or not — `cancelRun` itself doesn't take an
+  // owner argument so the gate has to live here.
+  //
+  // Records created BEFORE the IDOR fix landed have `ownerId === null`
+  // (legacy / stub data). We let those through — there are no
+  // production records yet because the store is in-memory, so the
+  // legacy-passthrough is only relevant for tests + dev. Once a real
+  // record carries a non-null ownerId, that ownerId MUST match the
+  // caller's derived ownerId or the cancel is rejected as 403.
+  const existing = getRun(id);
+  if (existing === null) {
+    return NextResponse.json(
+      { error: "run not found" },
+      { status: 404 },
+    );
+  }
+  if (existing.ownerId !== null) {
+    const callerOwnerId = ownerIdFromRequest(req);
+    if (callerOwnerId === null || existing.ownerId !== callerOwnerId) {
+      return NextResponse.json(
+        { error: "not authorized to cancel this run" },
+        { status: 403 },
+      );
+    }
+  }
+
   const result = cancelRun(id);
 
   if (result.kind === "not-found") {
+    // Race: the run vanished (TTL eviction) between the getRun above
+    // and the cancelRun call. Surface the same 404 the read side
+    // would emit.
     return NextResponse.json(
       { error: "run not found" },
       { status: 404 },

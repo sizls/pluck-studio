@@ -8,8 +8,8 @@
 // of the timeline.
 // ---------------------------------------------------------------------------
 
-import type { Dossier } from "@sizls/pluck-bureau-core";
-import { verifyDossier } from "@sizls/pluck-bureau-core";
+import type { Dossier } from "@sizls/pluck-core";
+import { verifyDossier } from "@sizls/pluck-core";
 import type { ReactNode } from "react";
 
 import { QuorumBadge } from "./QuorumBadge.js";

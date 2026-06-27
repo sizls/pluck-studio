@@ -144,11 +144,14 @@ describe("POST /api/programs/dragnet/run — auth", () => {
   });
 
   it("accepts a Supabase auth cookie", async () => {
+    // Cookie-based auth requires the CSRF double-submit token.
+    const csrfToken = "a".repeat(64);
     const res = await POST(
       buildRequest({
         headers: {
           ...SAME_SITE_HEADERS,
-          cookie: "sb-abcdef-auth-token=eyJhbGciOiJIUzI1NiJ9.test.sig",
+          cookie: `sb-abcdef-auth-token=eyJhbGciOiJIUzI1NiJ9.test.sig; pluck-csrf=${csrfToken}`,
+          "x-csrf-token": csrfToken,
         },
         body: validBody(),
       }),
@@ -166,11 +169,13 @@ describe("POST /api/programs/dragnet/run — auth", () => {
   });
 
   it("accepts chunked Supabase cookie (sb-*-auth-token.0)", async () => {
+    const csrfToken = "b".repeat(64);
     const res = await POST(
       buildRequest({
         headers: {
           ...SAME_SITE_HEADERS,
-          cookie: "sb-abcdef-auth-token.0=chunk-zero-content; other=x",
+          cookie: `sb-abcdef-auth-token.0=chunk-zero-content; other=x; pluck-csrf=${csrfToken}`,
+          "x-csrf-token": csrfToken,
         },
         body: validBody(),
       }),
@@ -415,7 +420,7 @@ describe("POST /api/programs/dragnet/run — output shape", () => {
   });
 });
 
-describe("POST /api/programs/dragnet/run — RFC 8594 deprecation signaling (M5 fix)", () => {
+describe("POST /api/programs/dragnet/run — RFC 9745 deprecation signaling", () => {
   it("emits Deprecation, Sunset, and Link successor-version headers", async () => {
     const res = await POST(
       buildRequest({
@@ -424,8 +429,8 @@ describe("POST /api/programs/dragnet/run — RFC 8594 deprecation signaling (M5 
       }),
     );
     expect(res.status).toBe(200);
-    // Deprecation must be the literal token "true" per RFC 8594.
-    expect(res.headers.get("Deprecation")).toBe("true");
+    // Deprecation carries the IMF-fixdate the route was marked deprecated, per RFC 9745.
+    expect(res.headers.get("Deprecation")).toBe("Mon, 04 May 2026 00:00:00 GMT");
     // Sunset is an IMF-fixdate; we just sanity-check it's present and parses.
     const sunset = res.headers.get("Sunset");
     expect(sunset).not.toBeNull();

@@ -12,7 +12,7 @@
 import {
   computeVendorReputation,
   type VendorReputation,
-} from "@sizls/pluck-bureau-core";
+} from "@sizls/pluck-core";
 import { ReputationBadge } from "@/components/programs-ui";
 import type { ReactNode } from "react";
 
@@ -74,7 +74,7 @@ export default async function ReputationVendorPage({
           The score is a sum of weighted, decaying contributions over a{" "}
           {reputation.decayWindowDays}-day window. Anyone can re-run the
           math; the formula is documented in
-          <code> @sizls/pluck-bureau-core/reputation.ts </code>.
+          <code> @sizls/pluck-core/reputation.ts </code>.
         </p>
         <table className="studio-leaderboard">
           <thead>
@@ -144,7 +144,7 @@ export default async function ReputationVendorPage({
           </code>
         </pre>
         <p>
-          Phase 7+ ships the SVG API route. Today the badge above is
+          The SVG API route ships later. Today the badge above is
           rendered inline by the same React component the API will use
           — embedders see the same shape.
         </p>

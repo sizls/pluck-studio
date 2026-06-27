@@ -15,9 +15,12 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  ownerIdFromRequest,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../../../lib/security/request-guards";
-import { triggerWatch } from "../../../../../../lib/watch/store";
+import { isCsrfSafe } from "../../../../../../lib/security/csrf";
+import { getWatch, triggerWatch } from "../../../../../../lib/watch/store";
 
 interface RouteContext {
   readonly params: Promise<{ id: string }>;
@@ -35,11 +38,14 @@ export async function POST(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
@@ -47,10 +53,34 @@ export async function POST(
       { status: 401 },
     );
   }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
+    );
+  }
 
   const { id } = await context.params;
   if (typeof id !== "string" || id.length === 0 || id.length > 128) {
     return NextResponse.json({ error: "invalid watch id" }, { status: 400 });
+  }
+
+  // IDOR fix: manual-fire is owner-only. Same record-then-check pattern
+  // as PATCH/DELETE so the gate fires before the fetch + agent burn.
+  {
+    const existing = getWatch(id);
+    if (existing === null) {
+      return NextResponse.json({ error: "watch not found" }, { status: 404 });
+    }
+    if (existing.ownerId !== null) {
+      const callerOwnerId = ownerIdFromRequest(req);
+      if (callerOwnerId === null || existing.ownerId !== callerOwnerId) {
+        return NextResponse.json(
+          { error: "not authorized to trigger this watch" },
+          { status: 403 },
+        );
+      }
+    }
   }
 
   const result = await triggerWatch(id);

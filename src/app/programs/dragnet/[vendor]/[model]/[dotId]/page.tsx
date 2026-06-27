@@ -80,7 +80,7 @@ export default async function DragnetDotPage({
         <p>
           When this red dot was a contradict-hit, the vendor&apos;s
           Disclosure/v1 claim renders here once ingestion is wired.
-          Phase 1 alpha — placeholder.
+          Placeholder for now.
         </p>
       </section>
     </>

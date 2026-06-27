@@ -13,8 +13,11 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  ownerIdFromRequest,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../../lib/security/csrf";
 import { redactWatchForGet } from "../../../../../lib/v1/redact";
 import {
   archiveWatch,
@@ -23,25 +26,7 @@ import {
   updateWatch,
 } from "../../../../../lib/watch/store";
 import { validateWatchUpdate } from "../../../../../lib/v1/watch-validators";
-
-const MAX_REQUEST_BODY_BYTES = 64 * 1024;
-
-async function readBoundedJson(
-  req: Request,
-): Promise<{ ok: true; value: unknown } | { ok: false; error: string; status: number }> {
-  const lenHeader = req.headers.get("content-length");
-  if (lenHeader !== null) {
-    const len = Number.parseInt(lenHeader, 10);
-    if (Number.isFinite(len) && len > MAX_REQUEST_BODY_BYTES) {
-      return { ok: false, error: "request body too large", status: 413 };
-    }
-  }
-  try {
-    return { ok: true, value: await req.json() };
-  } catch {
-    return { ok: false, error: "invalid JSON body", status: 400 };
-  }
-}
+import { readBoundedJson } from "../../../../../lib/api/bounded-json";
 
 interface RouteContext {
   readonly params: Promise<{ id: string }>;
@@ -65,11 +50,14 @@ export async function GET(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
 
   const { id } = await context.params;
@@ -110,16 +98,25 @@ export async function PATCH(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
       { error: "authentication required" },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 
@@ -137,6 +134,24 @@ export async function PATCH(
   const validated = validateWatchUpdate(parsed.value);
   if (!validated.ok) {
     return NextResponse.json({ error: validated.error }, { status: 400 });
+  }
+
+  // IDOR fix: PATCH is owner-only. Lookup the record BEFORE invoking
+  // updateWatch so the ownership check fires whether or not the update
+  // would succeed. Legacy watches (ownerId === null) pass through to
+  // preserve the pre-IDOR-fix behavior.
+  const existing = getWatch(id);
+  if (existing === null) {
+    return NextResponse.json({ error: "watch not found" }, { status: 404 });
+  }
+  if (existing.ownerId !== null) {
+    const callerOwnerId = ownerIdFromRequest(req);
+    if (callerOwnerId === null || existing.ownerId !== callerOwnerId) {
+      return NextResponse.json(
+        { error: "not authorized to update this watch" },
+        { status: 403 },
+      );
+    }
   }
 
   const result = updateWatch(id, validated.update);
@@ -166,11 +181,14 @@ export async function DELETE(
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
@@ -178,11 +196,34 @@ export async function DELETE(
       { status: 401 },
     );
   }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
+    );
+  }
 
   const { id } = await context.params;
   const idCheck = validateId(id);
   if (!idCheck.ok) {
     return NextResponse.json({ error: idCheck.error }, { status: 400 });
+  }
+
+  // IDOR fix: archive (DELETE) is owner-only. Same pattern as PATCH.
+  {
+    const existing = getWatch(id);
+    if (existing === null) {
+      return NextResponse.json({ error: "watch not found" }, { status: 404 });
+    }
+    if (existing.ownerId !== null) {
+      const callerOwnerId = ownerIdFromRequest(req);
+      if (callerOwnerId === null || existing.ownerId !== callerOwnerId) {
+        return NextResponse.json(
+          { error: "not authorized to archive this watch" },
+          { status: 403 },
+        );
+      }
+    }
   }
 
   const result = archiveWatch(id);

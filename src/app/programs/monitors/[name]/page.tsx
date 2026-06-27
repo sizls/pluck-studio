@@ -14,8 +14,8 @@ export default async function MonitorDetailPage({
       <section className="studio-hero">
         <h1 className="studio-hero-title">Monitor: {name}</h1>
         <p className="studio-hero-tagline">
-          Public profile for a quorum-node operator. Phase 0 — placeholder.
-          Phase 1 wires this to the operator-identity registry.
+          Public profile for a quorum-node operator. Placeholder
+          until the operator-identity registry lights up.
         </p>
       </section>
     </>

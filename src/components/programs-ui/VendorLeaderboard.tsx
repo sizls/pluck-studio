@@ -7,7 +7,7 @@
 // red entry pressures the vendor publicly.
 // ---------------------------------------------------------------------------
 
-import type { BureauProgramId } from "@sizls/pluck-bureau-core";
+import type { BureauProgramId } from "@sizls/pluck-core";
 import type { ReactNode } from "react";
 
 export interface LeaderboardEntry {

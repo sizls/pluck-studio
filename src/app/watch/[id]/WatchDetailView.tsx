@@ -19,6 +19,10 @@ import {
 } from "react";
 
 import type { PublicWatchRecord } from "../../../lib/v1/redact";
+import {
+  csrfJsonHeaders,
+  csrfRequestHeaders,
+} from "../../../lib/security/csrf-client";
 import type {
   ObservationRecord,
   WatchStatus,
@@ -202,7 +206,14 @@ export function WatchDetailView({
 
   const trigger = useCallback(async (): Promise<void> => {
     await doAction("trigger", () =>
-      fetch(`/api/v1/watches/${watchId}/trigger`, { method: "POST" }),
+      fetch(`/api/v1/watches/${watchId}/trigger`, {
+        method: "POST",
+        // CSRF gate — the trigger endpoint shares the cookie-auth
+        // mutation pattern with PATCH below, so it needs the same
+        // double-submit token. Header-only is fine; trigger carries
+        // no body to fold the token into.
+        headers: csrfRequestHeaders(),
+      }),
     );
   }, [doAction, watchId]);
 
@@ -211,7 +222,7 @@ export function WatchDetailView({
     await doAction(next, () =>
       fetch(`/api/v1/watches/${watchId}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: csrfJsonHeaders(),
         body: JSON.stringify({ status: next }),
       }),
     );
@@ -226,7 +237,12 @@ export function WatchDetailView({
       return;
     }
     await doAction("archive", () =>
-      fetch(`/api/v1/watches/${watchId}`, { method: "DELETE" }),
+      fetch(`/api/v1/watches/${watchId}`, {
+        method: "DELETE",
+        // CSRF gate on the archive path. DELETE carries no body so
+        // the header path is the only seam to thread the token.
+        headers: csrfRequestHeaders(),
+      }),
     );
   }, [doAction, watchId]);
 

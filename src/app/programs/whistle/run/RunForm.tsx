@@ -15,6 +15,7 @@
 import { createSystem } from "@directive-run/core";
 import { useDerived, useFact } from "@directive-run/react";
 import { useRouter } from "next/navigation";
+import { csrfJsonHeaders } from "../../../../lib/security/csrf-client";
 import {
   useCallback,
   useEffect,
@@ -203,7 +204,7 @@ export function WhistleRunForm(): ReactNode {
       // REJECTS any payload key resembling source-identifying material.
       const res = await fetch("/api/v1/runs", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: csrfJsonHeaders(),
         body: JSON.stringify({
           pipeline: "program:whistle",
           payload: {

@@ -83,7 +83,7 @@ export default function DragnetIndexPage(): ReactNode {
             the per-target dossier.
           </li>
           <li>
-            Red dots auto-broadcast to the @pluckbureau social bot, RSS
+            Red dots auto-broadcast to the @pluckrun social bot, RSS
             feeds, and the public leaderboard.
           </li>
         </ol>
@@ -114,8 +114,8 @@ export default function DragnetIndexPage(): ReactNode {
           </code>
         </pre>
         <p>
-          NUCLEI (Phase 3) will host the public registry of community-
-          authored packs.
+          NUCLEI will host the public registry of community-authored
+          packs.
         </p>
       </section>
     </>

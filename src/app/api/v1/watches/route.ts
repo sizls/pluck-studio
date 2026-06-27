@@ -24,8 +24,11 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  ownerIdFromRequest,
+  rateLimit,
+  rateLimitHeaders,
 } from "../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../lib/security/csrf";
 import { redactWatchForGet } from "../../../../lib/v1/redact";
 import {
   createWatch,
@@ -37,25 +40,7 @@ import {
 } from "../../../../lib/v1/watch-spec";
 import { validateWatchSpec } from "../../../../lib/v1/watch-validators";
 
-/** Reject unauth'd JSON bodies above this size (pre-parse). 64 KiB. */
-const MAX_REQUEST_BODY_BYTES = 64 * 1024;
-
-async function readBoundedJson(
-  req: Request,
-): Promise<{ ok: true; value: unknown } | { ok: false; error: string; status: number }> {
-  const lenHeader = req.headers.get("content-length");
-  if (lenHeader !== null) {
-    const len = Number.parseInt(lenHeader, 10);
-    if (Number.isFinite(len) && len > MAX_REQUEST_BODY_BYTES) {
-      return { ok: false, error: "request body too large", status: 413 };
-    }
-  }
-  try {
-    return { ok: true, value: await req.json() };
-  } catch {
-    return { ok: false, error: "invalid JSON body", status: 400 };
-  }
-}
+import { readBoundedJson } from "../../../../lib/api/bounded-json";
 
 export async function POST(req: Request): Promise<Response> {
   if (!isSameSiteRequest(req)) {
@@ -64,11 +49,14 @@ export async function POST(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   // Auth BEFORE parsing — unauthenticated callers cannot occupy a request
   // slot doing JSON parse work (SEC-M8). Mirror in [id]/route.ts.
@@ -79,6 +67,12 @@ export async function POST(req: Request): Promise<Response> {
         signInUrl: "/sign-in?redirect=/watch",
       },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 
@@ -92,7 +86,8 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
-  const { record, reused } = createWatch(validated.spec);
+  const ownerId = ownerIdFromRequest(req);
+  const { record, reused } = createWatch(validated.spec, { ownerId });
 
   // Envelope-on-create / resource-on-read pattern (same as /v1/runs).
   // POST returns the minimum needed to redirect + de-dupe; GET/PATCH/DELETE
@@ -202,11 +197,14 @@ export async function GET(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
 
   const parsed = parseListQuery(new URL(req.url));

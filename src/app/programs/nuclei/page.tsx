@@ -59,7 +59,7 @@ export default function NucleiIndexPage(): ReactNode {
           <li>
             <strong>NucleiPackEntry/v1</strong> — the registry envelope
             wrapping a signed{" "}
-            <code>@sizls/pluck-bureau-core ProbePack</code> with NUCLEI
+            <code>@sizls/pluck-core ProbePack</code> with NUCLEI
             metadata (vendor scope, tags, recommended interval, license).
             ALWAYS rides on top of an SBOM-AI <code>SbomEntry/v1</code>
             cross-reference.

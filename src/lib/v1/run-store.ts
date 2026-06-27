@@ -448,7 +448,12 @@ export interface CreateRunResult {
   reused: boolean;
 }
 
-export function createRun(spec: RunSpec, now: number = Date.now()): CreateRunResult {
+export function createRun(
+  spec: RunSpec,
+  options: { ownerId?: string | null; now?: number } = {},
+): CreateRunResult {
+  const now = options.now ?? Date.now();
+  const ownerId = options.ownerId ?? null;
   evictExpired(now);
 
   const idHash = idempotencyHashOf(spec);
@@ -479,6 +484,7 @@ export function createRun(spec: RunSpec, now: number = Date.now()): CreateRunRes
     createdAt: iso,
     updatedAt: iso,
     receiptUrl: receiptUrlFor(spec.pipeline, runId),
+    ownerId,
   };
 
   runs.set(runId, record);

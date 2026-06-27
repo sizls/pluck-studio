@@ -261,6 +261,13 @@ export interface WatchRecord {
   readonly receiptUrl: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+  /**
+   * Pin the watch to its creator so PATCH / DELETE / POST-trigger endpoints
+   * can reject cross-account access (IDOR fix). Derived from
+   * `ownerIdFromRequest(req)` at create time. `null` only for legacy
+   * watches written before the IDOR fix landed — those skip the check.
+   */
+  readonly ownerId: string | null;
 }
 
 // ---------------------------------------------------------------------------

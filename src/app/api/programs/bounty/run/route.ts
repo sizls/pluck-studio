@@ -21,7 +21,7 @@
 //      model slug grammar + ToS / authorization assertion.
 //   5. On success: { runId, phraseId, target, program, vendor, model,
 //      sourceRekorUuid, status:"filing pending", deprecated: true,
-//      replacement: "/api/v1/runs" } + RFC 8594 Deprecation/Sunset/Link
+//      replacement: "/api/v1/runs" } + RFC 9745 Deprecation/Sunset/Link
 //      headers. runId === phraseId — single primitive, identical on
 //      idempotent retries.
 //
@@ -37,16 +37,16 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../../lib/security/csrf";
 import { validateBountyPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
 
-const DEPRECATION_HEADERS: Record<string, string> = {
-  Deprecation: "true",
-  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
-  Link: '</api/v1/runs>; rel="successor-version"',
-};
+import { DEPRECATION_HEADERS } from "../../../../../lib/api/deprecation-headers";
+import { readBoundedJson } from "../../../../../lib/api/bounded-json";
 
 interface BountyRequestBody {
   sourceRekorUuid?: string;
@@ -83,11 +83,14 @@ export async function POST(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
@@ -98,15 +101,20 @@ export async function POST(req: Request): Promise<Response> {
       { status: 401 },
     );
   }
-  let body: BountyRequestBody;
-  try {
-    body = (await req.json()) as BountyRequestBody;
-  } catch {
+  if (!isCsrfSafe(req)) {
     return NextResponse.json(
-      { error: "invalid JSON body" },
-      { status: 400 },
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
+  const parsed = await readBoundedJson(req);
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.error },
+      { status: parsed.status },
+    );
+  }
+  const body = parsed.value as BountyRequestBody;
 
   // Single source of truth — the same validator /v1/runs uses. Keeps the
   // two surfaces from drifting. Validator also enforces the privacy
@@ -127,6 +135,7 @@ export async function POST(req: Request): Promise<Response> {
   // page can read this run back via GET /api/v1/runs/[id]. The store
   // assigns the canonical target-scoped phraseId — that becomes the
   // user-facing runId.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:bounty",
     payload: {
@@ -138,7 +147,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(target, program, sourceRekorUuid),
-  });
+  }, { ownerId });
 
   return NextResponse.json(
     {

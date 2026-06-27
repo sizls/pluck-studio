@@ -149,7 +149,7 @@ describe("run-store — getRun + TTL", () => {
   describe.skipIf(!STUB_ONLY)("STUB-only — in-memory TTL eviction", () => {
     it("evicts records older than 24h on read", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const { record } = createRun(validProgramSpec, t0);
+      const { record } = createRun(validProgramSpec, { now: t0 });
       expect(getRun(record.runId, t0 + 1000)).not.toBeNull();
       // 24h + 1s after creation → evicted.
       expect(getRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000)).toBeNull();
@@ -163,7 +163,7 @@ describe("run-store — getRun + TTL", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
       // Five runs, each with a distinct idempotency key.
       for (let i = 0; i < 5; i++) {
-        createRun({ ...validProgramSpec, idempotencyKey: `k-${i}` }, t0);
+        createRun({ ...validProgramSpec, idempotencyKey: `k-${i}` }, { now: t0 });
       }
       expect(__runCount()).toBe(5);
       expect(__idempotencyCount()).toBe(5);
@@ -172,9 +172,7 @@ describe("run-store — getRun + TTL", () => {
       // calls evictExpired() at the top of its body. The 5 prior runs
       // (and their idempotency rows) should be swept.
       createRun(
-        { ...validProgramSpec, idempotencyKey: "fresh" },
-        t0 + __INTERNAL_TTL_MS + 1000,
-      );
+        { ...validProgramSpec, idempotencyKey: "fresh" }, { now: t0 + __INTERNAL_TTL_MS + 1000, });
       // Only the fresh row remains.
       expect(__runCount()).toBe(1);
       expect(__idempotencyCount()).toBe(1);
@@ -259,9 +257,9 @@ describe("run-store — listRuns", () => {
 
   it("returns all runs in createdAt DESC order with no filter", () => {
     const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-    const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
-    const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
-    const c = createRun({ ...dragnetSpec, idempotencyKey: "c" }, t0 + 2000);
+    const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, { now: t0 });
+    const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, { now: t0 + 1000 });
+    const c = createRun({ ...dragnetSpec, idempotencyKey: "c" }, { now: t0 + 2000 });
 
     // Pass `now` consistent with creation timestamps so TTL doesn't sweep.
     const result = listRuns({}, t0 + 3000);
@@ -276,9 +274,9 @@ describe("run-store — listRuns", () => {
 
   it("filters by pipeline", () => {
     const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-    createRun({ ...dragnetSpec, idempotencyKey: "d1" }, t0);
-    const o = createRun({ ...oathSpec, idempotencyKey: "o1" }, t0 + 1000);
-    createRun({ ...dragnetSpec, idempotencyKey: "d2" }, t0 + 2000);
+    createRun({ ...dragnetSpec, idempotencyKey: "d1" }, { now: t0 });
+    const o = createRun({ ...oathSpec, idempotencyKey: "o1" }, { now: t0 + 1000 });
+    createRun({ ...dragnetSpec, idempotencyKey: "d2" }, { now: t0 + 2000 });
 
     const result = listRuns({ pipeline: "program:oath" }, t0 + 3000);
     expect(result.runs.map((r) => r.runId)).toEqual([o.record.runId]);
@@ -287,12 +285,10 @@ describe("run-store — listRuns", () => {
 
   it("filters by `since` (strictly after)", () => {
     const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-    createRun({ ...dragnetSpec, idempotencyKey: "old" }, t0);
-    const mid = createRun({ ...dragnetSpec, idempotencyKey: "mid" }, t0 + 5000);
+    createRun({ ...dragnetSpec, idempotencyKey: "old" }, { now: t0 });
+    const mid = createRun({ ...dragnetSpec, idempotencyKey: "mid" }, { now: t0 + 5000 });
     const fresh = createRun(
-      { ...dragnetSpec, idempotencyKey: "fresh" },
-      t0 + 10000,
-    );
+      { ...dragnetSpec, idempotencyKey: "fresh" }, { now: t0 + 10000, });
 
     const result = listRuns({ since: t0 + 1000 }, t0 + 11000);
     expect(result.runs.map((r) => r.runId)).toEqual([
@@ -305,7 +301,7 @@ describe("run-store — listRuns", () => {
   it("clamps limit: 0 → 1, 999 → 100, default 20", () => {
     const t0 = Date.parse("2026-01-01T00:00:00.000Z");
     for (let i = 0; i < 25; i++) {
-      createRun({ ...dragnetSpec, idempotencyKey: `k-${i}` }, t0 + i * 1000);
+      createRun({ ...dragnetSpec, idempotencyKey: `k-${i}` }, { now: t0 + i * 1000 });
     }
     const after = t0 + 26000;
 
@@ -325,9 +321,7 @@ describe("run-store — listRuns", () => {
     const ids: string[] = [];
     for (let i = 0; i < 7; i++) {
       const { record } = createRun(
-        { ...dragnetSpec, idempotencyKey: `p-${i}` },
-        t0 + i * 1000,
-      );
+        { ...dragnetSpec, idempotencyKey: `p-${i}` }, { now: t0 + i * 1000, });
       ids.push(record.runId);
     }
     const after = t0 + 8000;
@@ -362,8 +356,8 @@ describe("run-store — listRuns", () => {
 
   it("falls through to start when cursor refers to a runId not in the result set", () => {
     const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-    const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
-    const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+    const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, { now: t0 });
+    const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, { now: t0 + 1000 });
 
     const result = listRuns(
       { cursor: "nonexistent-cursor-id-0000" },
@@ -378,8 +372,8 @@ describe("run-store — listRuns", () => {
   describe("status filter", () => {
     it("returns all runs when no status filter is supplied (backward-compat)", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
-      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, { now: t0 });
+      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, { now: t0 + 1000 });
       // Cancel one of the two so we have a mix of statuses.
       cancelRun(a.record.runId, t0 + 2000);
 
@@ -396,8 +390,8 @@ describe("run-store — listRuns", () => {
 
     it("filters to a single status (status='pending') — only pending runs returned", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
-      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, { now: t0 });
+      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, { now: t0 + 1000 });
       cancelRun(a.record.runId, t0 + 2000);
 
       const result = listRuns({ status: "pending" }, t0 + 3000);
@@ -407,8 +401,8 @@ describe("run-store — listRuns", () => {
 
     it("filters to a single status (status='cancelled') — only cancelled runs returned", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
-      createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, { now: t0 });
+      createRun({ ...dragnetSpec, idempotencyKey: "b" }, { now: t0 + 1000 });
       cancelRun(a.record.runId, t0 + 2000);
 
       const result = listRuns({ status: "cancelled" }, t0 + 3000);
@@ -419,9 +413,9 @@ describe("run-store — listRuns", () => {
 
     it("filters to multiple statuses via array (status=['cancelled','anchored'])", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
-      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
-      const c = createRun({ ...dragnetSpec, idempotencyKey: "c" }, t0 + 2000);
+      const a = createRun({ ...dragnetSpec, idempotencyKey: "a" }, { now: t0 });
+      const b = createRun({ ...dragnetSpec, idempotencyKey: "b" }, { now: t0 + 1000 });
+      const c = createRun({ ...dragnetSpec, idempotencyKey: "c" }, { now: t0 + 2000 });
       // a → cancelled. b → anchored (poke through the live ref). c → pending.
       cancelRun(a.record.runId, t0 + 3000);
       // getRun applies TTL eviction relative to `now` — pass an explicit
@@ -443,8 +437,8 @@ describe("run-store — listRuns", () => {
 
     it("composes with `pipeline` filter (status=cancelled + pipeline=program:oath)", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const dnet = createRun({ ...dragnetSpec, idempotencyKey: "dn" }, t0);
-      const oath = createRun({ ...oathSpec, idempotencyKey: "o1" }, t0 + 1000);
+      const dnet = createRun({ ...dragnetSpec, idempotencyKey: "dn" }, { now: t0 });
+      const oath = createRun({ ...oathSpec, idempotencyKey: "o1" }, { now: t0 + 1000 });
       cancelRun(dnet.record.runId, t0 + 2000);
       cancelRun(oath.record.runId, t0 + 2500);
 
@@ -458,8 +452,8 @@ describe("run-store — listRuns", () => {
 
     it("returns empty when no runs match the status filter", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
-      createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      createRun({ ...dragnetSpec, idempotencyKey: "a" }, { now: t0 });
+      createRun({ ...dragnetSpec, idempotencyKey: "b" }, { now: t0 + 1000 });
 
       // Both are pending; filter for cancelled → empty.
       const result = listRuns({ status: "cancelled" }, t0 + 2000);
@@ -470,8 +464,8 @@ describe("run-store — listRuns", () => {
 
     it("empty array means 'allowlist nothing' → empty result", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      createRun({ ...dragnetSpec, idempotencyKey: "a" }, t0);
-      createRun({ ...dragnetSpec, idempotencyKey: "b" }, t0 + 1000);
+      createRun({ ...dragnetSpec, idempotencyKey: "a" }, { now: t0 });
+      createRun({ ...dragnetSpec, idempotencyKey: "b" }, { now: t0 + 1000 });
 
       const result = listRuns({ status: [] }, t0 + 2000);
       expect(result.runs).toEqual([]);
@@ -483,11 +477,9 @@ describe("run-store — listRuns", () => {
   describe.skipIf(!STUB_ONLY)("excludes TTL-evicted runs from the list", () => {
     it("does not return runs older than the TTL", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      createRun({ ...dragnetSpec, idempotencyKey: "old" }, t0);
+      createRun({ ...dragnetSpec, idempotencyKey: "old" }, { now: t0 });
       const fresh = createRun(
-        { ...dragnetSpec, idempotencyKey: "fresh" },
-        t0 + __INTERNAL_TTL_MS + 1000,
-      );
+        { ...dragnetSpec, idempotencyKey: "fresh" }, { now: t0 + __INTERNAL_TTL_MS + 1000, });
 
       // List at a time past the original's TTL — only the fresh one survives.
       const result = listRuns({}, t0 + __INTERNAL_TTL_MS + 2000);
@@ -605,7 +597,7 @@ describe("run-store — cancelRun", () => {
   describe.skipIf(!STUB_ONLY)("STUB-only — TTL-evicted run is not-found", () => {
     it("returns kind='not-found' when the run has been TTL-evicted", () => {
       const t0 = Date.parse("2026-01-01T00:00:00.000Z");
-      const { record } = createRun(validProgramSpec, t0);
+      const { record } = createRun(validProgramSpec, { now: t0 });
       // Past TTL → evictExpired sweeps it; cancelRun returns not-found.
       const result = cancelRun(record.runId, t0 + __INTERNAL_TTL_MS + 1000);
       expect(result.kind).toBe("not-found");

@@ -24,7 +24,7 @@
 //      anonymity-caveat AND authorization acks.
 //   5. On success: { runId, phraseId, category, routingPartner,
 //      status:"submission pending", deprecated: true,
-//      replacement: "/api/v1/runs" } + RFC 8594 Deprecation/Sunset/Link
+//      replacement: "/api/v1/runs" } + RFC 9745 Deprecation/Sunset/Link
 //      headers. NOTE: bundleUrl is intentionally NOT echoed —
 //      anonymity-by-default. runId === phraseId — single primitive,
 //      identical on idempotent retries.
@@ -41,16 +41,16 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
-  rateLimitOk,
+  rateLimit,
+  rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../../lib/security/csrf";
 import { validateWhistlePayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
 
-const DEPRECATION_HEADERS: Record<string, string> = {
-  Deprecation: "true",
-  Sunset: "Wed, 31 Dec 2026 23:59:59 GMT",
-  Link: '</api/v1/runs>; rel="successor-version"',
-};
+import { DEPRECATION_HEADERS } from "../../../../../lib/api/deprecation-headers";
+import { readBoundedJson } from "../../../../../lib/api/bounded-json";
 
 interface WhistleRequestBody {
   bundleUrl?: string;
@@ -64,12 +64,24 @@ interface WhistleRequestBody {
 /**
  * Synthesize the same minute-bucketed idempotency key the WHISTLE
  * RunForm sends to /v1/runs. Format:
- *   `whistle:<routingPartner>:<category>:<bundleUrl>:<minute-bucket>`
+ *   `whistle:<ownerId>:<routingPartner>:<category>:<bundleUrl>:<minute-bucket>`
  *
- * Legacy double-click + /v1/runs double-click with the same payload land
- * on the SAME stored run record.
+ * The leading `ownerId` salt closes the cross-user existence oracle
+ * that the audit's privacy lens flagged: without the salt, any
+ * authenticated caller could probe `reused: true` for a given
+ * `(routingPartner, category, bundleUrl)` triple and learn whether
+ * SOMEONE — possibly a different operator — had already submitted
+ * that exact tuple in the current minute. With the salt, the dedupe
+ * scope is per-caller: a re-POST of the SAME body from the SAME
+ * session returns the prior phraseId; a re-POST from any other
+ * session always creates a fresh record.
+ *
+ * Legacy double-click + /v1/runs double-click from the same session
+ * still converge on the SAME stored run record because both surfaces
+ * derive `ownerId` from the same auth seed.
  */
 function synthesizeIdempotencyKey(
+  ownerId: string,
   routingPartner: string,
   category: string,
   bundleUrl: string,
@@ -77,7 +89,7 @@ function synthesizeIdempotencyKey(
 ): string {
   const minuteBucket = Math.floor(now / 60_000);
 
-  return `whistle:${routingPartner}:${category}:${bundleUrl}:${minuteBucket}`;
+  return `whistle:${ownerId}:${routingPartner}:${category}:${bundleUrl}:${minuteBucket}`;
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -87,11 +99,14 @@ export async function POST(req: Request): Promise<Response> {
       { status: 403 },
     );
   }
-  if (!rateLimitOk(req)) {
-    return NextResponse.json(
-      { error: "too many requests — slow down and try again in a minute" },
-      { status: 429 },
-    );
+  {
+    const rl = rateLimit(req);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: "too many requests — slow down and try again in a minute" },
+        { status: 429, headers: rateLimitHeaders(rl) },
+      );
+    }
   }
   if (!isAuthed(req)) {
     return NextResponse.json(
@@ -102,15 +117,20 @@ export async function POST(req: Request): Promise<Response> {
       { status: 401 },
     );
   }
-  let body: WhistleRequestBody;
-  try {
-    body = (await req.json()) as WhistleRequestBody;
-  } catch {
+  if (!isCsrfSafe(req)) {
     return NextResponse.json(
-      { error: "invalid JSON body" },
-      { status: 400 },
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
+  const parsed = await readBoundedJson(req);
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.error },
+      { status: parsed.status },
+    );
+  }
+  const body = parsed.value as WhistleRequestBody;
 
   // Single source of truth — the same validator /v1/runs uses. Keeps the
   // two surfaces from drifting. Validator also enforces the privacy
@@ -131,6 +151,7 @@ export async function POST(req: Request): Promise<Response> {
   // assigns the canonical routing-partner-scoped phraseId — that
   // becomes the user-facing runId. The phrase prefix is the routing
   // partner, NEVER the bundle source — anonymity-by-default.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:whistle",
     payload: {
@@ -143,11 +164,15 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(
+      // Salt with the caller's opaque ownerId so the cross-session
+      // existence oracle drops to zero. Fall back to "anon" when the
+      // request slipped past `isAuthed` — defensive; should never fire.
+      ownerId ?? "anon",
       routingPartner,
       category,
       bundleUrl,
     ),
-  });
+  }, { ownerId });
 
   // Privacy invariant: NEVER echo `bundleUrl` here — anonymity-by-default.
   // The bundleUrl participates in the canonical hash (idempotency) but

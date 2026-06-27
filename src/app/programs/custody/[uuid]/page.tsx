@@ -63,11 +63,11 @@ export default async function CustodyBundleViewerPage({
           </em>
         </p>
         <p>
-          Phase 6 alpha ships the library + verifier + drag-and-drop
-          journalist surface at{" "}
+          Today's release ships the library, verifier, and
+          drag-and-drop journalist surface at{" "}
           <a href="/programs/custody/verify">/programs/custody/verify</a>.
-          Phase 6+ wires the Kite Event Log so any Rekor entry posted
-          with predicate type{" "}
+          A future cut wires the Kite Event Log so any Rekor entry
+          posted with predicate type{" "}
           <code>https://pluck.run/CustodyBundle/v1</code> appears here
           within minutes.
         </p>

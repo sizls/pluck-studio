@@ -49,13 +49,13 @@ export default function AcousticScribeIndexPage(): ReactNode {
 
       <section style={CalloutStyle}>
         <h2 style={{ ...SectionHeadingStyle, marginTop: 0 }}>
-          Phase 9 alpha
+          What ships today
         </h2>
         <p>
-          In-process JS-layer capture (PCM buffers + WAV files) ships
-          in Phase 9. Live microphone streaming + native audio device
-          enumeration land in Phase 9.5 — same pattern as TRIPWIRE
-          Phase 2 vs 2.5.
+          In-process JS-layer capture (PCM buffers + WAV files) is
+          live. Live microphone streaming and native audio device
+          enumeration land later — same JS-layer-first pattern
+          TRIPWIRE uses.
         </p>
       </section>
 

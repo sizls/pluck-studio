@@ -14,8 +14,8 @@ import {
   appendDot,
   buildDossier,
   computeDotId,
-} from "@sizls/pluck-bureau-core";
-import type { Dossier, TimelineDot } from "@sizls/pluck-bureau-core";
+} from "@sizls/pluck-core";
+import type { Dossier, TimelineDot } from "@sizls/pluck-core";
 import { DossierViewer } from "@/components/programs-ui";
 
 interface PageProps {
@@ -35,8 +35,8 @@ export default async function DragnetTimelinePage({
           dragnet · {vendor}/{model}
         </h1>
         <p className="studio-hero-tagline">
-          Phase 1 alpha — this dossier is placeholder data. Live timelines
-          ship with the Kite-backed ingestion API in Phase 1.5.
+          Placeholder dossier. Live timelines arrive with the
+          Kite-backed ingestion API.
         </p>
       </section>
       <DossierViewer dossier={dossier} />

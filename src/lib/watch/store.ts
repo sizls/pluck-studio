@@ -404,8 +404,10 @@ function normalizeChannels(c: AlertChannels): AlertChannels {
 
 export function createWatch(
   spec: WatchSpec,
-  now: number = Date.now(),
+  options: { ownerId?: string | null; now?: number } = {},
 ): CreateWatchResult {
+  const now = options.now ?? Date.now();
+  const ownerId = options.ownerId ?? null;
   const idHash = idempotencyHashOf(spec);
   if (idHash !== null) {
     const existingId = idempotency.get(idHash);
@@ -446,6 +448,7 @@ export function createWatch(
     receiptUrl: `/watch/${watchId}`,
     createdAt: iso,
     updatedAt: iso,
+    ownerId,
   };
 
   watches.set(watchId, record);
