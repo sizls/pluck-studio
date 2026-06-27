@@ -133,7 +133,9 @@ export function StudioChrome({
         </nav>
         <div className="studio-auth-slot">{authSlot}</div>
       </header>
-      <main className="studio-main">{children}</main>
+      <main id="studio-main" className="studio-main" tabIndex={-1}>
+        {children}
+      </main>
       <footer className="studio-footer">
         <div className="studio-footer-grid">
           <div className="studio-footer-col">
