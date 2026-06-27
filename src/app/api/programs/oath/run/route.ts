@@ -37,6 +37,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateOathPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -128,6 +129,7 @@ export async function POST(req: Request): Promise<Response> {
   // omits `hostingOrigin` when not explicitly set; we mirror that here.
   // canonicalJson() skips undefined object values, so an absent key and
   // an `undefined` value produce identical hashes.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:oath",
     payload: {
@@ -136,7 +138,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(vendorDomain, effectiveHostingOrigin),
-  });
+  }, { ownerId });
 
   // The store-assigned runId is a vendor-scoped phrase ID because the
   // program:oath payload carries `vendorDomain` — `runIdForProgram` derives

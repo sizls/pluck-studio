@@ -42,6 +42,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateMolePayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -132,6 +133,7 @@ export async function POST(req: Request): Promise<Response> {
   // public-log array; not the canary body) and the auth-ack flag enter
   // the store payload. canaryBody/canaryContent are rejected upstream
   // by the validator.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:mole",
     payload: {
@@ -145,7 +147,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(canaryId, canaryUrl),
-  });
+  }, { ownerId });
 
   return NextResponse.json(
     {

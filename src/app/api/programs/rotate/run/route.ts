@@ -38,6 +38,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateRotatePayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -124,6 +125,7 @@ export async function POST(req: Request): Promise<Response> {
   // page can read this run back via GET /api/v1/runs/[id]. The store
   // assigns the canonical reason-scoped phraseId — that becomes the
   // user-facing runId.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:rotate",
     payload: {
@@ -140,7 +142,7 @@ export async function POST(req: Request): Promise<Response> {
       oldKeyFingerprint,
       newKeyFingerprint,
     ),
-  });
+  }, { ownerId });
 
   return NextResponse.json(
     {

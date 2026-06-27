@@ -10,7 +10,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resetRateLimit } from "../../rate-limit.js";
-import { rateLimit, rateLimitHeaders } from "../request-guards.js";
+import {
+  ownerIdFromRequest,
+  rateLimit,
+  rateLimitHeaders,
+} from "../request-guards.js";
 
 beforeEach(() => {
   resetRateLimit();
@@ -81,5 +85,70 @@ describe("rateLimitHeaders builder", () => {
     });
     expect(headers["Retry-After"]).toBe("42");
     expect(headers["X-RateLimit-Remaining"]).toBe("0");
+  });
+});
+
+describe("ownerIdFromRequest — IDOR foundation", () => {
+  function reqWith(headers: Record<string, string>): Request {
+    return new Request("https://studio.pluck.run/test", { headers });
+  }
+
+  it("returns null for an unauthenticated request", () => {
+    expect(ownerIdFromRequest(reqWith({}))).toBeNull();
+  });
+
+  it("derives a stable opaque id from a Supabase auth cookie", () => {
+    const req = reqWith({
+      cookie: "sb-pluck-auth-token=eyJhbGciOiJIUzI1NiJ9.abc.def",
+    });
+    const id = ownerIdFromRequest(req);
+    expect(id).not.toBeNull();
+    expect(id).toMatch(/^[a-f0-9]{24}$/);
+  });
+
+  it("returns the same id for the same cookie across requests", () => {
+    const req1 = reqWith({
+      cookie: "sb-pluck-auth-token=eyJhbGciOiJIUzI1NiJ9.abc.def",
+    });
+    const req2 = reqWith({
+      cookie: "sb-pluck-auth-token=eyJhbGciOiJIUzI1NiJ9.abc.def",
+    });
+    expect(ownerIdFromRequest(req1)).toBe(ownerIdFromRequest(req2));
+  });
+
+  it("returns different ids for different cookies (IDOR foundation)", () => {
+    const userA = reqWith({
+      cookie: "sb-pluck-auth-token=eyJhbGciOiJIUzI1NiJ9.aaa.bbb",
+    });
+    const userB = reqWith({
+      cookie: "sb-pluck-auth-token=eyJhbGciOiJIUzI1NiJ9.xxx.yyy",
+    });
+    const idA = ownerIdFromRequest(userA);
+    const idB = ownerIdFromRequest(userB);
+    expect(idA).not.toBeNull();
+    expect(idB).not.toBeNull();
+    expect(idA).not.toBe(idB);
+  });
+
+  it("falls back to the bearer token when no cookie is present", () => {
+    // vitest runs with NODE_ENV=test so bearer is allowed.
+    const req = reqWith({ authorization: "Bearer dev-secret-token" });
+    const id = ownerIdFromRequest(req);
+    expect(id).not.toBeNull();
+    expect(id).toMatch(/^[a-f0-9]{24}$/);
+  });
+
+  it("scopes cookie-derived ids vs bearer-derived ids so they cannot collide", () => {
+    // Same raw secret used in both surfaces should still hash to
+    // different owner ids because the seed is prefixed with the
+    // surface name. Prevents an attacker from forging a session by
+    // matching a token-string against a cookie-string.
+    const reqCookie = reqWith({
+      cookie: "sb-pluck-auth-token=shared-secret",
+    });
+    const reqBearer = reqWith({ authorization: "Bearer shared-secret" });
+    expect(ownerIdFromRequest(reqCookie)).not.toBe(
+      ownerIdFromRequest(reqBearer),
+    );
   });
 });

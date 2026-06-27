@@ -43,6 +43,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateWhistlePayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -131,6 +132,7 @@ export async function POST(req: Request): Promise<Response> {
   // assigns the canonical routing-partner-scoped phraseId — that
   // becomes the user-facing runId. The phrase prefix is the routing
   // partner, NEVER the bundle source — anonymity-by-default.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:whistle",
     payload: {
@@ -147,7 +149,7 @@ export async function POST(req: Request): Promise<Response> {
       category,
       bundleUrl,
     ),
-  });
+  }, { ownerId });
 
   // Privacy invariant: NEVER echo `bundleUrl` here — anonymity-by-default.
   // The bundleUrl participates in the canonical hash (idempotency) but

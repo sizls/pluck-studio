@@ -33,6 +33,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateFingerprintPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -136,6 +137,7 @@ export async function POST(req: Request): Promise<Response> {
   // /v1/runs so (pipeline, payload, idempotencyKey) canonicalises
   // identically and legacy + /v1/runs callers converge on the SAME
   // phraseId.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:fingerprint",
     payload: {
@@ -144,7 +146,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(vendor, model),
-  });
+  }, { ownerId });
 
   return NextResponse.json(
     {

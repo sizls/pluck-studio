@@ -29,6 +29,7 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
+  ownerIdFromRequest,
   rateLimit,
   rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
@@ -173,9 +174,40 @@ export async function DELETE(
     );
   }
 
+  // IDOR fix: only the run's creator can cancel it. Look up the record
+  // BEFORE invoking `cancelRun` so the ownership check fires whether
+  // the record exists yet or not — `cancelRun` itself doesn't take an
+  // owner argument so the gate has to live here.
+  //
+  // Records created BEFORE the IDOR fix landed have `ownerId === null`
+  // (legacy / stub data). We let those through — there are no
+  // production records yet because the store is in-memory, so the
+  // legacy-passthrough is only relevant for tests + dev. Once a real
+  // record carries a non-null ownerId, that ownerId MUST match the
+  // caller's derived ownerId or the cancel is rejected as 403.
+  const existing = getRun(id);
+  if (existing === null) {
+    return NextResponse.json(
+      { error: "run not found" },
+      { status: 404 },
+    );
+  }
+  if (existing.ownerId !== null) {
+    const callerOwnerId = ownerIdFromRequest(req);
+    if (callerOwnerId === null || existing.ownerId !== callerOwnerId) {
+      return NextResponse.json(
+        { error: "not authorized to cancel this run" },
+        { status: 403 },
+      );
+    }
+  }
+
   const result = cancelRun(id);
 
   if (result.kind === "not-found") {
+    // Race: the run vanished (TTL eviction) between the getRun above
+    // and the cancelRun call. Surface the same 404 the read side
+    // would emit.
     return NextResponse.json(
       { error: "run not found" },
       { status: 404 },

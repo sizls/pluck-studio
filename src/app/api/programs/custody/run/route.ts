@@ -34,6 +34,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateCustodyPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -127,6 +128,7 @@ export async function POST(req: Request): Promise<Response> {
   // the bundle hostname is used. Form must omit `expectedVendor` when
   // empty so canonicalJson skips the field and legacy + /v1/runs hash
   // identically.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:custody",
     payload: {
@@ -138,7 +140,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(vendorOrUnknown, bundleUrl),
-  });
+  }, { ownerId });
 
   return NextResponse.json(
     {

@@ -35,6 +35,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../lib/security/request-guards";
 import { readBoundedJson } from "../../../../lib/api/bounded-json";
 import { PIPELINE_VALIDATORS } from "../../../../lib/v1/pipeline-validators";
@@ -146,7 +147,8 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: payloadResult.error }, { status: 400 });
   }
 
-  const { record, reused } = createRun(spec);
+  const ownerId = ownerIdFromRequest(req);
+  const { record, reused } = createRun(spec, { ownerId });
 
   return NextResponse.json(
     {

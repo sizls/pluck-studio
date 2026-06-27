@@ -24,6 +24,7 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
+  ownerIdFromRequest,
   rateLimit,
   rateLimitHeaders,
 } from "../../../../lib/security/request-guards";
@@ -78,7 +79,8 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
-  const { record, reused } = createWatch(validated.spec);
+  const ownerId = ownerIdFromRequest(req);
+  const { record, reused } = createWatch(validated.spec, { ownerId });
 
   // Envelope-on-create / resource-on-read pattern (same as /v1/runs).
   // POST returns the minimum needed to redirect + de-dupe; GET/PATCH/DELETE

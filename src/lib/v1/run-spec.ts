@@ -117,6 +117,15 @@ export interface RunRecord {
   updatedAt: string;
   /** Path to the receipt page, e.g. `/programs/dragnet/runs/<runId>`. */
   receiptUrl: string;
+  /**
+   * Pin the run to its creator so DELETE / mutate endpoints can reject
+   * cross-account access (IDOR fix). Derived from
+   * `ownerIdFromRequest(req)` at create time. `null` only for legacy
+   * records written before the IDOR fix landed — those records skip
+   * the ownership check and rely on the pre-IDOR-fix "anyone authed"
+   * behavior. Fresh records always carry an ownerId.
+   */
+  ownerId: string | null;
 }
 
 const ALLOWED_TOP_LEVEL: ReadonlySet<string> = new Set([

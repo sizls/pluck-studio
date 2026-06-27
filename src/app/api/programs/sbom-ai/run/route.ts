@@ -35,6 +35,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateSbomAiPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -122,6 +123,7 @@ export async function POST(req: Request): Promise<Response> {
   //
   // expectedSha256 is omitted from the payload when empty so canonicalJson
   // skips the field and legacy + /v1/runs hash identically.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:sbom-ai",
     payload: {
@@ -135,7 +137,7 @@ export async function POST(req: Request): Promise<Response> {
       artifactUrl,
       expectedSha256,
     ),
-  });
+  }, { ownerId });
 
   return NextResponse.json(
     {

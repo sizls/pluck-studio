@@ -39,6 +39,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateNucleiPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -135,6 +136,7 @@ export async function POST(req: Request): Promise<Response> {
   // `generateScopedPhraseId("https://<author>.example")` for NUCLEI
   // payloads carrying `author` — same shape the legacy route produced
   // pre-migration, and the same shape the /v1/runs caller sees.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:nuclei",
     payload: {
@@ -147,7 +149,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(author, packName, sbomRekorUuid),
-  });
+  }, { ownerId });
 
   // Anticipated verdict — Phase-stub: there's no real TOFU step yet, so
   // we mirror eventual semantics. A pre-validated sbomRekorUuid (passed

@@ -43,6 +43,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateDragnetPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -141,6 +142,7 @@ export async function POST(req: Request): Promise<Response> {
   // SAME phraseId — both for legacy callers and for /v1/runs callers
   // posting the same body. Without this, every legacy POST created a
   // ghost run regardless of dedupe (C1 critical from the AE review).
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:dragnet",
     payload: {
@@ -150,7 +152,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(targetUrl, probePackId, cadence),
-  });
+  }, { ownerId });
 
   // M5 fix: previously `runId` was a per-request randomUUID() that diverged
   // from `phraseId`. Two callers couldn't dedupe on `runId` because it was

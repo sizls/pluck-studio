@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import {
   isAuthed,
   isSameSiteRequest,
+  ownerIdFromRequest,
   rateLimit,
   rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
@@ -128,6 +129,24 @@ export async function PATCH(
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
+  // IDOR fix: PATCH is owner-only. Lookup the record BEFORE invoking
+  // updateWatch so the ownership check fires whether or not the update
+  // would succeed. Legacy watches (ownerId === null) pass through to
+  // preserve the pre-IDOR-fix behavior.
+  const existing = getWatch(id);
+  if (existing === null) {
+    return NextResponse.json({ error: "watch not found" }, { status: 404 });
+  }
+  if (existing.ownerId !== null) {
+    const callerOwnerId = ownerIdFromRequest(req);
+    if (callerOwnerId === null || existing.ownerId !== callerOwnerId) {
+      return NextResponse.json(
+        { error: "not authorized to update this watch" },
+        { status: 403 },
+      );
+    }
+  }
+
   const result = updateWatch(id, validated.update);
   if (result.kind === "not-found") {
     return NextResponse.json({ error: "watch not found" }, { status: 404 });
@@ -175,6 +194,23 @@ export async function DELETE(
   const idCheck = validateId(id);
   if (!idCheck.ok) {
     return NextResponse.json({ error: idCheck.error }, { status: 400 });
+  }
+
+  // IDOR fix: archive (DELETE) is owner-only. Same pattern as PATCH.
+  {
+    const existing = getWatch(id);
+    if (existing === null) {
+      return NextResponse.json({ error: "watch not found" }, { status: 404 });
+    }
+    if (existing.ownerId !== null) {
+      const callerOwnerId = ownerIdFromRequest(req);
+      if (callerOwnerId === null || existing.ownerId !== callerOwnerId) {
+        return NextResponse.json(
+          { error: "not authorized to archive this watch" },
+          { status: 403 },
+        );
+      }
+    }
   }
 
   const result = archiveWatch(id);

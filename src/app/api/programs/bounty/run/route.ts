@@ -39,6 +39,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateBountyPayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -127,6 +128,7 @@ export async function POST(req: Request): Promise<Response> {
   // page can read this run back via GET /api/v1/runs/[id]. The store
   // assigns the canonical target-scoped phraseId — that becomes the
   // user-facing runId.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:bounty",
     payload: {
@@ -138,7 +140,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(target, program, sourceRekorUuid),
-  });
+  }, { ownerId });
 
   return NextResponse.json(
     {

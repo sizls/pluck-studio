@@ -41,6 +41,7 @@ import {
   isSameSiteRequest,
   rateLimit,
   rateLimitHeaders,
+  ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
 import { validateTripwirePayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
@@ -129,6 +130,7 @@ export async function POST(req: Request): Promise<Response> {
   // customPolicyUrl is omitted from the payload when empty (default
   // policy) so canonicalJson skips it and legacy + /v1/runs hash
   // identically.
+  const ownerId = ownerIdFromRequest(req);
   const { record } = createRun({
     pipeline: "program:tripwire",
     payload: {
@@ -142,7 +144,7 @@ export async function POST(req: Request): Promise<Response> {
       authorizationAcknowledged: body.authorizationAcknowledged,
     },
     idempotencyKey: synthesizeIdempotencyKey(machineId, policySource),
-  });
+  }, { ownerId });
 
   return NextResponse.json(
     {
