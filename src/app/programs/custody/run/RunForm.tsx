@@ -32,6 +32,7 @@ import {
   StudioSignInPrompt,
 } from "../../../../components/programs-ui/forms";
 import { custodyRunFormModule } from "../../../../lib/custody/run-form-module";
+import { csrfJsonHeaders } from "../../../../lib/security/csrf-client";
 
 interface RunResponse {
   runId?: string;
@@ -179,7 +180,7 @@ export function CustodyRunForm(): ReactNode {
       // matches across both surfaces.
       const res = await fetch("/api/v1/runs", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: csrfJsonHeaders(),
         body: JSON.stringify({
           pipeline: "program:custody",
           payload: {

@@ -17,6 +17,7 @@ import {
   rateLimit,
   rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../../lib/security/csrf";
 import { redactWatchForGet } from "../../../../../lib/v1/redact";
 import {
   archiveWatch,
@@ -112,6 +113,12 @@ export async function PATCH(
       { status: 401 },
     );
   }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
+    );
+  }
 
   const { id } = await context.params;
   const idCheck = validateId(id);
@@ -187,6 +194,12 @@ export async function DELETE(
     return NextResponse.json(
       { error: "authentication required" },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 

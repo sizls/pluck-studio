@@ -33,6 +33,7 @@ import {
   StudioTextarea,
 } from "../../../components/programs-ui/forms";
 import { watchFormModule } from "../../../lib/watch/watch-form-module";
+import { csrfJsonHeaders } from "../../../lib/security/csrf-client";
 import type {
   AlertChannels,
   AutonomyMode,
@@ -274,7 +275,7 @@ export function NewWatchForm(): ReactNode {
     try {
       const res = await fetch("/api/v1/watches", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: csrfJsonHeaders(),
         body: JSON.stringify({
           name,
           url,

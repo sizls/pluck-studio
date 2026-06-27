@@ -40,6 +40,7 @@ import {
   rateLimitHeaders,
   ownerIdFromRequest,
 } from "../../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../../lib/security/csrf";
 import { validateRotatePayload } from "../../../../../lib/v1/pipeline-validators";
 import { createRun } from "../../../../../lib/v1/run-store";
 
@@ -96,6 +97,12 @@ export async function POST(req: Request): Promise<Response> {
         signInUrl: "/sign-in?redirect=/programs/rotate/run",
       },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
   const parsed = await readBoundedJson(req);

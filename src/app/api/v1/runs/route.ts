@@ -37,6 +37,7 @@ import {
   rateLimitHeaders,
   ownerIdFromRequest,
 } from "../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../lib/security/csrf";
 import { readBoundedJson } from "../../../../lib/api/bounded-json";
 import { PIPELINE_VALIDATORS } from "../../../../lib/v1/pipeline-validators";
 import { redactPayloadForGet } from "../../../../lib/v1/redact";
@@ -130,6 +131,12 @@ export async function POST(req: Request): Promise<Response> {
         signInUrl: `/sign-in?redirect=${redirect}`,
       },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 

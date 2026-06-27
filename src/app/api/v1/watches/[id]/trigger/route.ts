@@ -19,6 +19,7 @@ import {
   rateLimit,
   rateLimitHeaders,
 } from "../../../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../../../lib/security/csrf";
 import { getWatch, triggerWatch } from "../../../../../../lib/watch/store";
 
 interface RouteContext {
@@ -50,6 +51,12 @@ export async function POST(
     return NextResponse.json(
       { error: "authentication required" },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 

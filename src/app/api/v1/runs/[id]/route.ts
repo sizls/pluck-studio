@@ -33,6 +33,7 @@ import {
   rateLimit,
   rateLimitHeaders,
 } from "../../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../../lib/security/csrf";
 import { redactPayloadForGet } from "../../../../../lib/v1/redact";
 import { cancelRun, getRun } from "../../../../../lib/v1/run-store";
 
@@ -163,6 +164,12 @@ export async function DELETE(
     return NextResponse.json(
       { error: "authentication required" },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 

@@ -19,6 +19,7 @@ import {
 } from "react";
 
 import type { PublicWatchRecord } from "../../../lib/v1/redact";
+import { csrfJsonHeaders } from "../../../lib/security/csrf-client";
 import type {
   ObservationRecord,
   WatchStatus,
@@ -211,7 +212,7 @@ export function WatchDetailView({
     await doAction(next, () =>
       fetch(`/api/v1/watches/${watchId}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: csrfJsonHeaders(),
         body: JSON.stringify({ status: next }),
       }),
     );

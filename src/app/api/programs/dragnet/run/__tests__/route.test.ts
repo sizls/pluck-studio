@@ -144,11 +144,14 @@ describe("POST /api/programs/dragnet/run — auth", () => {
   });
 
   it("accepts a Supabase auth cookie", async () => {
+    // Cookie-based auth requires the CSRF double-submit token.
+    const csrfToken = "a".repeat(64);
     const res = await POST(
       buildRequest({
         headers: {
           ...SAME_SITE_HEADERS,
-          cookie: "sb-abcdef-auth-token=eyJhbGciOiJIUzI1NiJ9.test.sig",
+          cookie: `sb-abcdef-auth-token=eyJhbGciOiJIUzI1NiJ9.test.sig; pluck-csrf=${csrfToken}`,
+          "x-csrf-token": csrfToken,
         },
         body: validBody(),
       }),
@@ -166,11 +169,13 @@ describe("POST /api/programs/dragnet/run — auth", () => {
   });
 
   it("accepts chunked Supabase cookie (sb-*-auth-token.0)", async () => {
+    const csrfToken = "b".repeat(64);
     const res = await POST(
       buildRequest({
         headers: {
           ...SAME_SITE_HEADERS,
-          cookie: "sb-abcdef-auth-token.0=chunk-zero-content; other=x",
+          cookie: `sb-abcdef-auth-token.0=chunk-zero-content; other=x; pluck-csrf=${csrfToken}`,
+          "x-csrf-token": csrfToken,
         },
         body: validBody(),
       }),

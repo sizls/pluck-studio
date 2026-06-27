@@ -28,6 +28,7 @@ import {
   rateLimit,
   rateLimitHeaders,
 } from "../../../../lib/security/request-guards";
+import { isCsrfSafe } from "../../../../lib/security/csrf";
 import { redactWatchForGet } from "../../../../lib/v1/redact";
 import {
   createWatch,
@@ -66,6 +67,12 @@ export async function POST(req: Request): Promise<Response> {
         signInUrl: "/sign-in?redirect=/watch",
       },
       { status: 401 },
+    );
+  }
+  if (!isCsrfSafe(req)) {
+    return NextResponse.json(
+      { error: "csrf token invalid or missing" },
+      { status: 403 },
     );
   }
 
