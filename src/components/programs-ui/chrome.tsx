@@ -64,7 +64,10 @@ const CROSS_CUTTING_LINKS: ReadonlyArray<{
   { id: "runs", label: "Runs", href: "/runs" },
   { id: "vendor", label: "Vendors", href: "/vendor" },
   { id: "watch", label: "Watch", href: "/watch" },
-  { id: "monitors", label: "Monitors", href: "/monitors" },
+  // `monitors` is intentionally NOT linked from the primary nav until the
+  // Kite Event Log is wired and the page renders real quorum-node data.
+  // The page itself still exists (deep links + the placeholder banner
+  // still work) but a cold visitor doesn't get steered into the stub.
   {
     id: "what-we-dont-know",
     label: "What we don't know",

@@ -46,10 +46,16 @@ export default function CustodyIndexPage(): ReactNode {
           902(13) compliance result appears in your browser, no
           network round-trip.
         </p>
+        {/* Drag-drop verify is the production-shipped surface — it runs
+           the full verifier in the browser with no network round-trip.
+           The "Verify by URL" route depends on the Kite Event Log
+           ingestion path, which is still pending. Promote drag-drop to
+           the primary CTA so journalists hit the working path first;
+           keep URL-verify as the secondary so deep links keep working. */}
         <p style={{ marginTop: 16 }}>
           <a
-            href="/programs/custody/run"
-            data-testid="run-cta"
+            href="/programs/custody/verify"
+            data-testid="verify-offline-cta"
             style={{
               display: "inline-block",
               padding: "10px 20px",
@@ -62,11 +68,11 @@ export default function CustodyIndexPage(): ReactNode {
               marginRight: 12,
             }}
           >
-            Verify a bundle by URL →
+            Drag-drop verify (offline) →
           </a>
           <a
-            href="/programs/custody/verify"
-            data-testid="verify-offline-cta"
+            href="/programs/custody/run"
+            data-testid="run-cta"
             style={{
               display: "inline-block",
               padding: "10px 20px",
@@ -79,7 +85,7 @@ export default function CustodyIndexPage(): ReactNode {
               borderRadius: 4,
             }}
           >
-            Drag-drop verify (offline) →
+            Verify a bundle by URL →
           </a>
         </p>
       </section>
