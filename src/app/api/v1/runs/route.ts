@@ -52,6 +52,25 @@ import {
 } from "../../../../lib/v1/run-spec";
 
 /**
+ * Build the same minute-bucketed, ownerId-salted WHISTLE idempotency
+ * key the deprecated alias route synthesizes server-side. Keeps
+ * `/v1/runs` and the alias path converging on the same runId for a
+ * legitimate re-POST from the same session while making the
+ * cross-session existence oracle impossible to probe.
+ */
+function synthesizeWhistleIdempotencyKey(
+  ownerId: string,
+  payload: Record<string, unknown>,
+): string {
+  const routingPartner = String((payload.routingPartner ?? "")).trim();
+  const category = String((payload.category ?? "")).trim();
+  const bundleUrl = String((payload.bundleUrl ?? "")).trim();
+  const minuteBucket = Math.floor(Date.now() / 60_000);
+
+  return `whistle:${ownerId}:${routingPartner}:${category}:${bundleUrl}:${minuteBucket}`;
+}
+
+/**
  * Best-effort peek at the pipeline before full validation, used only to
  * pick a pipeline-aware sign-in redirect on the 401 path. Returns a
  * Pluck slug if the body is shaped like `{ pipeline: "program:<slug>", … }`,
@@ -148,7 +167,33 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const ownerId = ownerIdFromRequest(req);
-  const { record, reused } = createRun(spec, { ownerId });
+
+  // WHISTLE existence-oracle fix: override the client-supplied
+  // idempotency key with an ownerId-salted one server-side. Without
+  // the salt, any authenticated caller could probe `reused: true` for
+  // a given (routingPartner, category, bundleUrl) triple and learn
+  // whether SOMEONE (possibly another operator) had submitted that
+  // exact tuple in the current minute. With the salt, dedupe is
+  // per-caller: a re-POST of the same body from the same session
+  // returns the prior phraseId; a re-POST from any other session
+  // always creates a fresh record.
+  //
+  // The override applies ONLY to WHISTLE — the other 10 program
+  // pipelines do not carry the same source-anonymity contract, so
+  // their idempotency keys stay deterministic across sessions
+  // (allowing dedupe across multiple sign-in flows etc).
+  const effectiveSpec =
+    spec.pipeline === "program:whistle"
+      ? {
+          ...spec,
+          idempotencyKey: synthesizeWhistleIdempotencyKey(
+            ownerId ?? "anon",
+            spec.payload,
+          ),
+        }
+      : spec;
+
+  const { record, reused } = createRun(effectiveSpec, { ownerId });
 
   return NextResponse.json(
     {
