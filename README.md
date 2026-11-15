@@ -1,5 +1,7 @@
 # Pluck Studio
 
+> **Archived (2026-11-15).** Pluck Studio and its eleven Bureau programs are frozen at version 1.0.34 and are no longer developed. The site at `studio.pluck.run` stays up as a historical record, with a notice on every page. Current Pluck work is published at [docs.pluck.run](https://docs.pluck.run/).
+
 Operator UI for [Pluck Bureau](https://github.com/sizls/pluck) — the public web surface at `studio.pluck.run` hosting the hacking & security programs (DRAGNET, NUCLEI, CUSTODY, etc.).
 
 ## Tech

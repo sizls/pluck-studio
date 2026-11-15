@@ -38,6 +38,25 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Archive notice — shown on every page since the programs were frozen. */
+.archive-notice {
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--bureau-border);
+  background: #1a1500;
+  color: var(--bureau-fg);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.archive-notice strong {
+  color: var(--bureau-tone-yellow);
+}
+
+.archive-notice a {
+  color: var(--bureau-tone-yellow);
+  text-decoration: underline;
+}
+
 .bureau-chrome {
   display: flex;
   flex-direction: column;
